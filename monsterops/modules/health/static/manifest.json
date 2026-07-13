@@ -1,0 +1,12 @@
+{
+  "module": "health",
+  "nav": [
+    {
+      "label": "Health",
+      "icon": "activity",
+      "path": "/health",
+      "group": "Monitoring"
+    }
+  ],
+  "js": "/modules/health/health.js"
+}

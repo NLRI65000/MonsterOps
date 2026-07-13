@@ -1,0 +1,12 @@
+{
+  "module": "ip_pools",
+  "nav": [
+    {
+      "label": "IP Pools",
+      "icon": "globe",
+      "path": "/ip-pools",
+      "group": "RADIUS"
+    }
+  ],
+  "js": "/modules/ip_pools/ip_pools.js"
+}

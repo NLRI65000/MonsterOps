@@ -1,0 +1,4 @@
+# Minimal RADIUS dictionary for Status-Server health probes (RFC 5997)
+ATTRIBUTE User-Name              1   string
+ATTRIBUTE NAS-Identifier         32  string
+ATTRIBUTE Message-Authenticator  80  octets

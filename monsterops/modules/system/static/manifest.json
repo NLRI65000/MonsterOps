@@ -1,0 +1,12 @@
+{
+  "module": "system",
+  "nav": [
+    {
+      "label": "Settings",
+      "icon": "settings",
+      "path": "/system",
+      "group": "System"
+    }
+  ],
+  "js": "/modules/system/system.js"
+}

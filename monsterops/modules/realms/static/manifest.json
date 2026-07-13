@@ -1,0 +1,12 @@
+{
+  "module": "realms",
+  "nav": [
+    {
+      "label": "Realms",
+      "icon": "share",
+      "path": "/realms",
+      "group": "RADIUS"
+    }
+  ],
+  "js": "/modules/realms/realms.js"
+}

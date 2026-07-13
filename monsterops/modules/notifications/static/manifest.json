@@ -1,0 +1,12 @@
+{
+  "module": "notifications",
+  "nav": [
+    {
+      "label": "Alerting",
+      "icon": "bell",
+      "path": "/notifications",
+      "group": "Alerting"
+    }
+  ],
+  "js": "/modules/notifications/notifications.js"
+}

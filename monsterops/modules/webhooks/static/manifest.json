@@ -1,0 +1,5 @@
+{
+  "module": "webhooks",
+  "nav": [],
+  "js": "/modules/webhooks/webhooks.js"
+}

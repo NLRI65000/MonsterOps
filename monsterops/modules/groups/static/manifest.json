@@ -1,0 +1,12 @@
+{
+  "module": "groups",
+  "nav": [
+    {
+      "label": "Groups",
+      "icon": "layers",
+      "path": "/groups",
+      "group": "RADIUS"
+    }
+  ],
+  "js": "/modules/groups/groups.js"
+}

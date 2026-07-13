@@ -1,0 +1,12 @@
+{
+  "module": "users",
+  "nav": [
+    {
+      "label": "Users",
+      "icon": "users",
+      "path": "/users",
+      "group": "RADIUS"
+    }
+  ],
+  "js": "/modules/users/users.js"
+}

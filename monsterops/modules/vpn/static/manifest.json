@@ -1,0 +1,12 @@
+{
+  "module": "vpn",
+  "nav": [
+    {
+      "label": "VPN",
+      "icon": "shield",
+      "path": "/vpn",
+      "group": "Network"
+    }
+  ],
+  "js": "/modules/vpn/vpn.js"
+}

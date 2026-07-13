@@ -1,0 +1,12 @@
+{
+  "module": "automation",
+  "nav": [
+    {
+      "label": "Automation",
+      "icon": "cpu",
+      "path": "/automation",
+      "group": "Automation"
+    }
+  ],
+  "js": "/modules/automation/automation.js"
+}

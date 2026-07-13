@@ -1,0 +1,12 @@
+{
+  "module": "accounting",
+  "nav": [
+    {
+      "label": "Sessions",
+      "icon": "activity",
+      "path": "/accounting",
+      "group": "Monitoring"
+    }
+  ],
+  "js": "/modules/accounting/accounting.js"
+}

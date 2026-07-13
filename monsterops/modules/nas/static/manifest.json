@@ -1,0 +1,12 @@
+{
+  "module": "nas",
+  "nav": [
+    {
+      "label": "NAS",
+      "icon": "server",
+      "path": "/nas",
+      "group": "Network"
+    }
+  ],
+  "js": "/modules/nas/nas.js"
+}

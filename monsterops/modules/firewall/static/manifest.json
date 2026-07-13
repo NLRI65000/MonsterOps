@@ -1,0 +1,12 @@
+{
+  "module": "firewall",
+  "nav": [
+    {
+      "label": "Firewall",
+      "icon": "shield",
+      "path": "/firewall",
+      "group": "Network"
+    }
+  ],
+  "js": "/modules/firewall/firewall.js"
+}

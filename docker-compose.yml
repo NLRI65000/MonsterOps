@@ -1,0 +1,35 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: radius
+      POSTGRES_PASSWORD: radius
+      POSTGRES_DB: radius
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U radius"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    environment:
+      MONSTEROPS_DATABASE_URL: postgresql+asyncpg://radius:radius@postgres:5432/radius
+      # IMPORTANT: change this to a random secret before exposing to any network.
+      # Generate one with: openssl rand -hex 32
+      MONSTEROPS_SECRET_KEY: change-me-before-production
+      MONSTEROPS_DEBUG: "false"
+      MONSTEROPS_LOG_LEVEL: info
+    command: >
+      sh -c "python -m alembic upgrade head && monsterops serve --host 0.0.0.0 --port 8000"
+
+volumes:
+  pgdata:

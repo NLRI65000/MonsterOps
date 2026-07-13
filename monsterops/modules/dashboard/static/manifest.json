@@ -1,0 +1,7 @@
+{
+  "module": "dashboard",
+  "nav": [
+    { "label": "Dashboard", "icon": "grid", "path": "/dashboard" }
+  ],
+  "js": "/modules/dashboard/dashboard.js"
+}

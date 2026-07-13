@@ -1,0 +1,12 @@
+{
+  "module": "reports",
+  "nav": [
+    {
+      "label": "Reports",
+      "icon": "bar-chart",
+      "path": "/reports",
+      "group": "Monitoring"
+    }
+  ],
+  "js": "/modules/reports/reports.js"
+}

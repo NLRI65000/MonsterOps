@@ -1,0 +1,12 @@
+{
+  "module": "auth_logs",
+  "nav": [
+    {
+      "label": "Logs",
+      "icon": "file-text",
+      "path": "/logs",
+      "group": "Monitoring"
+    }
+  ],
+  "js": "/modules/auth_logs/auth_logs.js"
+}
