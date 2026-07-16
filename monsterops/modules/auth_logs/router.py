@@ -13,7 +13,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from monsterops.config import settings
 from monsterops.database import get_db
-from monsterops.pagination import decode_cursor, encode_cursor
 from monsterops.geo import lookup_calling_station as geo_lookup_cs
 from monsterops.modules.accounting.models import Radacct
 from monsterops.modules.auth.utils import get_current_user
@@ -24,8 +23,10 @@ from monsterops.modules.auth_logs.schemas import (
     RadpostauthOut,
     TimelinePoint,
 )
+from monsterops.pagination import decode_cursor, encode_cursor
 
 router = APIRouter(prefix="/api/auth-logs", tags=["auth_logs"])
+
 
 
 
@@ -86,17 +87,18 @@ async def list_auth_logs(
     if to_:
         filters.append(Radpostauth.authdate <= to_)
 
-    stmt = select(Radpostauth).where(*filters).order_by(
-        Radpostauth.authdate.desc(), Radpostauth.id.desc()
-    ).limit(limit)
+    stmt = (
+        select(Radpostauth)
+        .where(*filters)
+        .order_by(Radpostauth.authdate.desc(), Radpostauth.id.desc())
+        .limit(limit)
+    )
     if before:
         try:
             bt, bid = decode_cursor(before)
         except ValueError:
             raise HTTPException(400, "invalid cursor")
-        stmt = stmt.where(
-            tuple_(Radpostauth.authdate, Radpostauth.id) < tuple_(bt, bid)
-        )
+        stmt = stmt.where(tuple_(Radpostauth.authdate, Radpostauth.id) < tuple_(bt, bid))
     else:
         stmt = stmt.offset(offset)
 
@@ -143,10 +145,7 @@ async def get_anomalies(
         .group_by(Radacct.username)
         .having(func.count(func.distinct(func.host(Radacct.nasipaddress))) > 1)
     )
-    concurrent = [
-        {"username": r.username, "nas_count": int(r.nas_count)}
-        for r in multi_q.all()
-    ]
+    concurrent = [{"username": r.username, "nas_count": int(r.nas_count)} for r in multi_q.all()]
 
     off_q = await db.execute(
         select(Radpostauth)
@@ -181,8 +180,7 @@ async def get_anomalies(
         .limit(20)
     )
     multi_location = [
-        {"username": r.username, "nas_count": int(r.nas_count)}
-        for r in multi_loc_q.all()
+        {"username": r.username, "nas_count": int(r.nas_count)} for r in multi_loc_q.all()
     ]
 
     return {
@@ -191,6 +189,7 @@ async def get_anomalies(
         "multi_location_users": multi_location,
         "window_hours": hours,
     }
+
 
 
 
@@ -209,39 +208,49 @@ async def export_csv(
         filters.append(Radpostauth.reply == reply)
 
     q = await db.execute(
-        select(Radpostauth)
-        .where(*filters)
-        .order_by(Radpostauth.authdate.desc())
-        .limit(limit)
+        select(Radpostauth).where(*filters).order_by(Radpostauth.authdate.desc()).limit(limit)
     )
     rows = q.scalars().all()
 
     buf = io.StringIO()
     writer = csv.writer(buf)
-    writer.writerow([
-        "Time", "Username", "Result", "Auth Method", "Failure Reason",
-        "Latency (ms)", "Calling Station", "Called Station", "NAS IP", "NAS ID",
-    ])
+    writer.writerow(
+        [
+            "Time",
+            "Username",
+            "Result",
+            "Auth Method",
+            "Failure Reason",
+            "Latency (ms)",
+            "Calling Station",
+            "Called Station",
+            "NAS IP",
+            "NAS ID",
+        ]
+    )
     for r in rows:
         nas_ip = str(r.nasipaddress).split("/")[0] if r.nasipaddress else ""
-        writer.writerow([
-            r.authdate.isoformat() if r.authdate else "",
-            r.username or "",
-            r.reply or "",
-            r.authmethod or "",
-            r.failurereason or "",
-            r.auth_latency_ms if r.auth_latency_ms is not None else "",
-            r.callingstationid or "",
-            r.calledstationid or "",
-            nas_ip,
-            r.nasidentifier or "",
-        ])
+        writer.writerow(
+            [
+                r.authdate.isoformat() if r.authdate else "",
+                r.username or "",
+                r.reply or "",
+                r.authmethod or "",
+                r.failurereason or "",
+                r.auth_latency_ms if r.auth_latency_ms is not None else "",
+                r.callingstationid or "",
+                r.calledstationid or "",
+                nas_ip,
+                r.nasidentifier or "",
+            ]
+        )
 
     return Response(
         content=buf.getvalue(),
         media_type="text/csv",
         headers={"Content-Disposition": 'attachment; filename="auth-logs.csv"'},
     )
+
 
 
 
@@ -270,6 +279,7 @@ async def failed_counts(
 
 
 
+
 @router.get("/timeline", response_model=list[TimelinePoint])
 async def get_timeline(
     hours: int = Query(24, ge=1, le=168),
@@ -282,8 +292,12 @@ async def get_timeline(
     q = await db.execute(
         select(
             hour_trunc.label("hour"),
-            func.sum(case((Radpostauth.reply == "Access-Accept", 1), else_=0)).label("accept_count"),
-            func.sum(case((Radpostauth.reply != "Access-Accept", 1), else_=0)).label("reject_count"),
+            func.sum(case((Radpostauth.reply == "Access-Accept", 1), else_=0)).label(
+                "accept_count"
+            ),
+            func.sum(case((Radpostauth.reply != "Access-Accept", 1), else_=0)).label(
+                "reject_count"
+            ),
         )
         .where(Radpostauth.authdate >= since)
         .group_by(hour_trunc)
@@ -293,6 +307,7 @@ async def get_timeline(
         TimelinePoint(hour=row.hour, accept_count=row.accept_count, reject_count=row.reject_count)
         for row in q.all()
     ]
+
 
 
 
@@ -307,6 +322,7 @@ async def get_auth_log(
         raise HTTPException(404, "Log entry not found")
     enriched = _enrich_auth_logs([row], [])
     return enriched[0]
+
 
 
 
@@ -334,7 +350,11 @@ async def get_freeradius_context(
 
         try:
             proc = await asyncio.create_subprocess_exec(
-                "grep", "-n", "-F", username, str(path),
+                "grep",
+                "-n",
+                "-F",
+                username,
+                str(path),
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.DEVNULL,
             )
@@ -342,12 +362,14 @@ async def get_freeradius_context(
             all_matches = stdout.decode(errors="replace").splitlines()
 
             lines = all_matches[-50:] if len(all_matches) > 50 else all_matches
-            results.append({
-                "file": log_path_str,
-                "total_matches": len(all_matches),
-                "lines": lines,
-                "error": None,
-            })
+            results.append(
+                {
+                    "file": log_path_str,
+                    "total_matches": len(all_matches),
+                    "lines": lines,
+                    "error": None,
+                }
+            )
         except asyncio.TimeoutError:
             results.append({"file": log_path_str, "error": "grep timed out", "lines": []})
         except Exception as exc:

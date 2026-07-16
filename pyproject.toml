@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "monsterops"
-version = "1.10.0"
+version = "1.11.0"
 description = "A simple, modular GUI for FreeRADIUS to replace daloRADIUS"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -27,16 +27,7 @@ dependencies = [
     "geoip2>=4.8.0",
     "cryptography>=42.0.0",
     "netmiko>=4.0.0",
-]
-
-[project.optional-dependencies]
-dev = [
-    "pytest>=8.0.0",
-    "pytest-asyncio>=0.23.0",
-    "httpx>=0.27.0",
-    "ruff>=0.4.0",
-    "mypy>=1.10.0",
-    "pytest-playwright>=0.5.0",
+    "ldap3>=2.9.1",
 ]
 
 [project.scripts]
@@ -48,33 +39,3 @@ monsterops = "monsterops.cli:main"
 [tool.hatch.build.targets.wheel]
 packages = ["monsterops"]
 artifacts = ["monsterops/static/**"]
-
-[tool.ruff]
-line-length = 100
-target-version = "py311"
-
-[tool.mypy]
-python_version = "3.11"
-ignore_missing_imports = true
-disallow_untyped_defs = false
-disallow_untyped_calls = false
-warn_return_any = false
-check_untyped_defs = true
-# SQLAlchemy Column[T] vs plain T mismatches are false positives without sqlalchemy-stubs;
-# disable the two codes that produce nothing but noise from ORM model attribute access.
-disable_error_code = ["assignment", "arg-type", "call-overload", "dict-item", "operator", "attr-defined"]
-
-[tool.pytest.ini_options]
-asyncio_mode = "auto"
-asyncio_default_fixture_loop_scope = "session"
-asyncio_default_test_loop_scope = "session"
-testpaths = ["tests"]
-# e2e tests use the sync Playwright API, which cannot share a process with the
-# session-scoped asyncio loop the unit tests use — and they need a live server
-# on :8000. Run them explicitly with: pytest -m e2e tests/e2e
-addopts = '-m "not e2e and not security"'
-markers = [
-    "e2e: end-to-end tests requiring a running server",
-    "security: OWASP ZAP security scan tests",
-    "slow: tests that take more than 2 seconds",
-]

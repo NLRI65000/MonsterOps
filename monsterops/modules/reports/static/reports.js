@@ -1,23 +1,30 @@
 import { router } from '/js/router.js';
 import { api } from '/js/api.js';
-import { emptyStateHTML, emptyRowHTML, skeletonBlock } from '/js/utils/empty.js';
+import { emptyRowHTML, emptyStateHTML, skeletonBlock } from '/js/utils/empty.js';
 
 function _esc(s) {
-  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(
+    /"/g,
+    '&quot;',
+  );
 }
 
 // Reports are all time-bounded, so a table with no rows means nothing happened
 // in the selected range — say that, and hint at widening it.
-const noDataRow = (cols) => emptyRowHTML(cols, {
-  title: 'No data in this range',
-  message: 'No activity recorded for the selected time range — try a wider range.',
-});
+const noDataRow = (cols) =>
+  emptyRowHTML(cols, {
+    title: 'No data in this range',
+    message: 'No activity recorded for the selected time range — try a wider range.',
+  });
 
 function _fmtBytes(b) {
   if (!b) return '0 B';
-  const u = ['B','KB','MB','GB','TB'];
+  const u = ['B', 'KB', 'MB', 'GB', 'TB'];
   let i = 0;
-  while (b >= 1024 && i < u.length - 1) { b /= 1024; i++; }
+  while (b >= 1024 && i < u.length - 1) {
+    b /= 1024;
+    i++;
+  }
   return b.toFixed(1) + ' ' + u[i];
 }
 
@@ -73,16 +80,16 @@ const STYLE = `
 
 const TABS = [
   { key: 'login-frequency', label: 'Login Frequency' },
-  { key: 'bandwidth',       label: 'Bandwidth' },
-  { key: 'top-users',       label: 'Top Users' },
-  { key: 'failed-trend',    label: 'Failed Trend' },
-  { key: 'nas-traffic',     label: 'NAS Traffic' },
-  { key: 'online-time',     label: 'Online Time' },
+  { key: 'bandwidth', label: 'Bandwidth' },
+  { key: 'top-users', label: 'Top Users' },
+  { key: 'failed-trend', label: 'Failed Trend' },
+  { key: 'nas-traffic', label: 'NAS Traffic' },
+  { key: 'online-time', label: 'Online Time' },
 ];
 
 const RANGES = [
   { key: '24h', label: '24h', bucket: 'hour' },
-  { key: '7d',  label: '7d',  bucket: 'day' },
+  { key: '7d', label: '7d', bucket: 'day' },
   { key: '30d', label: '30d', bucket: 'day' },
   { key: '90d', label: '90d', bucket: 'day' },
 ];
@@ -102,29 +109,45 @@ class ReportsView extends HTMLElement {
       <div class="page-title">Reports</div>
       <div class="toolbar">
         <div class="seg" id="range-seg">
-          ${RANGES.map(r => `<button data-r="${r.key}" class="${r.key === this._range ? 'active' : ''}">${r.label}</button>`).join('')}
+          ${
+      RANGES.map((r) =>
+        `<button data-r="${r.key}" class="${
+          r.key === this._range ? 'active' : ''
+        }">${r.label}</button>`
+      ).join('')
+    }
         </div>
         <button class="btn btn-export" id="export-btn">&#8659; Export CSV</button>
       </div>
       <div class="tab-bar" id="tab-bar">
-        ${TABS.map(t => `<button data-t="${t.key}" class="${t.key === this._tab ? 'active' : ''}">${t.label}</button>`).join('')}
+        ${
+      TABS.map((t) =>
+        `<button data-t="${t.key}" class="${
+          t.key === this._tab ? 'active' : ''
+        }">${t.label}</button>`
+      ).join('')
+    }
       </div>
       <div id="tab-content"></div>
     `;
 
-    this.shadowRoot.getElementById('range-seg').addEventListener('click', e => {
+    this.shadowRoot.getElementById('range-seg').addEventListener('click', (e) => {
       const btn = e.target.closest('button[data-r]');
       if (!btn) return;
       this._range = btn.dataset.r;
-      this.shadowRoot.querySelectorAll('#range-seg button').forEach(b => b.classList.toggle('active', b.dataset.r === this._range));
+      this.shadowRoot.querySelectorAll('#range-seg button').forEach((b) =>
+        b.classList.toggle('active', b.dataset.r === this._range)
+      );
       this._loadTab();
     });
 
-    this.shadowRoot.getElementById('tab-bar').addEventListener('click', e => {
+    this.shadowRoot.getElementById('tab-bar').addEventListener('click', (e) => {
       const btn = e.target.closest('button[data-t]');
       if (!btn) return;
       this._tab = btn.dataset.t;
-      this.shadowRoot.querySelectorAll('.tab-bar button').forEach(b => b.classList.toggle('active', b.dataset.t === this._tab));
+      this.shadowRoot.querySelectorAll('.tab-bar button').forEach((b) =>
+        b.classList.toggle('active', b.dataset.t === this._tab)
+      );
       this._loadTab();
     });
 
@@ -134,7 +157,7 @@ class ReportsView extends HTMLElement {
   }
 
   _bucket() {
-    return RANGES.find(r => r.key === this._range)?.bucket ?? 'day';
+    return RANGES.find((r) => r.key === this._range)?.bucket ?? 'day';
   }
 
   async _loadTab() {
@@ -153,7 +176,9 @@ class ReportsView extends HTMLElement {
   // ── Login Frequency ──────────────────────────────────────────────────────────
 
   async _render_login_frequency(el) {
-    const data = await api.get(`/reports/login-frequency?range=${this._range}&bucket=${this._bucket()}`);
+    const data = await api.get(
+      `/reports/login-frequency?range=${this._range}&bucket=${this._bucket()}`,
+    );
     el.innerHTML = `
       <div class="card">
         <div class="card-header"><span class="card-title">Authentications over time</span></div>
@@ -161,20 +186,33 @@ class ReportsView extends HTMLElement {
         <table>
           <thead><tr><th>Period</th><th class="r">Accepts</th><th class="r">Rejects</th><th class="r">Total</th></tr></thead>
           <tbody>
-            ${data.length ? data.map(r => `<tr>
+            ${
+      data.length
+        ? data.map((r) =>
+          `<tr>
               <td>${_fmtDate(r.period)}</td>
               <td class="r"><span class="badge badge-success">${r.accept_count}</span></td>
               <td class="r"><span class="badge badge-danger">${r.reject_count}</span></td>
               <td class="r">${r.accept_count + r.reject_count}</td>
-            </tr>`).join('') : noDataRow(4)}
+            </tr>`
+        ).join('')
+        : noDataRow(4)
+    }
           </tbody>
         </table>
       </div>`;
-    if (data.length) this._drawBarChart('lf-chart', data.map(r => ({
-      label: _fmtDate(r.period),
-      a: r.accept_count,
-      b: r.reject_count,
-    })), 'Accepts', 'Rejects');
+    if (data.length) {
+      this._drawBarChart(
+        'lf-chart',
+        data.map((r) => ({
+          label: _fmtDate(r.period),
+          a: r.accept_count,
+          b: r.reject_count,
+        })),
+        'Accepts',
+        'Rejects',
+      );
+    }
   }
 
   // ── Bandwidth ────────────────────────────────────────────────────────────────
@@ -188,12 +226,18 @@ class ReportsView extends HTMLElement {
         <table>
           <thead><tr><th>Period</th><th class="r">Inbound</th><th class="r">Outbound</th><th class="r">Total</th></tr></thead>
           <tbody>
-            ${data.length ? data.map(r => `<tr>
+            ${
+      data.length
+        ? data.map((r) =>
+          `<tr>
               <td>${_fmtDate(r.period)}</td>
               <td class="r">${_fmtBytes(r.input_bytes)}</td>
               <td class="r">${_fmtBytes(r.output_bytes)}</td>
               <td class="r">${_fmtBytes(r.input_bytes + r.output_bytes)}</td>
-            </tr>`).join('') : noDataRow(4)}
+            </tr>`
+        ).join('')
+        : noDataRow(4)
+    }
           </tbody>
         </table>
       </div>`;
@@ -201,11 +245,18 @@ class ReportsView extends HTMLElement {
       const cs = getComputedStyle(document.documentElement);
       const action = cs.getPropertyValue('--mr-action').trim() || '#4FA8FF';
       const accept = cs.getPropertyValue('--mr-accept').trim() || '#4ADE9A';
-      this._drawBarChart('bw-chart', data.map(r => ({
-        label: _fmtDate(r.period),
-        a: +(r.input_bytes / 1048576).toFixed(2),
-        b: +(r.output_bytes / 1048576).toFixed(2),
-      })), 'In (MB)', 'Out (MB)', action, accept);
+      this._drawBarChart(
+        'bw-chart',
+        data.map((r) => ({
+          label: _fmtDate(r.period),
+          a: +(r.input_bytes / 1048576).toFixed(2),
+          b: +(r.output_bytes / 1048576).toFixed(2),
+        })),
+        'In (MB)',
+        'Out (MB)',
+        action,
+        accept,
+      );
     }
   }
 
@@ -220,10 +271,12 @@ class ReportsView extends HTMLElement {
         <table>
           <thead><tr><th>#</th><th>Username</th><th class="r">Sessions</th><th class="r">Inbound</th><th class="r">Outbound</th><th class="r">Total</th><th class="r">Online Time</th><th></th></tr></thead>
           <tbody>
-            ${data.length ? data.map((r, i) => {
-              const total = r.input_bytes + r.output_bytes;
-              const pct = Math.round(total / max * 100);
-              return `<tr>
+            ${
+      data.length
+        ? data.map((r, i) => {
+          const total = r.input_bytes + r.output_bytes;
+          const pct = Math.round(total / max * 100);
+          return `<tr>
                 <td><span class="rank">${i + 1}</span></td>
                 <td>${_esc(r.username)}</td>
                 <td class="r">${r.session_count}</td>
@@ -233,7 +286,9 @@ class ReportsView extends HTMLElement {
                 <td class="r">${_fmtDuration(r.online_seconds)}</td>
                 <td style="width:100px"><div class="bar-bg"><div class="bar-fill" style="width:${pct}%"></div></div></td>
               </tr>`;
-            }).join('') : noDataRow(8)}
+        }).join('')
+        : noDataRow(8)
+    }
           </tbody>
         </table>
       </div>`;
@@ -242,7 +297,9 @@ class ReportsView extends HTMLElement {
   // ── Failed Trend ─────────────────────────────────────────────────────────────
 
   async _render_failed_trend(el) {
-    const data = await api.get(`/reports/failed-trend?range=${this._range}&bucket=${this._bucket()}`);
+    const data = await api.get(
+      `/reports/failed-trend?range=${this._range}&bucket=${this._bucket()}`,
+    );
     el.innerHTML = `
       <div class="card">
         <div class="card-header"><span class="card-title">Failed logins over time</span></div>
@@ -250,17 +307,28 @@ class ReportsView extends HTMLElement {
         <table>
           <thead><tr><th>Period</th><th class="r">Failed Logins</th></tr></thead>
           <tbody>
-            ${data.length ? data.map(r => `<tr>
+            ${
+      data.length
+        ? data.map((r) =>
+          `<tr>
               <td>${_fmtDate(r.period)}</td>
               <td class="r"><span class="badge badge-danger">${r.reject_count}</span></td>
-            </tr>`).join('') : noDataRow(2)}
+            </tr>`
+        ).join('')
+        : noDataRow(2)
+    }
           </tbody>
         </table>
       </div>`;
-    if (data.length) this._drawSingleBar('ft-chart', data.map(r => ({
-      label: _fmtDate(r.period),
-      v: r.reject_count,
-    })));
+    if (data.length) {
+      this._drawSingleBar(
+        'ft-chart',
+        data.map((r) => ({
+          label: _fmtDate(r.period),
+          v: r.reject_count,
+        })),
+      );
+    }
   }
 
   // ── NAS Traffic ──────────────────────────────────────────────────────────────
@@ -274,10 +342,12 @@ class ReportsView extends HTMLElement {
         <table>
           <thead><tr><th>NAS IP</th><th>Name</th><th class="r">Sessions</th><th class="r">Inbound</th><th class="r">Outbound</th><th class="r">Total</th><th></th></tr></thead>
           <tbody>
-            ${data.length ? data.map(r => {
-              const total = r.input_bytes + r.output_bytes;
-              const pct = Math.round(total / max * 100);
-              return `<tr>
+            ${
+      data.length
+        ? data.map((r) => {
+          const total = r.input_bytes + r.output_bytes;
+          const pct = Math.round(total / max * 100);
+          return `<tr>
                 <td class="mono">${_esc(r.nas_ip)}</td>
                 <td>${_esc(r.nas_name ?? '—')}</td>
                 <td class="r">${r.session_count}</td>
@@ -286,7 +356,9 @@ class ReportsView extends HTMLElement {
                 <td class="r">${_fmtBytes(total)}</td>
                 <td style="width:100px"><div class="bar-bg"><div class="bar-fill" style="width:${pct}%"></div></div></td>
               </tr>`;
-            }).join('') : noDataRow(7)}
+        }).join('')
+        : noDataRow(7)
+    }
           </tbody>
         </table>
       </div>`;
@@ -303,16 +375,20 @@ class ReportsView extends HTMLElement {
         <table>
           <thead><tr><th>#</th><th>Username</th><th class="r">Sessions</th><th class="r">Total Time</th><th></th></tr></thead>
           <tbody>
-            ${data.length ? data.map((r, i) => {
-              const pct = Math.round(r.total_seconds / max * 100);
-              return `<tr>
+            ${
+      data.length
+        ? data.map((r, i) => {
+          const pct = Math.round(r.total_seconds / max * 100);
+          return `<tr>
                 <td><span class="rank">${i + 1}</span></td>
                 <td>${_esc(r.username)}</td>
                 <td class="r">${r.session_count}</td>
                 <td class="r">${_fmtDuration(r.total_seconds)}</td>
                 <td style="width:120px"><div class="bar-bg"><div class="bar-fill" style="width:${pct}%"></div></div></td>
               </tr>`;
-            }).join('') : noDataRow(5)}
+        }).join('')
+        : noDataRow(5)
+    }
           </tbody>
         </table>
       </div>`;
@@ -321,7 +397,8 @@ class ReportsView extends HTMLElement {
   // ── CSV export ───────────────────────────────────────────────────────────────
 
   async _export() {
-    const url = `/api/reports/export?report=${this._tab}&range=${this._range}&bucket=${this._bucket()}`;
+    const url =
+      `/api/reports/export?report=${this._tab}&range=${this._range}&bucket=${this._bucket()}`;
     const res = await fetch(url, {
       credentials: 'same-origin',
     });
@@ -360,17 +437,20 @@ class ReportsView extends HTMLElement {
 
       const cs = getComputedStyle(document.documentElement);
       const success = colA ?? (cs.getPropertyValue('--mr-accept').trim() || '#4ADE9A');
-      const danger  = colB ?? (cs.getPropertyValue('--mr-reject').trim() || '#FF6B5B');
-      const muted   = cs.getPropertyValue('--color-muted').trim()  || '#8B95A5';
-      const border  = cs.getPropertyValue('--color-border').trim() || '#262C36';
-      const text    = cs.getPropertyValue('--color-text').trim()   || '#E6E9EF';
+      const danger = colB ?? (cs.getPropertyValue('--mr-reject').trim() || '#FF6B5B');
+      const muted = cs.getPropertyValue('--color-muted').trim() || '#8B95A5';
+      const border = cs.getPropertyValue('--color-border').trim() || '#262C36';
+      const text = cs.getPropertyValue('--color-text').trim() || '#E6E9EF';
 
       // Grid
       ctx.strokeStyle = border;
       ctx.lineWidth = 0.5;
       for (let i = 0; i <= 4; i++) {
         const y = pad.top + ch - (ch * i / 4);
-        ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left + cw, y); ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(pad.left, y);
+        ctx.lineTo(pad.left + cw, y);
+        ctx.stroke();
         ctx.fillStyle = muted;
         ctx.font = '10px sans-serif';
         ctx.textAlign = 'right';
@@ -402,10 +482,14 @@ class ReportsView extends HTMLElement {
       // Legend
       ctx.font = '10px sans-serif';
       ctx.textAlign = 'left';
-      ctx.fillStyle = success; ctx.fillRect(pad.left, H - 14, 10, 8);
-      ctx.fillStyle = text; ctx.fillText(labelA, pad.left + 14, H - 7);
-      ctx.fillStyle = danger; ctx.fillRect(pad.left + 80, H - 14, 10, 8);
-      ctx.fillStyle = text; ctx.fillText(labelB, pad.left + 94, H - 7);
+      ctx.fillStyle = success;
+      ctx.fillRect(pad.left, H - 14, 10, 8);
+      ctx.fillStyle = text;
+      ctx.fillText(labelA, pad.left + 14, H - 7);
+      ctx.fillStyle = danger;
+      ctx.fillRect(pad.left + 80, H - 14, 10, 8);
+      ctx.fillStyle = text;
+      ctx.fillText(labelB, pad.left + 94, H - 7);
     });
   }
 
@@ -430,15 +514,18 @@ class ReportsView extends HTMLElement {
       const bw = Math.max(4, (cw / Math.max(n, 1)) * 0.6);
 
       const cs = getComputedStyle(document.documentElement);
-      const color  = colOverride ?? (cs.getPropertyValue('--mr-reject').trim() || '#FF6B5B');
-      const muted  = cs.getPropertyValue('--color-muted').trim()  || '#8B95A5';
+      const color = colOverride ?? (cs.getPropertyValue('--mr-reject').trim() || '#FF6B5B');
+      const muted = cs.getPropertyValue('--color-muted').trim() || '#8B95A5';
       const border = cs.getPropertyValue('--color-border').trim() || '#262C36';
 
       ctx.strokeStyle = border;
       ctx.lineWidth = 0.5;
       for (let i = 0; i <= 4; i++) {
         const y = pad.top + ch - (ch * i / 4);
-        ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left + cw, y); ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(pad.left, y);
+        ctx.lineTo(pad.left + cw, y);
+        ctx.stroke();
         ctx.fillStyle = muted;
         ctx.font = '10px sans-serif';
         ctx.textAlign = 'right';

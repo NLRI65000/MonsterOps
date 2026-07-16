@@ -31,11 +31,13 @@ class AdminUserUpdate(BaseModel):
 
 
 class SelfUpdate(BaseModel):
+
     email: str | None = None
     password: str | None = Field(default=None, min_length=8)
 
 
 class SetupRequest(BaseModel):
+
     username: str = Field(..., min_length=1, max_length=64)
     password: str = Field(..., min_length=8)
     email: str | None = None
@@ -47,6 +49,7 @@ class LoginRequest(BaseModel):
 
 
 class SessionResponse(BaseModel):
+
     role: str
     username: str
 

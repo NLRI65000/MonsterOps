@@ -5,9 +5,9 @@ class AppConfirm extends HTMLElement {
   }
 
   connectedCallback() {
-    const title   = this._confirmTitle   ?? 'Confirm';
+    const title = this._confirmTitle ?? 'Confirm';
     const message = this._confirmMessage ?? '';
-    const danger  = this._confirmDanger  ?? false;
+    const danger = this._confirmDanger ?? false;
     const okLabel = this._confirmOkLabel ?? (danger ? 'Delete' : 'Confirm');
 
     this.shadowRoot.innerHTML = `
@@ -89,14 +89,17 @@ class AppConfirm extends HTMLElement {
     `;
 
     this.shadowRoot.getElementById('overlay').addEventListener('click', () => this._resolve(false));
-    this.shadowRoot.getElementById('btn-cancel').addEventListener('click', () => this._resolve(false));
+    this.shadowRoot.getElementById('btn-cancel').addEventListener(
+      'click',
+      () => this._resolve(false),
+    );
     this.shadowRoot.getElementById('btn-ok').addEventListener('click', () => this._resolve(true));
 
     this.shadowRoot.getElementById('btn-ok').focus();
 
     this._keyHandler = (e) => {
       if (e.key === 'Escape') this._resolve(false);
-      if (e.key === 'Enter')  this._resolve(true);
+      if (e.key === 'Enter') this._resolve(true);
     };
     document.addEventListener('keydown', this._keyHandler);
   }
@@ -129,9 +132,9 @@ customElements.define('app-confirm', AppConfirm);
 export function confirmDialog(message, { title = 'Confirm', danger = false, okLabel } = {}) {
   return new Promise((resolve) => {
     const el = document.createElement('app-confirm');
-    el._confirmTitle   = title;
+    el._confirmTitle = title;
     el._confirmMessage = message;
-    el._confirmDanger  = danger;
+    el._confirmDanger = danger;
     el._confirmOkLabel = okLabel;
     document.body.appendChild(el);
     el.addEventListener('confirm:result', (e) => {

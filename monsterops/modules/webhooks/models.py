@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import List
 
-from sqlalchemy import ARRAY, Boolean, Column, Integer, Text, TIMESTAMP
+from sqlalchemy import ARRAY, TIMESTAMP, Boolean, Column, Integer, Text
 from sqlalchemy.sql import func
 
 from monsterops.database import Base

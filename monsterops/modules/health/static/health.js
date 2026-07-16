@@ -4,7 +4,10 @@ import { toast } from '/js/components/app-toast.js';
 import { startPolling } from '/js/utils/poll.js';
 
 function escHtml(s) {
-  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(
+    /"/g,
+    '&quot;',
+  );
 }
 
 const STYLE = `
@@ -179,18 +182,18 @@ class HealthView extends HTMLElement {
   constructor() {
     super();
     this.attachShadow({ mode: 'open' });
-    this._logFiles    = [];
+    this._logFiles = [];
     this._currentFile = null;
-    this._allLines    = [];   // [{text, cls}]
-    this._isLive      = false;
-    this._autoScroll  = true;
+    this._allLines = []; // [{text, cls}]
+    this._isLive = false;
+    this._autoScroll = true;
     this._streamAbort = null;
-    this._stopPoll    = null;
+    this._stopPoll = null;
   }
 
   connectedCallback() {
     this.shadowRoot.innerHTML = `<style>${STYLE}</style>${TEMPLATE}`;
-    this._$ = id => this.shadowRoot.getElementById(id);
+    this._$ = (id) => this.shadowRoot.getElementById(id);
     this._init();
   }
 
@@ -222,10 +225,11 @@ class HealthView extends HTMLElement {
 
     this._$('btn-validate')?.addEventListener('click', () => this._validateConfig());
 
-    this._$('log-search').addEventListener('input', e => this._applyFilter(e.target.value));
+    this._$('log-search').addEventListener('input', (e) => this._applyFilter(e.target.value));
 
     this._$('btn-live').addEventListener('click', () => {
-      if (this._isLive) this._pauseStream(); else this._resumeStream();
+      if (this._isLive) this._pauseStream();
+      else this._resumeStream();
     });
 
     this._$('btn-bottom').addEventListener('click', () => {
@@ -272,8 +276,8 @@ class HealthView extends HTMLElement {
   }
 
   _dotCls(state) {
-    if (state === 'active')   return 'dot-active';
-    if (state === 'failed')   return 'dot-danger';
+    if (state === 'active') return 'dot-active';
+    if (state === 'failed') return 'dot-danger';
     if (state === 'inactive') return 'dot-warning';
     return 'dot-unknown';
   }
@@ -286,8 +290,10 @@ class HealthView extends HTMLElement {
     msgEl.textContent = `Running ${action}…`;
     msgEl.classList.remove('hidden');
     // disable all action buttons during the request
-    const btns = ['reload','restart','start','stop'].map(a => this._$(`btn-${a}`)).filter(Boolean);
-    btns.forEach(b => b.disabled = true);
+    const btns = ['reload', 'restart', 'start', 'stop'].map((a) => this._$(`btn-${a}`)).filter(
+      Boolean,
+    );
+    btns.forEach((b) => b.disabled = true);
 
     try {
       const res = await api.post(`/health/service/${encodeURIComponent(action)}`);
@@ -300,20 +306,21 @@ class HealthView extends HTMLElement {
       msgEl.textContent = `Failed: ${err.message}`;
       toast(`${action} failed: ${err.message}`, 'error');
     } finally {
-      btns.forEach(b => b.disabled = false);
+      btns.forEach((b) => b.disabled = false);
     }
   }
 
   async _validateConfig() {
     const btn = this._$('btn-validate');
     const details = this._$('validate-details');
-    const output  = this._$('validate-output');
+    const output = this._$('validate-output');
     btn.disabled = true;
     btn.textContent = '⏳ Validating…';
     details.style.display = 'none';
     try {
       const res = await api.post('/health/validate-config');
-      output.textContent = res.output || (res.ok ? 'Configuration OK' : 'Validation failed (no output)');
+      output.textContent = res.output ||
+        (res.ok ? 'Configuration OK' : 'Validation failed (no output)');
       output.style.color = res.ok ? 'var(--color-success)' : 'var(--color-danger)';
       details.style.display = '';
       details.open = true;
@@ -346,12 +353,14 @@ class HealthView extends HTMLElement {
 
   _renderTabs() {
     const tabsEl = this._$('log-tabs');
-    tabsEl.innerHTML = this._logFiles.map(f =>
-      `<button class="log-tab-btn${f.name === this._currentFile ? ' active' : ''}" data-file="${escHtml(f.name)}">
+    tabsEl.innerHTML = this._logFiles.map((f) =>
+      `<button class="log-tab-btn${f.name === this._currentFile ? ' active' : ''}" data-file="${
+        escHtml(f.name)
+      }">
         ${escHtml(f.name)}${!f.exists ? ' ⚠' : ''}
       </button>`
     ).join('');
-    tabsEl.querySelectorAll('.log-tab-btn').forEach(btn => {
+    tabsEl.querySelectorAll('.log-tab-btn').forEach((btn) => {
       btn.addEventListener('click', () => this._switchTab(btn.dataset.file));
     });
   }
@@ -377,20 +386,24 @@ class HealthView extends HTMLElement {
     const out = this._$('log-output');
     out.innerHTML = '<span style="color:var(--color-muted)">Loading…</span>';
     try {
-      const data = await api.get(`/health/logs/tail?file=${encodeURIComponent(filename)}&lines=500`);
-      this._allLines = data.lines.map(t => ({ text: t, cls: this._lineCls(t) }));
+      const data = await api.get(
+        `/health/logs/tail?file=${encodeURIComponent(filename)}&lines=500`,
+      );
+      this._allLines = data.lines.map((t) => ({ text: t, cls: this._lineCls(t) }));
       this._renderAll();
       out.scrollTop = out.scrollHeight;
       this._autoScroll = true;
     } catch (err) {
-      out.innerHTML = `<span style="color:var(--color-danger)">Failed: ${escHtml(err.message)}</span>`;
+      out.innerHTML = `<span style="color:var(--color-danger)">Failed: ${
+        escHtml(err.message)
+      }</span>`;
     }
   }
 
   _renderAll() {
     const search = (this._$('log-search').value || '').toLowerCase();
     const out = this._$('log-output');
-    out.innerHTML = this._allLines.map(l => {
+    out.innerHTML = this._allLines.map((l) => {
       const hide = search && !l.text.toLowerCase().includes(search) ? ' hidden' : '';
       return `<div class="log-line ${l.cls}${hide}">${escHtml(l.text)}</div>`;
     }).join('');
@@ -405,7 +418,9 @@ class HealthView extends HTMLElement {
     if (this._allLines.length > 5000) this._allLines.shift();
 
     const div = document.createElement('div');
-    div.className = `log-line ${cls}${search && !text.toLowerCase().includes(search) ? ' hidden' : ''}`;
+    div.className = `log-line ${cls}${
+      search && !text.toLowerCase().includes(search) ? ' hidden' : ''
+    }`;
     div.textContent = text;
     out.appendChild(div);
 
@@ -417,16 +432,16 @@ class HealthView extends HTMLElement {
 
   _applyFilter(search) {
     const lc = search.toLowerCase();
-    this.shadowRoot.querySelectorAll('#log-output .log-line').forEach(div => {
+    this.shadowRoot.querySelectorAll('#log-output .log-line').forEach((div) => {
       const match = !lc || div.textContent.toLowerCase().includes(lc);
       div.classList.toggle('hidden', !match);
     });
   }
 
   _lineCls(line) {
-    if (/\berror\b/i.test(line))         return 'log-error';
+    if (/\berror\b/i.test(line)) return 'log-error';
     if (/\b(warning|warn)\b/i.test(line)) return 'log-warning';
-    if (/\bdebug\b/i.test(line))          return 'log-debug';
+    if (/\bdebug\b/i.test(line)) return 'log-debug';
     return 'log-info';
   }
 
@@ -462,7 +477,7 @@ class HealthView extends HTMLElement {
     try {
       const res = await fetch(
         `/api/health/logs/stream?file=${encodeURIComponent(filename)}`,
-        { credentials: 'same-origin', signal: abort.signal }
+        { credentials: 'same-origin', signal: abort.signal },
       );
 
       if (!res.ok) {

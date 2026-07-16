@@ -13,12 +13,22 @@
 // visibilitychange listener, so it fully cleans up).
 export function startPolling(fn, intervalMs) {
   let timer = null;
-  const start = () => { if (timer === null) timer = setInterval(fn, intervalMs); };
-  const stop  = () => { if (timer !== null) { clearInterval(timer); timer = null; } };
+  const start = () => {
+    if (timer === null) timer = setInterval(fn, intervalMs);
+  };
+  const stop = () => {
+    if (timer !== null) {
+      clearInterval(timer);
+      timer = null;
+    }
+  };
 
   const onVisibility = () => {
     if (document.hidden) stop();
-    else { fn(); start(); } // catch up immediately, then resume the cadence
+    else {
+      fn();
+      start();
+    } // catch up immediately, then resume the cadence
   };
   document.addEventListener('visibilitychange', onVisibility);
 

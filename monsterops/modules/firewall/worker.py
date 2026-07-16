@@ -1,3 +1,4 @@
+
 from __future__ import annotations
 
 import asyncio
@@ -27,12 +28,14 @@ AUTOBLOCK_INTERVAL = 60
 async def run_reap_cycle() -> int:
     now = datetime.now(timezone.utc)
     async with SessionLocal() as db:
-        rows = (await db.execute(
-            select(MrFirewallSetEntry, MrFirewallSet.name)
-            .join(MrFirewallSet, MrFirewallSetEntry.set_id == MrFirewallSet.id)
-            .where(MrFirewallSetEntry.expires_at.is_not(None))
-            .where(MrFirewallSetEntry.expires_at <= now)
-        )).all()
+        rows = (
+            await db.execute(
+                select(MrFirewallSetEntry, MrFirewallSet.name)
+                .join(MrFirewallSet, MrFirewallSetEntry.set_id == MrFirewallSet.id)
+                .where(MrFirewallSetEntry.expires_at.is_not(None))
+                .where(MrFirewallSetEntry.expires_at <= now)
+            )
+        ).all()
         if not rows:
             return 0
 
@@ -43,8 +46,12 @@ async def run_reap_cycle() -> int:
                 try:
                     await nft.delete_element(set_name, entry.element)
                 except Exception:  # noqa: BLE001 — never let one element stop the sweep
-                    logger.debug("reaper: could not remove %s from %s",
-                                 entry.element, set_name, exc_info=True)
+                    logger.debug(
+                        "reaper: could not remove %s from %s",
+                        entry.element,
+                        set_name,
+                        exc_info=True,
+                    )
             await db.delete(entry)
         await db.commit()
 
@@ -65,6 +72,7 @@ async def firewall_ban_reaper() -> None:
         except Exception:  # noqa: BLE001
             logger.exception("Firewall reaper cycle failed")
         await asyncio.sleep(REAP_INTERVAL)
+
 
 
 
@@ -91,11 +99,15 @@ async def run_autoblock_cycle() -> int:
         window = int(cfg.autoblock_window)
         ban_seconds = int(cfg.autoblock_ban_seconds)
 
-        fset = (await db.execute(
-            select(MrFirewallSet).options(selectinload(MrFirewallSet.entries))
-            .where(MrFirewallSet.auto_ban == True)  # noqa: E712
-            .order_by(MrFirewallSet.id).limit(1)
-        )).scalar_one_or_none()
+        fset = (
+            await db.execute(
+                select(MrFirewallSet)
+                .options(selectinload(MrFirewallSet.entries))
+                .where(MrFirewallSet.auto_ban == True)  # noqa: E712
+                .order_by(MrFirewallSet.id)
+                .limit(1)
+            )
+        ).scalar_one_or_none()
         if fset is None:
             return 0
 
@@ -104,14 +116,16 @@ async def run_autoblock_cycle() -> int:
         from monsterops.modules.auth_logs.models import Radpostauth
 
         since = datetime.now(timezone.utc) - timedelta(minutes=window)
-        rows = (await db.execute(
-            select(Radpostauth.callingstationid, func.count().label("cnt"))
-            .where(Radpostauth.reply == "Access-Reject")
-            .where(Radpostauth.authdate >= since)
-            .where(Radpostauth.callingstationid.is_not(None))
-            .group_by(Radpostauth.callingstationid)
-            .having(func.count() >= threshold)
-        )).all()
+        rows = (
+            await db.execute(
+                select(Radpostauth.callingstationid, func.count().label("cnt"))
+                .where(Radpostauth.reply == "Access-Reject")
+                .where(Radpostauth.authdate >= since)
+                .where(Radpostauth.callingstationid.is_not(None))
+                .group_by(Radpostauth.callingstationid)
+                .having(func.count() >= threshold)
+            )
+        ).all()
 
         banned = 0
         for station, cnt in rows:
@@ -120,11 +134,17 @@ async def run_autoblock_cycle() -> int:
                 continue
             try:
                 reason = f"{cnt} rejects/{window}m"
-                await add_ban(db, ip, ban_seconds or None, fset.name,
-                              comment=f"auto-block: {reason}")
-                await record_block_event(db, element=ip, set_name=fset.name,
-                                         source="brute_force", reason=reason,
-                                         ban_seconds=ban_seconds or None)
+                await add_ban(
+                    db, ip, ban_seconds or None, fset.name, comment=f"auto-block: {reason}"
+                )
+                await record_block_event(
+                    db,
+                    element=ip,
+                    set_name=fset.name,
+                    source="brute_force",
+                    reason=reason,
+                    ban_seconds=ban_seconds or None,
+                )
                 already.add(ip)
                 banned += 1
                 logger.warning("Auto-block: banned %s (%d Access-Rejects in %dm)", ip, cnt, window)

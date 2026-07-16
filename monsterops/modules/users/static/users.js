@@ -2,9 +2,9 @@ import { router } from '/js/router.js';
 import { api } from '/js/api.js';
 import { toast } from '/js/components/app-toast.js';
 import { confirmDialog } from '/js/components/app-confirm.js';
-import { setFieldError, clearFieldErrors, applyServerErrors } from '/js/utils/form.js';
-import { emptyStateHTML, skeletonRows, skeletonBlock } from '/js/utils/empty.js';
-import { densityBarHTML, wireDensityBar, applyDensity, makeSortable } from '/js/utils/table.js';
+import { applyServerErrors, clearFieldErrors, setFieldError } from '/js/utils/form.js';
+import { emptyStateHTML, skeletonBlock, skeletonRows } from '/js/utils/empty.js';
+import { applyDensity, densityBarHTML, makeSortable, wireDensityBar } from '/js/utils/table.js';
 import { geoLabelHTML } from '/js/utils/geo.js';
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
@@ -26,19 +26,37 @@ function fmtDuration(secs) {
   const h = Math.floor(secs / 3600);
   const m = Math.floor((secs % 3600) / 60);
   const s = secs % 60;
-  return [h, m, s].map(v => String(v).padStart(2, '0')).join(':');
+  return [h, m, s].map((v) => String(v).padStart(2, '0')).join(':');
 }
 
 function badge(text, type) {
   return `<span class="badge badge-${type}">${text}</span>`;
 }
 
+// Where a user came from: a manual local account, or imported from an AD realm.
+function sourceBadge(u) {
+  if (u.source === 'directory') {
+    const realm = u.source_realm || 'AD';
+    return `<span class="badge badge-ad" title="Imported from Active Directory realm '${
+      escHtml(realm)
+    }'">AD · ${escHtml(realm)}</span>`;
+  }
+  return `<span class="badge badge-local" title="Manually-created local user">Local</span>`;
+}
+
 function escHtml(s) {
-  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(
+    /"/g,
+    '&quot;',
+  );
 }
 
 const PASSWORD_TYPES = [
-  'Cleartext-Password', 'MD5-Password', 'NT-Password', 'SHA-Password', 'Crypt-Password',
+  'Cleartext-Password',
+  'MD5-Password',
+  'NT-Password',
+  'SHA-Password',
+  'Crypt-Password',
 ];
 
 // ── Group picker (tag input + autocomplete + quick-create) ────────────────────
@@ -53,19 +71,23 @@ class GroupPicker {
   async init() {
     try {
       const data = await api.get('/groups?page=1&size=100');
-      this._all = data.items.map(g => g.name);
+      this._all = data.items.map((g) => g.name);
     } catch { /* non-fatal — picker still works for manual entry */ }
     this._render();
   }
 
-  get selected() { return [...this._selected]; }
+  get selected() {
+    return [...this._selected];
+  }
 
   _render() {
     this._el.innerHTML = `
       <div class="gp-wrap" id="gp-wrap">
-        ${[...this._selected].map(g =>
-          `<span class="gp-tag" data-g="${g}">${g}<span class="gp-remove" data-g="${g}">×</span></span>`
-        ).join('')}
+        ${
+      [...this._selected].map((g) =>
+        `<span class="gp-tag" data-g="${g}">${g}<span class="gp-remove" data-g="${g}">×</span></span>`
+      ).join('')
+    }
         <input class="gp-input" id="gp-input" type="text"
           placeholder="${this._selected.size ? 'Add more…' : 'Search or type a group name…'}"
           autocomplete="off" />
@@ -81,13 +103,13 @@ class GroupPicker {
       <button class="btn btn-ghost gp-new-toggle" type="button" id="gp-new-toggle">+ Create new group</button>
     `;
 
-    const wrap     = this._el.querySelector('#gp-wrap');
-    const input    = this._el.querySelector('#gp-input');
+    const wrap = this._el.querySelector('#gp-wrap');
+    const input = this._el.querySelector('#gp-input');
     const dropdown = this._el.querySelector('#gp-dropdown');
-    const quick    = this._el.querySelector('#gp-quick');
+    const quick = this._el.querySelector('#gp-quick');
 
     // Tag remove
-    wrap.querySelectorAll('.gp-remove').forEach(btn => {
+    wrap.querySelectorAll('.gp-remove').forEach((btn) => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
         this._selected.delete(btn.dataset.g);
@@ -102,17 +124,23 @@ class GroupPicker {
     input.addEventListener('input', () => this._updateDropdown(input.value.trim().toLowerCase()));
     input.addEventListener('focus', () => this._updateDropdown(input.value.trim().toLowerCase()));
     input.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') { dropdown.style.display = 'none'; }
+      if (e.key === 'Escape') dropdown.style.display = 'none';
       if (e.key === 'Enter' || e.key === ',') {
         e.preventDefault();
         const val = input.value.trim().replace(/,$/, '');
-        if (val) { this._add(val); input.value = ''; dropdown.style.display = 'none'; }
+        if (val) {
+          this._add(val);
+          input.value = '';
+          dropdown.style.display = 'none';
+        }
       }
     });
     // Close dropdown when focus leaves the picker
     this._el.addEventListener('focusout', (e) => {
       if (!this._el.contains(e.relatedTarget)) {
-        setTimeout(() => { dropdown.style.display = 'none'; }, 150);
+        setTimeout(() => {
+          dropdown.style.display = 'none';
+        }, 150);
       }
     });
 
@@ -127,7 +155,10 @@ class GroupPicker {
 
     const doCreate = async () => {
       const name = this._el.querySelector('#gp-new-name').value.trim();
-      if (!name) { toast('Group name required', 'warning'); return; }
+      if (!name) {
+        toast('Group name required', 'warning');
+        return;
+      }
       try {
         await api.post('/groups', { name });
         this._all.push(name);
@@ -135,11 +166,16 @@ class GroupPicker {
         this._el.querySelector('#gp-new-name').value = '';
         quick.style.display = 'none';
         toast(`Group "${name}" created`, 'success');
-      } catch (err) { toast(err.message || 'Failed to create group', 'error'); }
+      } catch (err) {
+        toast(err.message || 'Failed to create group', 'error');
+      }
     };
     this._el.querySelector('#gp-create-btn').addEventListener('click', doCreate);
     this._el.querySelector('#gp-new-name').addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') { e.preventDefault(); doCreate(); }
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        doCreate();
+      }
     });
   }
 
@@ -153,14 +189,17 @@ class GroupPicker {
   _updateDropdown(q) {
     const dropdown = this._el.querySelector('#gp-dropdown');
     if (!dropdown) return;
-    const matches = this._all.filter(g => g.toLowerCase().includes(q) && !this._selected.has(g));
-    if (!matches.length) { dropdown.style.display = 'none'; return; }
+    const matches = this._all.filter((g) => g.toLowerCase().includes(q) && !this._selected.has(g));
+    if (!matches.length) {
+      dropdown.style.display = 'none';
+      return;
+    }
 
     dropdown.style.display = 'block';
-    dropdown.innerHTML = matches.slice(0, 8).map(g =>
+    dropdown.innerHTML = matches.slice(0, 8).map((g) =>
       `<div class="gp-item" data-g="${g}">${g}</div>`
     ).join('');
-    dropdown.querySelectorAll('.gp-item').forEach(item => {
+    dropdown.querySelectorAll('.gp-item').forEach((item) => {
       // mousedown so it fires before blur
       item.addEventListener('mousedown', (e) => {
         e.preventDefault();
@@ -229,6 +268,8 @@ tr.selected td { background: color-mix(in srgb, var(--color-accent) 8%, transpar
 .badge-success { background: color-mix(in srgb, var(--color-success) 15%, transparent); color: var(--color-success); }
 .badge-danger  { background: color-mix(in srgb, var(--color-danger) 15%, transparent);  color: var(--color-danger);  }
 .badge-group   { background: color-mix(in srgb, var(--color-accent) 12%, transparent); color: var(--color-accent); margin-right: 2px; }
+.badge-ad      { background: color-mix(in srgb, var(--color-warning, #eab308) 16%, transparent); color: var(--color-warning, #eab308); }
+.badge-local   { background: rgba(139,149,165,0.14); color: var(--color-muted); }
 
 .groups-cell { display: flex; flex-wrap: wrap; gap: 3px; }
 
@@ -445,7 +486,6 @@ select { font-family: var(--font); }
 .gp-new-toggle:hover { color: var(--color-accent); }
 `;
 
-
 // ── Main Component ─────────────────────────────────────────────────────────────
 
 class UsersView extends HTMLElement {
@@ -457,7 +497,7 @@ class UsersView extends HTMLElement {
     this._page = 1;
     this._size = 20;
     this._search = '';
-    this._order = 'asc';   // server-side username sort direction
+    this._order = 'asc'; // server-side username sort direction
     this._selected = null;
     this._detail = null;
     this._tab = 'overview';
@@ -522,11 +562,20 @@ class UsersView extends HTMLElement {
     sr.getElementById('btn-import').addEventListener('click', () => this._openImportModal());
     sr.getElementById('btn-history').addEventListener('click', () => this._openJobHistory());
 
-    sr.getElementById('btn-bulk-enable').addEventListener('click',  () => this._bulkAction('enable'));
-    sr.getElementById('btn-bulk-disable').addEventListener('click', () => this._bulkAction('disable'));
-    sr.getElementById('btn-bulk-delete').addEventListener('click',  () => this._bulkAction('delete'));
-    sr.getElementById('btn-bulk-group').addEventListener('click',   () => this._bulkAssignGroup());
-    sr.getElementById('btn-bulk-clear').addEventListener('click',   () => {
+    sr.getElementById('btn-bulk-enable').addEventListener(
+      'click',
+      () => this._bulkAction('enable'),
+    );
+    sr.getElementById('btn-bulk-disable').addEventListener(
+      'click',
+      () => this._bulkAction('disable'),
+    );
+    sr.getElementById('btn-bulk-delete').addEventListener(
+      'click',
+      () => this._bulkAction('delete'),
+    );
+    sr.getElementById('btn-bulk-group').addEventListener('click', () => this._bulkAssignGroup());
+    sr.getElementById('btn-bulk-clear').addEventListener('click', () => {
       this._checkedUsers.clear();
       this._updateBulkBar();
       this._renderList();
@@ -549,13 +598,18 @@ class UsersView extends HTMLElement {
       body.innerHTML = `
         <table>
           <thead><tr>
-            <th class="cb-col"></th><th>Username</th><th>Status</th><th>Groups</th><th>Expiration</th>
+            <th class="cb-col"></th><th>Username</th><th>Status</th><th>Source</th><th>Groups</th><th>Expiration</th>
           </tr></thead>
-          <tbody>${skeletonRows(this.shadowRoot, 5, 8)}</tbody>
+          <tbody>${skeletonRows(this.shadowRoot, 6, 8)}</tbody>
         </table>`;
     }
     try {
-      const params = new URLSearchParams({ page: this._page, size: this._size, search: this._search, order: this._order });
+      const params = new URLSearchParams({
+        page: this._page,
+        size: this._size,
+        search: this._search,
+        order: this._order,
+      });
       const data = await api.get(`/users?${params}`);
       this._users = data.items;
       this._total = data.total;
@@ -580,17 +634,20 @@ class UsersView extends HTMLElement {
       return;
     }
 
-    const allOnPage = this._users.map(u => u.username);
-    const allChecked = allOnPage.length > 0 && allOnPage.every(u => this._checkedUsers.has(u));
+    const allOnPage = this._users.map((u) => u.username);
+    const allChecked = allOnPage.length > 0 && allOnPage.every((u) => this._checkedUsers.has(u));
 
     body.innerHTML = `
       <table>
         <thead><tr>
-          <th class="cb-col" data-no-sort><input type="checkbox" id="cb-all" ${allChecked ? 'checked' : ''} title="Select all" /></th>
-          <th data-sort-key="username">Username</th><th data-no-sort>Status</th><th data-no-sort>Groups</th><th data-no-sort>Expiration</th>
+          <th class="cb-col" data-no-sort><input type="checkbox" id="cb-all" ${
+      allChecked ? 'checked' : ''
+    } title="Select all" /></th>
+          <th data-sort-key="username">Username</th><th data-no-sort>Status</th><th data-no-sort>Source</th><th data-no-sort>Groups</th><th data-no-sort>Expiration</th>
         </tr></thead>
         <tbody>
-          ${this._users.map(u => `
+          ${
+      this._users.map((u) => `
             <tr class="clickable${this._selected === u.username ? ' selected' : ''}"
                 data-username="${escHtml(u.username)}">
               <td class="cb-col" data-stop>
@@ -599,34 +656,44 @@ class UsersView extends HTMLElement {
               </td>
               <td><strong>${escHtml(u.username)}</strong></td>
               <td>${u.disabled ? badge('Disabled', 'danger') : badge('Active', 'success')}</td>
+              <td>${sourceBadge(u)}</td>
               <td>
                 <div class="groups-cell">
-                  ${u.groups.length
-                    ? u.groups.map(g => badge(escHtml(g), 'group')).join('')
-                    : '<span style="color:var(--color-muted);font-size:0.78rem">—</span>'}
+                  ${
+        u.groups.length
+          ? u.groups.map((g) => badge(escHtml(g), 'group')).join('')
+          : '<span style="color:var(--color-muted);font-size:0.78rem">—</span>'
+      }
                 </div>
               </td>
-              <td style="font-size:0.78rem;color:var(--color-muted)">${escHtml(u.expiration) || '—'}</td>
+              <td style="font-size:0.78rem;color:var(--color-muted)">${
+        escHtml(u.expiration) || '—'
+      }</td>
             </tr>
-          `).join('')}
+          `).join('')
+    }
         </tbody>
       </table>
     `;
 
     body.querySelector('#cb-all')?.addEventListener('change', (e) => {
-      allOnPage.forEach(u => e.target.checked ? this._checkedUsers.add(u) : this._checkedUsers.delete(u));
+      allOnPage.forEach((u) =>
+        e.target.checked ? this._checkedUsers.add(u) : this._checkedUsers.delete(u)
+      );
       this._updateBulkBar();
       this._renderList();
     });
 
-    body.querySelectorAll('.row-cb').forEach(cb => {
+    body.querySelectorAll('.row-cb').forEach((cb) => {
       cb.addEventListener('change', (e) => {
-        e.target.checked ? this._checkedUsers.add(cb.dataset.u) : this._checkedUsers.delete(cb.dataset.u);
+        e.target.checked
+          ? this._checkedUsers.add(cb.dataset.u)
+          : this._checkedUsers.delete(cb.dataset.u);
         this._updateBulkBar();
       });
     });
 
-    body.querySelectorAll('tr[data-username]').forEach(row => {
+    body.querySelectorAll('tr[data-username]').forEach((row) => {
       row.addEventListener('click', (e) => {
         if (e.target.closest('[data-stop]')) return;
         this._selectUser(row.dataset.username);
@@ -644,7 +711,11 @@ class UsersView extends HTMLElement {
     // unsorted.
     makeSortable(table, {
       active: { key: 'username', dir: this._order },
-      onSort: (_key, dir) => { this._order = dir; this._page = 1; this._loadUsers(); },
+      onSort: (_key, dir) => {
+        this._order = dir;
+        this._page = 1;
+        this._loadUsers();
+      },
     });
   }
 
@@ -654,13 +725,23 @@ class UsersView extends HTMLElement {
     pg.innerHTML = `
       <span>${this._total} user${this._total !== 1 ? 's' : ''}</span>
       <div class="pagination-btns">
-        <button class="btn btn-ghost" id="pg-prev" ${this._page <= 1 ? 'disabled' : ''}>‹ Prev</button>
+        <button class="btn btn-ghost" id="pg-prev" ${
+      this._page <= 1 ? 'disabled' : ''
+    }>‹ Prev</button>
         <span style="align-self:center;font-size:0.78rem">${this._page} / ${pages}</span>
-        <button class="btn btn-ghost" id="pg-next" ${this._page >= pages ? 'disabled' : ''}>Next ›</button>
+        <button class="btn btn-ghost" id="pg-next" ${
+      this._page >= pages ? 'disabled' : ''
+    }>Next ›</button>
       </div>
     `;
-    pg.querySelector('#pg-prev')?.addEventListener('click', () => { this._page--; this._loadUsers(); });
-    pg.querySelector('#pg-next')?.addEventListener('click', () => { this._page++; this._loadUsers(); });
+    pg.querySelector('#pg-prev')?.addEventListener('click', () => {
+      this._page--;
+      this._loadUsers();
+    });
+    pg.querySelector('#pg-next')?.addEventListener('click', () => {
+      this._page++;
+      this._loadUsers();
+    });
   }
 
   // ── Detail panel ───────────────────────────────────────────────────────────
@@ -692,17 +773,29 @@ class UsersView extends HTMLElement {
         <div class="detail-header">
           <div class="detail-username">${escHtml(d.username)}</div>
           ${d.disabled ? badge('Disabled', 'danger') : badge('Active', 'success')}
+          ${sourceBadge(d)}
           <button class="btn ${d.disabled ? 'btn-primary' : 'btn-ghost'}" id="btn-toggle">
             ${d.disabled ? 'Enable' : 'Disable'}
           </button>
           <button class="icon-btn danger" id="btn-close-detail" title="Close">✕</button>
         </div>
         <div class="detail-tabs">
-          ${['overview','check','reply','sessions','auth-log','timeline'].map(t => `
+          ${
+      ['overview', 'check', 'reply', 'sessions', 'auth-log', 'timeline'].map((t) => `
             <button class="tab-btn${this._tab === t ? ' active' : ''}" data-tab="${t}">
-              ${{ overview:'Overview', check:'Check', reply:'Reply', sessions:'Sessions', 'auth-log':'Auth Log', timeline:'Timeline' }[t]}
+              ${
+        {
+          overview: 'Overview',
+          check: 'Check',
+          reply: 'Reply',
+          sessions: 'Sessions',
+          'auth-log': 'Auth Log',
+          timeline: 'Timeline',
+        }[t]
+      }
             </button>
-          `).join('')}
+          `).join('')
+    }
         </div>
         <div class="detail-body" id="detail-body"></div>
       </div>
@@ -710,10 +803,10 @@ class UsersView extends HTMLElement {
 
     dp.querySelector('#btn-close-detail').addEventListener('click', () => this._closeDetail());
     dp.querySelector('#btn-toggle').addEventListener('click', () => this._toggleDisable());
-    dp.querySelectorAll('.tab-btn').forEach(btn => {
+    dp.querySelectorAll('.tab-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
         this._tab = btn.dataset.tab;
-        dp.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b === btn));
+        dp.querySelectorAll('.tab-btn').forEach((b) => b.classList.toggle('active', b === btn));
         this._renderTab();
       });
     });
@@ -725,12 +818,24 @@ class UsersView extends HTMLElement {
     const body = this.shadowRoot.getElementById('detail-body');
     if (!body) return;
     switch (this._tab) {
-      case 'overview':  this._renderOverviewTab(body); break;
-      case 'check':     this._renderAttrsTab(body, 'check'); break;
-      case 'reply':     this._renderAttrsTab(body, 'reply'); break;
-      case 'sessions':  this._renderSessionsTab(body); break;
-      case 'auth-log':  this._renderAuthLogTab(body); break;
-      case 'timeline':  this._renderTimelineTab(body); break;
+      case 'overview':
+        this._renderOverviewTab(body);
+        break;
+      case 'check':
+        this._renderAttrsTab(body, 'check');
+        break;
+      case 'reply':
+        this._renderAttrsTab(body, 'reply');
+        break;
+      case 'sessions':
+        this._renderSessionsTab(body);
+        break;
+      case 'auth-log':
+        this._renderAuthLogTab(body);
+        break;
+      case 'timeline':
+        this._renderTimelineTab(body);
+        break;
     }
   }
 
@@ -738,8 +843,8 @@ class UsersView extends HTMLElement {
 
   _renderOverviewTab(body) {
     const d = this._detail;
-    const exp = d.check_attrs.find(a => a.attribute === 'Expiration')?.value || '';
-    const simRaw = d.check_attrs.find(a => a.attribute === 'Simultaneous-Use')?.value;
+    const exp = d.check_attrs.find((a) => a.attribute === 'Expiration')?.value || '';
+    const simRaw = d.check_attrs.find((a) => a.attribute === 'Simultaneous-Use')?.value;
 
     body.innerHTML = `
       <div class="section-header">Change Password</div>
@@ -751,7 +856,7 @@ class UsersView extends HTMLElement {
         <div class="form-row">
           <label>Type</label>
           <select class="input" id="pwd-type">
-            ${PASSWORD_TYPES.map(t => `<option value="${t}">${t}</option>`).join('')}
+            ${PASSWORD_TYPES.map((t) => `<option value="${t}">${t}</option>`).join('')}
           </select>
         </div>
         <button class="btn btn-primary" id="btn-save-pwd">Save</button>
@@ -761,7 +866,7 @@ class UsersView extends HTMLElement {
       <div class="form-row">
         <label>Group names (comma-separated)</label>
         <input class="input" id="groups-input" type="text"
-          value="${d.groups.map(g => g.groupname).join(', ')}"
+          value="${d.groups.map((g) => g.groupname).join(', ')}"
           placeholder="e.g. pppoe-users, premium" />
       </div>
       <button class="btn btn-primary" id="btn-save-groups">Save Groups</button>
@@ -789,14 +894,20 @@ class UsersView extends HTMLElement {
 
     body.querySelector('#btn-save-pwd').addEventListener('click', async () => {
       const pwd = body.querySelector('#new-pwd').value.trim();
-      if (!pwd) { toast('Enter a new password', 'warning'); return; }
-      await this._updateUser({ password: pwd, password_type: body.querySelector('#pwd-type').value });
+      if (!pwd) {
+        toast('Enter a new password', 'warning');
+        return;
+      }
+      await this._updateUser({
+        password: pwd,
+        password_type: body.querySelector('#pwd-type').value,
+      });
       body.querySelector('#new-pwd').value = '';
     });
 
     body.querySelector('#btn-save-groups').addEventListener('click', async () => {
       const raw = body.querySelector('#groups-input').value;
-      const groups = raw.split(',').map(s => s.trim()).filter(Boolean);
+      const groups = raw.split(',').map((s) => s.trim()).filter(Boolean);
       try {
         await api.put(`/users/${encodeURIComponent(this._selected)}/groups`, { groups });
         toast('Groups updated', 'success');
@@ -814,7 +925,12 @@ class UsersView extends HTMLElement {
     });
 
     body.querySelector('#btn-delete').addEventListener('click', async () => {
-      if (!(await confirmDialog(`Delete user "${this._selected}"? This cannot be undone.`, { title: 'Delete user', danger: true }))) return;
+      if (
+        !(await confirmDialog(`Delete user "${this._selected}"? This cannot be undone.`, {
+          title: 'Delete user',
+          danger: true,
+        }))
+      ) return;
       try {
         await api.delete(`/users/${encodeURIComponent(this._selected)}`);
         toast(`User ${this._selected} deleted`, 'success');
@@ -834,17 +950,23 @@ class UsersView extends HTMLElement {
       <table class="attr-table">
         <thead><tr><th>Attribute</th><th class="op-col">Op</th><th>Value</th><th class="actions-col"></th></tr></thead>
         <tbody>
-          ${rows.map(r => `
+          ${
+      rows.map((r) => `
             <tr data-id="${r.id}">
               <td>${escHtml(r.attribute)}</td>
-              <td class="op-col"><input class="input attr-op" value="${escHtml(r.op)}" style="width:55px;padding:0.25rem;" /></td>
-              <td><input class="input attr-val" value="${escHtml(r.value)}" style="padding:0.25rem;" /></td>
+              <td class="op-col"><input class="input attr-op" value="${
+        escHtml(r.op)
+      }" style="width:55px;padding:0.25rem;" /></td>
+              <td><input class="input attr-val" value="${
+        escHtml(r.value)
+      }" style="padding:0.25rem;" /></td>
               <td class="actions-col">
                 <button class="icon-btn btn-save-attr" title="Save">💾</button>
                 <button class="icon-btn danger btn-del-attr" title="Delete">🗑</button>
               </td>
             </tr>
-          `).join('')}
+          `).join('')
+    }
         </tbody>
       </table>
       <div class="add-attr-row">
@@ -855,57 +977,82 @@ class UsersView extends HTMLElement {
       </div>
     `;
 
-    body.querySelectorAll('.btn-save-attr').forEach(btn => {
+    body.querySelectorAll('.btn-save-attr').forEach((btn) => {
       btn.addEventListener('click', async () => {
         const row = btn.closest('tr');
         const id = parseInt(row.dataset.id);
         const op = row.querySelector('.attr-op').value;
         const value = row.querySelector('.attr-val').value;
         try {
-          await api.put(`/users/${encodeURIComponent(this._selected)}/${type}/${id}`, { op, value });
+          await api.put(`/users/${encodeURIComponent(this._selected)}/${type}/${id}`, {
+            op,
+            value,
+          });
           toast('Attribute updated', 'success');
           await this._refreshDetail();
-        } catch (e) { toast(e.message || 'Update failed', 'error'); }
+        } catch (e) {
+          toast(e.message || 'Update failed', 'error');
+        }
       });
     });
 
-    body.querySelectorAll('.btn-del-attr').forEach(btn => {
+    body.querySelectorAll('.btn-del-attr').forEach((btn) => {
       btn.addEventListener('click', async () => {
         const row = btn.closest('tr');
         const id = parseInt(row.dataset.id);
-        if (!(await confirmDialog('Delete this attribute?', { title: 'Delete attribute', danger: true }))) return;
+        if (
+          !(await confirmDialog('Delete this attribute?', {
+            title: 'Delete attribute',
+            danger: true,
+          }))
+        ) return;
         try {
           await api.delete(`/users/${encodeURIComponent(this._selected)}/${type}/${id}`);
           toast('Attribute deleted', 'success');
           await this._refreshDetail();
-        } catch (e) { toast(e.message || 'Delete failed', 'error'); }
+        } catch (e) {
+          toast(e.message || 'Delete failed', 'error');
+        }
       });
     });
 
     body.querySelector('#btn-add-attr').addEventListener('click', async () => {
       const attr = body.querySelector('#new-attr-name').value.trim();
-      const op   = body.querySelector('#new-attr-op').value.trim() || ':=';
-      const val  = body.querySelector('#new-attr-val').value.trim();
-      if (!attr || !val) { toast('Attribute and value required', 'warning'); return; }
+      const op = body.querySelector('#new-attr-op').value.trim() || ':=';
+      const val = body.querySelector('#new-attr-val').value.trim();
+      if (!attr || !val) {
+        toast('Attribute and value required', 'warning');
+        return;
+      }
       try {
-        await api.post(`/users/${encodeURIComponent(this._selected)}/${type}`, { attribute: attr, op, value: val });
+        await api.post(`/users/${encodeURIComponent(this._selected)}/${type}`, {
+          attribute: attr,
+          op,
+          value: val,
+        });
         toast('Attribute added', 'success');
         body.querySelector('#new-attr-name').value = '';
         body.querySelector('#new-attr-val').value = '';
         await this._refreshDetail();
-      } catch (e) { toast(e.message || 'Add failed', 'error'); }
+      } catch (e) {
+        toast(e.message || 'Add failed', 'error');
+      }
     });
   }
 
   // ── Sessions tab ──────────────────────────────────────────────────────────
 
   async _renderSessionsTab(body) {
-    body.innerHTML = `<div style="color:var(--color-muted);font-size:0.85rem;padding:1rem 0;">Loading sessions…</div>`;
+    body.innerHTML =
+      `<div style="color:var(--color-muted);font-size:0.85rem;padding:1rem 0;">Loading sessions…</div>`;
     if (!this._tabData.sessions) {
       try {
-        this._tabData.sessions = await api.get(`/users/${encodeURIComponent(this._selected)}/sessions`);
+        this._tabData.sessions = await api.get(
+          `/users/${encodeURIComponent(this._selected)}/sessions`,
+        );
       } catch {
-        body.innerHTML = `<div style="color:var(--color-danger);padding:1rem;">Failed to load sessions.</div>`;
+        body.innerHTML =
+          `<div style="color:var(--color-danger);padding:1rem;">Failed to load sessions.</div>`;
         return;
       }
     }
@@ -920,27 +1067,41 @@ class UsersView extends HTMLElement {
         <table>
           <thead><tr><th>Start</th><th>Stop</th><th>Auth</th><th>Duration</th><th>In / Out</th><th>NAS / Location</th><th>Cause</th></tr></thead>
           <tbody>
-            ${rows.map(r => `
+            ${
+        rows.map((r) => `
               <tr>
                 <td style="font-size:0.78rem;white-space:nowrap">${fmtDate(r.acctstarttime)}</td>
                 <td style="font-size:0.78rem;white-space:nowrap;color:var(--color-muted)">
                   ${r.acctstoptime ? fmtDate(r.acctstoptime) : badge('Active', 'success')}
                 </td>
-                <td>${r.auth_outcome === 'Access-Accept'
-                  ? badge('Accept', 'success')
-                  : r.auth_outcome
-                    ? badge('Reject', 'danger')
-                    : '<span style="color:var(--color-muted);font-size:0.72rem">—</span>'}
+                <td>${
+          r.auth_outcome === 'Access-Accept'
+            ? badge('Accept', 'success')
+            : r.auth_outcome
+            ? badge('Reject', 'danger')
+            : '<span style="color:var(--color-muted);font-size:0.72rem">—</span>'
+        }
                 </td>
                 <td style="font-size:0.78rem">${fmtDuration(r.acctsessiontime)}</td>
-                <td style="font-size:0.78rem">${fmtBytes(r.acctinputoctets)} / ${fmtBytes(r.acctoutputoctets)}</td>
+                <td style="font-size:0.78rem">${fmtBytes(r.acctinputoctets)} / ${
+          fmtBytes(r.acctoutputoctets)
+        }</td>
                 <td style="font-size:0.78rem">
                   <span style="color:var(--color-muted)">${escHtml(r.nasipaddress || '—')}</span>
-                  ${r.geo_client ? `<div style="font-size:0.7rem;color:var(--color-muted)">${geoLabelHTML(r.geo_client)}</div>` : ''}
+                  ${
+          r.geo_client
+            ? `<div style="font-size:0.7rem;color:var(--color-muted)">${
+              geoLabelHTML(r.geo_client)
+            }</div>`
+            : ''
+        }
                 </td>
-                <td style="font-size:0.78rem;color:var(--color-muted)">${escHtml(r.acctterminatecause || '—')}</td>
+                <td style="font-size:0.78rem;color:var(--color-muted)">${
+          escHtml(r.acctterminatecause || '—')
+        }</td>
               </tr>
-            `).join('')}
+            `).join('')
+      }
           </tbody>
         </table>
       `;
@@ -954,13 +1115,17 @@ class UsersView extends HTMLElement {
   // ── Auth log tab ──────────────────────────────────────────────────────────
 
   async _renderAuthLogTab(body) {
-    body.innerHTML = `<div style="color:var(--color-muted);font-size:0.85rem;padding:1rem 0;">Loading auth log…</div>`;
+    body.innerHTML =
+      `<div style="color:var(--color-muted);font-size:0.85rem;padding:1rem 0;">Loading auth log…</div>`;
     try {
       if (!this._tabData.authHistory) {
-        this._tabData.authHistory = await api.get(`/users/${encodeURIComponent(this._selected)}/auth-history`);
+        this._tabData.authHistory = await api.get(
+          `/users/${encodeURIComponent(this._selected)}/auth-history`,
+        );
       }
       const rows = Array.isArray(this._tabData.authHistory) ? this._tabData.authHistory : [];
-      const refreshBtn = `<div style="display:flex;justify-content:flex-end;padding:0 0 0.5rem 0;"><button class="btn btn-ghost" style="padding:0.3rem 0.65rem;font-size:0.75rem;" id="btn-refresh-auth">↻ Refresh</button></div>`;
+      const refreshBtn =
+        `<div style="display:flex;justify-content:flex-end;padding:0 0 0.5rem 0;"><button class="btn btn-ghost" style="padding:0.3rem 0.65rem;font-size:0.75rem;" id="btn-refresh-auth">↻ Refresh</button></div>`;
       if (!rows.length) {
         body.innerHTML = refreshBtn + `<div class="empty-state">No auth events found.</div>`;
       } else {
@@ -968,19 +1133,39 @@ class UsersView extends HTMLElement {
           <table>
             <thead><tr><th>Time</th><th>Result</th><th>Method</th><th>Calling Station</th><th>NAS / Location</th><th></th></tr></thead>
             <tbody>
-              ${rows.map(r => `
+              ${
+          rows.map((r) => `
                 <tr>
                   <td style="font-size:0.78rem;white-space:nowrap">${fmtDate(r.authdate)}</td>
-                  <td>${r.reply === 'Access-Accept' ? badge('Accept', 'success') : badge(r.reply || 'Unknown', 'danger')}</td>
-                  <td style="font-size:0.72rem;color:var(--color-muted)">${escHtml(r.authmethod || '—')}</td>
-                  <td style="font-size:0.78rem;color:var(--color-muted)">${escHtml(r.callingstationid || '—')}</td>
+                  <td>${
+            r.reply === 'Access-Accept'
+              ? badge('Accept', 'success')
+              : badge(r.reply || 'Unknown', 'danger')
+          }</td>
+                  <td style="font-size:0.72rem;color:var(--color-muted)">${
+            escHtml(r.authmethod || '—')
+          }</td>
+                  <td style="font-size:0.78rem;color:var(--color-muted)">${
+            escHtml(r.callingstationid || '—')
+          }</td>
                   <td style="font-size:0.78rem">
                     <span style="color:var(--color-muted)">${escHtml(r.nasipaddress || '—')}</span>
-                    ${r.geo_client ? `<div style="font-size:0.7rem;color:var(--color-muted)">${geoLabelHTML(r.geo_client)}</div>` : ''}
+                    ${
+            r.geo_client
+              ? `<div style="font-size:0.7rem;color:var(--color-muted)">${
+                geoLabelHTML(r.geo_client)
+              }</div>`
+              : ''
+          }
                   </td>
-                  <td>${r.linked_session_id ? `<a class="auth-sess-link" data-sid="${r.linked_session_id}" href="#" style="font-size:0.7rem;color:var(--color-accent)" title="View linked session">↗ Session</a>` : ''}</td>
+                  <td>${
+            r.linked_session_id
+              ? `<a class="auth-sess-link" data-sid="${r.linked_session_id}" href="#" style="font-size:0.7rem;color:var(--color-accent)" title="View linked session">↗ Session</a>`
+              : ''
+          }</td>
                 </tr>
-              `).join('')}
+              `).join('')
+        }
             </tbody>
           </table>
         `;
@@ -989,24 +1174,30 @@ class UsersView extends HTMLElement {
         this._tabData.authHistory = null;
         this._renderAuthLogTab(body);
       });
-      body.querySelectorAll('.auth-sess-link').forEach(a => {
+      body.querySelectorAll('.auth-sess-link').forEach((a) => {
         a.addEventListener('click', (e) => {
           e.preventDefault();
           router.navigate('/accounting?highlight=' + a.dataset.sid);
         });
       });
     } catch (err) {
-      body.innerHTML = `<div style="color:var(--color-danger);padding:1rem;">Failed to load auth history: ${escHtml(err.message)}</div>`;
+      body.innerHTML =
+        `<div style="color:var(--color-danger);padding:1rem;">Failed to load auth history: ${
+          escHtml(err.message)
+        }</div>`;
     }
   }
 
   // ── Timeline tab (Phase 20.2) ────────────────────────────────────────────
 
   async _renderTimelineTab(body) {
-    body.innerHTML = `<div style="color:var(--color-muted);font-size:0.85rem;padding:1rem 0;">Loading timeline…</div>`;
+    body.innerHTML =
+      `<div style="color:var(--color-muted);font-size:0.85rem;padding:1rem 0;">Loading timeline…</div>`;
     try {
       if (!this._tabData.timeline) {
-        this._tabData.timeline = await api.get(`/users/${encodeURIComponent(this._selected)}/timeline`);
+        this._tabData.timeline = await api.get(
+          `/users/${encodeURIComponent(this._selected)}/timeline`,
+        );
       }
       const events = this._tabData.timeline || [];
       const refreshBtn = `<div style="display:flex;justify-content:flex-end;padding:0 0 0.5rem 0;">
@@ -1015,7 +1206,7 @@ class UsersView extends HTMLElement {
       if (!events.length) {
         body.innerHTML = refreshBtn + `<div class="empty-state">No activity recorded yet.</div>`;
       } else {
-        const items = events.map(ev => {
+        const items = events.map((ev) => {
           if (ev.type === 'auth') {
             const accept = ev.reply === 'Access-Accept';
             return `
@@ -1024,12 +1215,36 @@ class UsersView extends HTMLElement {
                 <div class="tl-content">
                   <div class="tl-row">
                     ${accept ? badge('Accept', 'success') : badge(ev.reply || 'Reject', 'danger')}
-                    ${ev.authmethod ? `<span style="font-size:0.72rem;color:var(--color-muted);margin-left:6px">${escHtml(ev.authmethod)}</span>` : ''}
-                    <span style="margin-left:auto;font-size:0.72rem;color:var(--color-muted)">${fmtDate(ev.timestamp)}</span>
+                    ${
+              ev.authmethod
+                ? `<span style="font-size:0.72rem;color:var(--color-muted);margin-left:6px">${
+                  escHtml(ev.authmethod)
+                }</span>`
+                : ''
+            }
+                    <span style="margin-left:auto;font-size:0.72rem;color:var(--color-muted)">${
+              fmtDate(ev.timestamp)
+            }</span>
                   </div>
-                  ${ev.failurereason ? `<div style="font-size:0.72rem;color:var(--color-danger);margin-top:3px">${escHtml(ev.failurereason)}</div>` : ''}
-                  ${ev.nasipaddress ? `<div style="font-size:0.72rem;color:var(--color-muted);margin-top:2px">NAS ${escHtml(ev.nasipaddress)}${ev.geo_client ? ' · ' + geoLabelHTML(ev.geo_client) : ''}</div>` : ''}
-                  ${ev.auth_latency_ms != null ? `<div style="font-size:0.7rem;color:var(--color-muted)">Latency ${ev.auth_latency_ms} ms</div>` : ''}
+                  ${
+              ev.failurereason
+                ? `<div style="font-size:0.72rem;color:var(--color-danger);margin-top:3px">${
+                  escHtml(ev.failurereason)
+                }</div>`
+                : ''
+            }
+                  ${
+              ev.nasipaddress
+                ? `<div style="font-size:0.72rem;color:var(--color-muted);margin-top:2px">NAS ${
+                  escHtml(ev.nasipaddress)
+                }${ev.geo_client ? ' · ' + geoLabelHTML(ev.geo_client) : ''}</div>`
+                : ''
+            }
+                  ${
+              ev.auth_latency_ms != null
+                ? `<div style="font-size:0.7rem;color:var(--color-muted)">Latency ${ev.auth_latency_ms} ms</div>`
+                : ''
+            }
                 </div>
               </div>`;
           } else {
@@ -1039,14 +1254,34 @@ class UsersView extends HTMLElement {
                 <div class="tl-dot"></div>
                 <div class="tl-content">
                   <div class="tl-row">
-                    ${active ? badge('Active Session', 'success') : `<span style="font-size:0.8rem;font-weight:500">Session</span>`}
-                    <span style="margin-left:auto;font-size:0.72rem;color:var(--color-muted)">${fmtDate(ev.timestamp)}</span>
+                    ${
+              active
+                ? badge('Active Session', 'success')
+                : `<span style="font-size:0.8rem;font-weight:500">Session</span>`
+            }
+                    <span style="margin-left:auto;font-size:0.72rem;color:var(--color-muted)">${
+              fmtDate(ev.timestamp)
+            }</span>
                   </div>
                   <div style="font-size:0.72rem;color:var(--color-muted);margin-top:3px">
-                    ${fmtDuration(ev.acctsessiontime)} · ${fmtBytes(ev.acctinputoctets)} ↑ / ${fmtBytes(ev.acctoutputoctets)} ↓
+                    ${fmtDuration(ev.acctsessiontime)} · ${fmtBytes(ev.acctinputoctets)} ↑ / ${
+              fmtBytes(ev.acctoutputoctets)
+            } ↓
                   </div>
-                  ${ev.nasipaddress ? `<div style="font-size:0.72rem;color:var(--color-muted)">${escHtml(ev.nasipaddress)}${ev.geo_client ? ' · ' + geoLabelHTML(ev.geo_client) : ''}</div>` : ''}
-                  ${ev.framedipaddress ? `<div style="font-size:0.7rem;color:var(--color-muted)">IP ${escHtml(ev.framedipaddress)}</div>` : ''}
+                  ${
+              ev.nasipaddress
+                ? `<div style="font-size:0.72rem;color:var(--color-muted)">${
+                  escHtml(ev.nasipaddress)
+                }${ev.geo_client ? ' · ' + geoLabelHTML(ev.geo_client) : ''}</div>`
+                : ''
+            }
+                  ${
+              ev.framedipaddress
+                ? `<div style="font-size:0.7rem;color:var(--color-muted)">IP ${
+                  escHtml(ev.framedipaddress)
+                }</div>`
+                : ''
+            }
                 </div>
               </div>`;
           }
@@ -1058,7 +1293,10 @@ class UsersView extends HTMLElement {
         this._renderTimelineTab(body);
       });
     } catch (err) {
-      body.innerHTML = `<div style="color:var(--color-danger);padding:1rem;">Failed to load timeline: ${escHtml(err.message)}</div>`;
+      body.innerHTML =
+        `<div style="color:var(--color-danger);padding:1rem;">Failed to load timeline: ${
+          escHtml(err.message)
+        }</div>`;
     }
   }
 
@@ -1066,7 +1304,7 @@ class UsersView extends HTMLElement {
 
   _openCreateModal() {
     const overlay = this.shadowRoot.getElementById('modal-overlay');
-    const box     = this.shadowRoot.getElementById('modal-box');
+    const box = this.shadowRoot.getElementById('modal-box');
     box.innerHTML = `
       <div class="modal-title">Create User</div>
       <div class="form-row">
@@ -1080,7 +1318,7 @@ class UsersView extends HTMLElement {
       <div class="form-row">
         <label>Password Type</label>
         <select class="input" id="m-pwd-type">
-          ${PASSWORD_TYPES.map(t => `<option value="${t}">${t}</option>`).join('')}
+          ${PASSWORD_TYPES.map((t) => `<option value="${t}">${t}</option>`).join('')}
         </select>
       </div>
       <div class="form-row">
@@ -1117,22 +1355,35 @@ class UsersView extends HTMLElement {
     const box = this.shadowRoot.getElementById('modal-box');
     const uEl = box.querySelector('#m-username');
     const pEl = box.querySelector('#m-password');
-    const username      = uEl.value.trim();
-    const password      = pEl.value;
+    const username = uEl.value.trim();
+    const password = pEl.value;
     const password_type = box.querySelector('#m-pwd-type').value;
-    const expiration    = box.querySelector('#m-expiration').value.trim() || null;
-    const simRaw        = box.querySelector('#m-sim').value;
+    const expiration = box.querySelector('#m-expiration').value.trim() || null;
+    const simRaw = box.querySelector('#m-sim').value;
     const simultaneous_use = simRaw ? parseInt(simRaw) : null;
-    const groups        = this._groupPicker ? this._groupPicker.selected : [];
+    const groups = this._groupPicker ? this._groupPicker.selected : [];
 
     clearFieldErrors(box);
     let invalid = false;
-    if (!username) { setFieldError(uEl, 'Username is required'); invalid = true; }
-    if (!password) { setFieldError(pEl, 'Password is required'); invalid = true; }
+    if (!username) {
+      setFieldError(uEl, 'Username is required');
+      invalid = true;
+    }
+    if (!password) {
+      setFieldError(pEl, 'Password is required');
+      invalid = true;
+    }
     if (invalid) return;
 
     try {
-      await api.post('/users', { username, password, password_type, groups, expiration, simultaneous_use });
+      await api.post('/users', {
+        username,
+        password,
+        password_type,
+        groups,
+        expiration,
+        simultaneous_use,
+      });
       toast(`User ${username} created`, 'success');
       this._groupPicker = null;
       this._closeModal();
@@ -1158,7 +1409,9 @@ class UsersView extends HTMLElement {
       toast(`User ${endpoint}d`, 'success');
       await this._refreshDetail();
       this._loadUsers();
-    } catch (e) { toast(e.message || 'Action failed', 'error'); }
+    } catch (e) {
+      toast(e.message || 'Action failed', 'error');
+    }
   }
 
   async _updateUser(payload) {
@@ -1166,7 +1419,9 @@ class UsersView extends HTMLElement {
       await api.put(`/users/${encodeURIComponent(this._selected)}`, payload);
       toast('Saved', 'success');
       await this._refreshDetail();
-    } catch (e) { toast(e.message || 'Update failed', 'error'); }
+    } catch (e) {
+      toast(e.message || 'Update failed', 'error');
+    }
   }
 
   async _refreshDetail() {
@@ -1187,7 +1442,7 @@ class UsersView extends HTMLElement {
   // ── Bulk actions ──────────────────────────────────────────────────────────
 
   _updateBulkBar() {
-    const bar   = this.shadowRoot.getElementById('bulk-bar');
+    const bar = this.shadowRoot.getElementById('bulk-bar');
     const count = this.shadowRoot.getElementById('bulk-count');
     const n = this._checkedUsers.size;
     if (n > 0) {
@@ -1203,11 +1458,18 @@ class UsersView extends HTMLElement {
     if (!n) return;
 
     if (action === 'delete') {
-      if (!(await confirmDialog(`Delete ${n} user${n !== 1 ? 's' : ''}? This cannot be undone.`, { title: 'Delete users', danger: true }))) return;
+      if (
+        !(await confirmDialog(`Delete ${n} user${n !== 1 ? 's' : ''}? This cannot be undone.`, {
+          title: 'Delete users',
+          danger: true,
+        }))
+      ) return;
     }
 
     try {
-      const result = await api.post(`/users/bulk/${action}`, { usernames: [...this._checkedUsers] });
+      const result = await api.post(`/users/bulk/${action}`, {
+        usernames: [...this._checkedUsers],
+      });
       const label = action === 'enable' ? 'enabled' : action === 'disable' ? 'disabled' : 'deleted';
       toast(`${result.ok ?? n} user${n !== 1 ? 's' : ''} ${label}`, 'success');
       this._checkedUsers.clear();
@@ -1222,11 +1484,13 @@ class UsersView extends HTMLElement {
   _bulkAssignGroup() {
     if (!this._checkedUsers.size) return;
     const overlay = this.shadowRoot.getElementById('modal-overlay');
-    const box     = this.shadowRoot.getElementById('modal-box');
+    const box = this.shadowRoot.getElementById('modal-box');
     box.innerHTML = `
       <div class="modal-title">Assign Group</div>
       <p style="font-size:0.85rem;color:var(--color-muted);margin:0 0 1rem 0;">
-        Assign <strong>${this._checkedUsers.size}</strong> selected user${this._checkedUsers.size !== 1 ? 's' : ''} to a group.
+        Assign <strong>${this._checkedUsers.size}</strong> selected user${
+      this._checkedUsers.size !== 1 ? 's' : ''
+    } to a group.
       </p>
       <div class="form-row">
         <label>Group Name</label>
@@ -1243,10 +1507,21 @@ class UsersView extends HTMLElement {
     box.querySelector('#btn-modal-cancel').addEventListener('click', () => this._closeModal());
     box.querySelector('#btn-modal-submit').addEventListener('click', async () => {
       const group = box.querySelector('#m-group-name').value.trim();
-      if (!group) { toast('Group name required', 'warning'); return; }
+      if (!group) {
+        toast('Group name required', 'warning');
+        return;
+      }
       try {
-        const result = await api.post('/users/bulk/assign-group', { usernames: [...this._checkedUsers], group });
-        toast(`Group "${group}" assigned to ${result.ok ?? this._checkedUsers.size} user${this._checkedUsers.size !== 1 ? 's' : ''}`, 'success');
+        const result = await api.post('/users/bulk/assign-group', {
+          usernames: [...this._checkedUsers],
+          group,
+        });
+        toast(
+          `Group "${group}" assigned to ${result.ok ?? this._checkedUsers.size} user${
+            this._checkedUsers.size !== 1 ? 's' : ''
+          }`,
+          'success',
+        );
         this._closeModal();
         this._checkedUsers.clear();
         this._updateBulkBar();
@@ -1270,10 +1545,10 @@ class UsersView extends HTMLElement {
       });
       if (!res.ok) throw new Error(`Export failed: ${res.statusText}`);
       const blob = await res.blob();
-      const url  = URL.createObjectURL(blob);
-      const a    = document.createElement('a');
-      a.href     = url;
-      a.download = `users-export-${new Date().toISOString().slice(0,10)}.csv`;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `users-export-${new Date().toISOString().slice(0, 10)}.csv`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (e) {
@@ -1285,7 +1560,7 @@ class UsersView extends HTMLElement {
 
   _openImportModal() {
     const overlay = this.shadowRoot.getElementById('modal-overlay');
-    const box     = this.shadowRoot.getElementById('modal-box');
+    const box = this.shadowRoot.getElementById('modal-box');
     this._importFile = null;
 
     box.innerHTML = `
@@ -1305,13 +1580,16 @@ class UsersView extends HTMLElement {
     `;
     overlay.classList.add('open');
 
-    const dz    = box.querySelector('#drop-zone');
-    const fi    = box.querySelector('#file-input');
+    const dz = box.querySelector('#drop-zone');
+    const fi = box.querySelector('#file-input');
     const label = box.querySelector('#dz-label');
-    const btn   = box.querySelector('#btn-modal-preview');
+    const btn = box.querySelector('#btn-modal-preview');
 
     const setFile = (file) => {
-      if (!file || !file.name.endsWith('.csv')) { toast('Please select a CSV file', 'warning'); return; }
+      if (!file || !file.name.endsWith('.csv')) {
+        toast('Please select a CSV file', 'warning');
+        return;
+      }
       this._importFile = file;
       dz.classList.add('has-file');
       label.textContent = `✓ ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
@@ -1319,10 +1597,15 @@ class UsersView extends HTMLElement {
     };
 
     dz.addEventListener('click', () => fi.click());
-    dz.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') fi.click(); });
+    dz.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') fi.click();
+    });
     fi.addEventListener('change', (e) => setFile(e.target.files[0]));
 
-    dz.addEventListener('dragover', (e) => { e.preventDefault(); dz.classList.add('drag-over'); });
+    dz.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dz.classList.add('drag-over');
+    });
     dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
     dz.addEventListener('drop', (e) => {
       e.preventDefault();
@@ -1355,10 +1638,10 @@ class UsersView extends HTMLElement {
     const box = this.shadowRoot.getElementById('modal-box');
     const { rows, new_count, exists_count, error_count } = preview;
 
-    const statusIcon  = (s) => s === 'ok' ? '✓' : s === 'exists' ? '⚠' : '✕';
+    const statusIcon = (s) => s === 'ok' ? '✓' : s === 'exists' ? '⚠' : '✕';
     const statusClass = (s) => s === 'ok' ? 'st-ok' : s === 'exists' ? 'st-exists' : 'st-error';
     const statusLabel = (r) => {
-      if (r.status === 'ok')     return 'New';
+      if (r.status === 'ok') return 'New';
       if (r.status === 'exists') return 'Exists';
       return r.error || 'Error';
     };
@@ -1368,21 +1651,31 @@ class UsersView extends HTMLElement {
       <div class="import-summary">
         <span style="color:var(--color-success)">✓ ${new_count} new</span>
         <span style="color:var(--color-warning, #F5A623)">⚠ ${exists_count} exist</span>
-        <span style="color:var(--color-danger)">✕ ${error_count} error${error_count !== 1 ? 's' : ''}</span>
+        <span style="color:var(--color-danger)">✕ ${error_count} error${
+      error_count !== 1 ? 's' : ''
+    }</span>
       </div>
       <div style="max-height:320px;overflow-y:auto;border:1px solid var(--color-border);border-radius:var(--radius);">
         <table class="import-preview-table">
           <thead><tr><th>#</th><th>Username</th><th>Password Type</th><th>Groups</th><th>Status</th></tr></thead>
           <tbody>
-            ${rows.map(r => `
+            ${
+      rows.map((r) => `
               <tr>
                 <td style="color:var(--color-muted)">${r.row}</td>
                 <td><strong>${escHtml(r.username)}</strong></td>
-                <td style="color:var(--color-muted);font-size:0.75rem">${escHtml(r.password_type)}</td>
-                <td style="color:var(--color-muted);font-size:0.75rem">${r.groups.map(escHtml).join(', ') || '—'}</td>
-                <td><span class="${statusClass(r.status)}">${statusIcon(r.status)} ${escHtml(statusLabel(r))}</span></td>
+                <td style="color:var(--color-muted);font-size:0.75rem">${
+        escHtml(r.password_type)
+      }</td>
+                <td style="color:var(--color-muted);font-size:0.75rem">${
+        r.groups.map(escHtml).join(', ') || '—'
+      }</td>
+                <td><span class="${statusClass(r.status)}">${statusIcon(r.status)} ${
+        escHtml(statusLabel(r))
+      }</span></td>
               </tr>
-            `).join('')}
+            `).join('')
+    }
           </tbody>
         </table>
       </div>
@@ -1397,21 +1690,27 @@ class UsersView extends HTMLElement {
 
     box.querySelector('#btn-modal-cancel').addEventListener('click', () => this._closeModal());
     box.querySelector('#btn-back').addEventListener('click', () => this._openImportModal());
-    box.querySelector('#btn-commit')?.addEventListener('click', () => this._importCommit(rows, box));
+    box.querySelector('#btn-commit')?.addEventListener(
+      'click',
+      () => this._importCommit(rows, box),
+    );
   }
 
   async _importCommit(allRows, box) {
-    const okRows = allRows.filter(r => r.status === 'ok').map(r => ({
-      username:        r.username,
-      password:        r.password,
-      password_type:   r.password_type || 'Cleartext-Password',
-      groups:          r.groups || [],
-      expiration:      r.expiration || null,
+    const okRows = allRows.filter((r) => r.status === 'ok').map((r) => ({
+      username: r.username,
+      password: r.password,
+      password_type: r.password_type || 'Cleartext-Password',
+      groups: r.groups || [],
+      expiration: r.expiration || null,
       simultaneous_use: r.simultaneous_use || null,
     }));
 
     const commitBtn = box.querySelector('#btn-commit');
-    if (commitBtn) { commitBtn.disabled = true; commitBtn.textContent = 'Importing…'; }
+    if (commitBtn) {
+      commitBtn.disabled = true;
+      commitBtn.textContent = 'Importing…';
+    }
 
     try {
       const result = await api.post('/users/import/commit', { rows: okRows, skip_existing: true });
@@ -1419,7 +1718,10 @@ class UsersView extends HTMLElement {
       this._loadUsers();
     } catch (e) {
       toast(e.message || 'Import failed', 'error');
-      if (commitBtn) { commitBtn.disabled = false; commitBtn.textContent = `Import ${okRows.length} users`; }
+      if (commitBtn) {
+        commitBtn.disabled = false;
+        commitBtn.textContent = `Import ${okRows.length} users`;
+      }
     }
   }
 
@@ -1431,14 +1733,28 @@ class UsersView extends HTMLElement {
       <div class="import-summary" style="margin:1rem 0;">
         <span style="color:var(--color-success)">✓ ${created} created</span>
         <span style="color:var(--color-muted)">⊘ ${skipped} skipped</span>
-        ${errors.length ? `<span style="color:var(--color-danger)">✕ ${errors.length} error${errors.length !== 1 ? 's' : ''}</span>` : ''}
+        ${
+      errors.length
+        ? `<span style="color:var(--color-danger)">✕ ${errors.length} error${
+          errors.length !== 1 ? 's' : ''
+        }</span>`
+        : ''
+    }
       </div>
-      ${errors.length ? `
+      ${
+      errors.length
+        ? `
         <div style="font-size:0.78rem;color:var(--color-muted);margin-bottom:0.5rem;">Errors:</div>
         <ul style="font-size:0.78rem;color:var(--color-danger);padding-left:1.2rem;margin:0 0 0.75rem 0;">
-          ${errors.map(e => `<li>${escHtml(e.username || '')}: ${escHtml(e.error || JSON.stringify(e))}</li>`).join('')}
+          ${
+          errors.map((e) =>
+            `<li>${escHtml(e.username || '')}: ${escHtml(e.error || JSON.stringify(e))}</li>`
+          ).join('')
+        }
         </ul>
-      ` : ''}
+      `
+        : ''
+    }
       <div class="modal-footer">
         <button class="btn btn-primary" id="btn-modal-done">Done</button>
       </div>
@@ -1449,7 +1765,8 @@ class UsersView extends HTMLElement {
   async _openJobHistory() {
     const box = this.shadowRoot.getElementById('modal-box');
     const overlay = this.shadowRoot.getElementById('modal-overlay');
-    box.innerHTML = `<div class="modal-title">Import / Export History</div><div id="jh-body" style="min-height:80px;display:flex;align-items:center;justify-content:center;color:var(--color-muted)">Loading…</div><div class="modal-footer"><button class="btn btn-ghost" id="btn-jh-close">Close</button></div>`;
+    box.innerHTML =
+      `<div class="modal-title">Import / Export History</div><div id="jh-body" style="min-height:80px;display:flex;align-items:center;justify-content:center;color:var(--color-muted)">Loading…</div><div class="modal-footer"><button class="btn btn-ghost" id="btn-jh-close">Close</button></div>`;
     overlay.classList.add('open');
     box.querySelector('#btn-jh-close').addEventListener('click', () => this._closeModal());
 
@@ -1460,9 +1777,10 @@ class UsersView extends HTMLElement {
       return;
     }
     const fmt = (iso) => iso ? new Date(iso).toLocaleString() : '—';
-    const badge = (type) => type === 'import'
-      ? `<span style="background:var(--mr-action-tint);color:var(--mr-action);padding:1px 7px;border-radius:99px;font-size:0.75rem;">import</span>`
-      : `<span style="background:var(--color-surface);border:1px solid var(--color-border);padding:1px 7px;border-radius:99px;font-size:0.75rem;">export</span>`;
+    const badge = (type) =>
+      type === 'import'
+        ? `<span style="background:var(--mr-action-tint);color:var(--mr-action);padding:1px 7px;border-radius:99px;font-size:0.75rem;">import</span>`
+        : `<span style="background:var(--color-surface);border:1px solid var(--color-border);padding:1px 7px;border-radius:99px;font-size:0.75rem;">export</span>`;
     body.innerHTML = `
       <table style="width:100%;border-collapse:collapse;font-size:0.82rem;">
         <thead><tr style="border-bottom:1px solid var(--color-border);text-align:left;">
@@ -1470,18 +1788,26 @@ class UsersView extends HTMLElement {
           <th style="padding:4px 8px;text-align:right">✓ OK</th><th style="padding:4px 8px;text-align:right">⊘ Skip</th><th style="padding:4px 8px;text-align:right">✕ Err</th>
         </tr></thead>
         <tbody>
-          ${data.items.map(j => `
+          ${
+      data.items.map((j) => `
             <tr style="border-bottom:1px solid var(--color-border);">
               <td style="padding:5px 8px">${badge(j.job_type)}</td>
               <td style="padding:5px 8px;color:var(--color-muted)">${fmt(j.created_at)}</td>
               <td style="padding:5px 8px">${escHtml(j.created_by)}</td>
               <td style="padding:5px 8px;text-align:right;color:var(--color-success)">${j.row_ok}</td>
               <td style="padding:5px 8px;text-align:right;color:var(--color-muted)">${j.row_skipped}</td>
-              <td style="padding:5px 8px;text-align:right;${j.row_error ? 'color:var(--color-danger)' : 'color:var(--color-muted)'}">${j.row_error}</td>
-            </tr>`).join('')}
+              <td style="padding:5px 8px;text-align:right;${
+        j.row_error ? 'color:var(--color-danger)' : 'color:var(--color-muted)'
+      }">${j.row_error}</td>
+            </tr>`).join('')
+    }
         </tbody>
       </table>
-      ${data.total > 50 ? `<p style="margin:0.5rem 0 0;font-size:0.78rem;color:var(--color-muted)">Showing 50 of ${data.total} records.</p>` : ''}
+      ${
+      data.total > 50
+        ? `<p style="margin:0.5rem 0 0;font-size:0.78rem;color:var(--color-muted)">Showing 50 of ${data.total} records.</p>`
+        : ''
+    }
     `;
   }
 }

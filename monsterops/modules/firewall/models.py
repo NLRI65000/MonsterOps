@@ -13,6 +13,7 @@ def _utcnow() -> datetime:
 
 
 class MrFirewallConfig(Base):
+
     __tablename__ = "mr_firewall_config"
 
     id = Column(Integer, primary_key=True)
@@ -26,7 +27,9 @@ class MrFirewallConfig(Base):
     autoblock_enabled = Column(Boolean, nullable=False, default=False)
     autoblock_threshold = Column(Integer, nullable=False, default=10)
     autoblock_window = Column(Integer, nullable=False, default=10)
-    autoblock_ban_seconds = Column(Integer, nullable=False, default=3600)
+    autoblock_ban_seconds = Column(
+        Integer, nullable=False, default=3600
+    )
     last_applied_at = Column(DateTime(timezone=True), nullable=True)
     updated_at = Column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)
 
@@ -61,12 +64,15 @@ class MrFirewallSet(Base):
     family = Column(String(12), nullable=False, default="ipv4_addr")
     kind = Column(String(12), nullable=False, default="block")
     auto_ban = Column(Boolean, nullable=False, default=False)
-    managed_source = Column(String(48), nullable=True)
+    managed_source = Column(
+        String(48), nullable=True
+    )
     comment = Column(String(120), nullable=True)
     created_at = Column(DateTime(timezone=True), default=_utcnow)
 
-    entries = relationship("MrFirewallSetEntry", back_populates="fset",
-                           cascade="all, delete-orphan")
+    entries = relationship(
+        "MrFirewallSetEntry", back_populates="fset", cascade="all, delete-orphan"
+    )
 
 
 class MrFirewallSetEntry(Base):
@@ -83,6 +89,7 @@ class MrFirewallSetEntry(Base):
 
 
 class MrFirewallSnapshot(Base):
+
     __tablename__ = "mr_firewall_snapshot"
 
     id = Column(Integer, primary_key=True)
@@ -93,6 +100,7 @@ class MrFirewallSnapshot(Base):
 
 
 class MrFirewallBlockEvent(Base):
+
     __tablename__ = "mr_firewall_block_event"
 
     id = Column(BigInteger, primary_key=True)

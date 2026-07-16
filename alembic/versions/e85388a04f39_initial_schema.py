@@ -1,10 +1,12 @@
+
 from typing import Sequence, Union
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
-revision: str = 'e85388a04f39'
+from alembic import op
+
+revision: str = "e85388a04f39"
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -114,35 +116,47 @@ def upgrade() -> None:
             nasidentifier text
         )
     """)
-    op.create_table('admin_users',
-    sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('username', sa.String(length=64), nullable=False),
-    sa.Column('email', sa.String(length=255), nullable=True),
-    sa.Column('hashed_password', sa.String(length=255), nullable=False),
-    sa.Column('role', sa.String(length=16), nullable=False),
-    sa.Column('is_active', sa.Boolean(), nullable=False),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
-    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
-    sa.PrimaryKeyConstraint('id')
+    op.create_table(
+        "admin_users",
+        sa.Column("id", sa.Integer(), nullable=False),
+        sa.Column("username", sa.String(length=64), nullable=False),
+        sa.Column("email", sa.String(length=255), nullable=True),
+        sa.Column("hashed_password", sa.String(length=255), nullable=False),
+        sa.Column("role", sa.String(length=16), nullable=False),
+        sa.Column("is_active", sa.Boolean(), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
+        sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index(op.f('ix_admin_users_email'), 'admin_users', ['email'], unique=True)
-    op.create_index(op.f('ix_admin_users_username'), 'admin_users', ['username'], unique=True)
-    op.create_table('radippool',
-    sa.Column('id', sa.BigInteger(), nullable=False),
-    sa.Column('pool_name', sa.Text(), nullable=False),
-    sa.Column('framedipaddress', postgresql.INET(), nullable=False),
-    sa.Column('nasipaddress', postgresql.INET(), nullable=False),
-    sa.Column('calledstationid', sa.Text(), nullable=False),
-    sa.Column('callingstationid', sa.Text(), nullable=False),
-    sa.Column('expiry_time', postgresql.TIMESTAMP(timezone=True), nullable=True),
-    sa.Column('username', sa.Text(), nullable=False),
-    sa.Column('pool_key', sa.Text(), nullable=False),
-    sa.PrimaryKeyConstraint('id')
+    op.create_index(op.f("ix_admin_users_email"), "admin_users", ["email"], unique=True)
+    op.create_index(op.f("ix_admin_users_username"), "admin_users", ["username"], unique=True)
+    op.create_table(
+        "radippool",
+        sa.Column("id", sa.BigInteger(), nullable=False),
+        sa.Column("pool_name", sa.Text(), nullable=False),
+        sa.Column("framedipaddress", postgresql.INET(), nullable=False),
+        sa.Column("nasipaddress", postgresql.INET(), nullable=False),
+        sa.Column("calledstationid", sa.Text(), nullable=False),
+        sa.Column("callingstationid", sa.Text(), nullable=False),
+        sa.Column("expiry_time", postgresql.TIMESTAMP(timezone=True), nullable=True),
+        sa.Column("username", sa.Text(), nullable=False),
+        sa.Column("pool_key", sa.Text(), nullable=False),
+        sa.PrimaryKeyConstraint("id"),
     )
 
 
 def downgrade() -> None:
-    op.drop_table('radippool')
-    op.drop_index(op.f('ix_admin_users_username'), table_name='admin_users')
-    op.drop_index(op.f('ix_admin_users_email'), table_name='admin_users')
-    op.drop_table('admin_users')
+    op.drop_table("radippool")
+    op.drop_index(op.f("ix_admin_users_username"), table_name="admin_users")
+    op.drop_index(op.f("ix_admin_users_email"), table_name="admin_users")
+    op.drop_table("admin_users")

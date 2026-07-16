@@ -4,15 +4,13 @@ import { toast } from '/js/components/app-toast.js';
 import { confirmDialog } from '/js/components/app-confirm.js';
 import { startPolling } from '/js/utils/poll.js';
 import { emptyStateHTML, skeletonBlock } from '/js/utils/empty.js';
-import { setFieldError, clearFieldErrors, applyServerErrors } from '/js/utils/form.js';
+import { applyServerErrors, clearFieldErrors, setFieldError } from '/js/utils/form.js';
 
 function esc(s) {
-  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
-
-function fmtTs(iso) {
-  if (!iso) return '—';
-  return new Date(iso).toLocaleString();
+  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(
+    /"/g,
+    '&quot;',
+  );
 }
 
 function fmtClock(unix) {
@@ -22,14 +20,23 @@ function fmtClock(unix) {
 
 const SEVERITY_COLOR = {
   'Not classified': 'var(--color-muted)',
-  'Information':    'var(--color-accent)',
-  'Warning':        'orange',
-  'Average':        'orange',
-  'High':           'var(--color-danger)',
-  'Disaster':       '#dc2626',
+  'Information': 'var(--color-accent)',
+  'Warning': 'orange',
+  'Average': 'orange',
+  'High': 'var(--color-danger)',
+  'Disaster': '#dc2626',
 };
 
-const LEVEL_LABELS = { 0: 'EMERG', 1: 'ALERT', 2: 'CRIT', 3: 'ERR', 4: 'WARN', 5: 'NOTICE', 6: 'INFO', 7: 'DEBUG' };
+const LEVEL_LABELS = {
+  0: 'EMERG',
+  1: 'ALERT',
+  2: 'CRIT',
+  3: 'ERR',
+  4: 'WARN',
+  5: 'NOTICE',
+  6: 'INFO',
+  7: 'DEBUG',
+};
 
 // ── Shared CSS ─────────────────────────────────────────────────────────────────
 
@@ -173,7 +180,9 @@ class IntegrationsPage extends HTMLElement {
   }
 
   connectedCallback() {
-    const params = new URLSearchParams(location.hash.includes('?') ? location.hash.slice(location.hash.indexOf('?') + 1) : '');
+    const params = new URLSearchParams(
+      location.hash.includes('?') ? location.hash.slice(location.hash.indexOf('?') + 1) : '',
+    );
     const tab = params.get('tab');
     if (tab === 'graylog' || tab === 'zabbix') this._tab = tab;
     this._render();
@@ -212,9 +221,15 @@ class IntegrationsPage extends HTMLElement {
         <button class="btn btn-primary" id="btn-add">+ Add Integration</button>
       </div>
       <div class="tabs">
-        <button class="tab-btn ${this._tab === 'overview' ? 'active' : ''}" data-tab="overview">Overview</button>
-        <button class="tab-btn ${this._tab === 'graylog' ? 'active' : ''}" data-tab="graylog">Graylog Live Logs</button>
-        <button class="tab-btn ${this._tab === 'zabbix'  ? 'active' : ''}" data-tab="zabbix">Zabbix Alarms</button>
+        <button class="tab-btn ${
+      this._tab === 'overview' ? 'active' : ''
+    }" data-tab="overview">Overview</button>
+        <button class="tab-btn ${
+      this._tab === 'graylog' ? 'active' : ''
+    }" data-tab="graylog">Graylog Live Logs</button>
+        <button class="tab-btn ${
+      this._tab === 'zabbix' ? 'active' : ''
+    }" data-tab="zabbix">Zabbix Alarms</button>
       </div>
       <div id="tab-content"></div>
 
@@ -234,10 +249,22 @@ class IntegrationsPage extends HTMLElement {
       </div>
     `;
 
-    this.shadowRoot.getElementById('btn-add').addEventListener('click', () => this._openModal(null));
-    this.shadowRoot.getElementById('modal-close').addEventListener('click', () => this._closeModal());
-    this.shadowRoot.getElementById('modal-cancel').addEventListener('click', () => this._closeModal());
-    this.shadowRoot.getElementById('modal-submit').addEventListener('click', () => this._submitModal());
+    this.shadowRoot.getElementById('btn-add').addEventListener(
+      'click',
+      () => this._openModal(null),
+    );
+    this.shadowRoot.getElementById('modal-close').addEventListener(
+      'click',
+      () => this._closeModal(),
+    );
+    this.shadowRoot.getElementById('modal-cancel').addEventListener(
+      'click',
+      () => this._closeModal(),
+    );
+    this.shadowRoot.getElementById('modal-submit').addEventListener(
+      'click',
+      () => this._submitModal(),
+    );
     this.shadowRoot.getElementById('modal-overlay').addEventListener('click', (e) => {
       if (e.target === this.shadowRoot.getElementById('modal-overlay')) this._closeModal();
     });
@@ -245,10 +272,10 @@ class IntegrationsPage extends HTMLElement {
   }
 
   _bindTabs() {
-    this.shadowRoot.querySelectorAll('.tab-btn').forEach(btn => {
+    this.shadowRoot.querySelectorAll('.tab-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
         this._tab = btn.dataset.tab;
-        this.shadowRoot.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        this.shadowRoot.querySelectorAll('.tab-btn').forEach((b) => b.classList.remove('active'));
         btn.classList.add('active');
         this._stopGraylogRefresh();
         this._renderTab();
@@ -320,7 +347,9 @@ class IntegrationsPage extends HTMLElement {
         message: 'Add an integration (Graylog, Zabbix, …) to forward events and pull logs.',
       });
     }
-    return `<div class="card-grid">${this._integrations.map(i => this._integrationCard(i)).join('')}</div>`;
+    return `<div class="card-grid">${
+      this._integrations.map((i) => this._integrationCard(i)).join('')
+    }</div>`;
   }
 
   _renderOverview(tc) {
@@ -336,12 +365,12 @@ class IntegrationsPage extends HTMLElement {
       </div>
     `;
 
-    tc.querySelectorAll('[data-int-id]').forEach(el => {
+    tc.querySelectorAll('[data-int-id]').forEach((el) => {
       const id = parseInt(el.dataset.intId);
       const action = el.dataset.action;
       el.addEventListener('click', () => {
-        if (action === 'edit')   this._openModal(id);
-        if (action === 'test')   this._testIntegration(id, el);
+        if (action === 'edit') this._openModal(id);
+        if (action === 'test') this._testIntegration(id, el);
         if (action === 'delete') this._deleteIntegration(id);
       });
     });
@@ -353,7 +382,9 @@ class IntegrationsPage extends HTMLElement {
     try {
       this._geoipStatus = await api.get('/health/geoip/status');
       if (this._tab === 'overview') this._renderTab();
-    } catch { this._geoipStatus = null; }
+    } catch {
+      this._geoipStatus = null;
+    }
   }
 
   _maxmindCard() {
@@ -365,10 +396,13 @@ class IntegrationsPage extends HTMLElement {
     } else if (s.configured && s.db_exists && !s.error) {
       badge = '<span class="badge badge-ok">Active</span>';
       const built = s.build_epoch ? new Date(s.build_epoch * 1000).toLocaleDateString() : '—';
-      detail = `<div style="font-size:0.75rem;color:var(--color-muted);margin-top:0.35rem;">${esc(s.description || 'GeoLite2-City')} · Built ${esc(built)}</div>`;
+      detail = `<div style="font-size:0.75rem;color:var(--color-muted);margin-top:0.35rem;">${
+        esc(s.description || 'GeoLite2-City')
+      } · Built ${esc(built)}</div>`;
     } else {
       badge = '<span class="badge badge-err">Not configured</span>';
-      detail = `<div style="font-size:0.75rem;color:var(--color-muted);margin-top:0.35rem;">Upload a GeoLite2-City.mmdb to enable location lookup.</div>`;
+      detail =
+        `<div style="font-size:0.75rem;color:var(--color-muted);margin-top:0.35rem;">Upload a GeoLite2-City.mmdb to enable location lookup.</div>`;
     }
     return `
       <div class="card" style="cursor:pointer;" id="btn-maxmind">
@@ -387,7 +421,9 @@ class IntegrationsPage extends HTMLElement {
 
   _integrationCard(i) {
     const logo = (i.type === 'graylog' || i.type === 'zabbix')
-      ? `<img class="int-logo" src="/modules/integrations/img/${i.type}.svg" alt="${esc(i.type)} logo" width="30" height="30" />`
+      ? `<img class="int-logo" src="/modules/integrations/img/${i.type}.svg" alt="${
+        esc(i.type)
+      } logo" width="30" height="30" />`
       : '<span class="int-icon">🔌</span>';
     const badge = i.enabled
       ? '<span class="badge badge-ok">Enabled</span>'
@@ -432,7 +468,12 @@ class IntegrationsPage extends HTMLElement {
   }
 
   async _deleteIntegration(id) {
-    if (!(await confirmDialog('Delete this integration?', { title: 'Delete integration', danger: true }))) return;
+    if (
+      !(await confirmDialog('Delete this integration?', {
+        title: 'Delete integration',
+        danger: true,
+      }))
+    ) return;
     try {
       await api.delete(`/integrations/${id}`);
       toast('Integration deleted', 'success');
@@ -450,7 +491,8 @@ class IntegrationsPage extends HTMLElement {
 
     const overlay = document.createElement('div');
     overlay.className = 'mm-overlay';
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:600;display:flex;align-items:center;justify-content:center;';
+    overlay.style.cssText =
+      'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:600;display:flex;align-items:center;justify-content:center;';
 
     const s = this._geoipStatus;
     const isActive = s?.configured && s?.db_exists && !s?.error;
@@ -467,18 +509,24 @@ class IntegrationsPage extends HTMLElement {
           <button id="mm-close" style="background:none;border:none;font-size:1.1rem;cursor:pointer;color:var(--color-muted);padding:0.25rem;">✕</button>
         </div>
 
-        ${isActive ? `
+        ${
+      isActive
+        ? `
         <div style="display:flex;align-items:center;gap:0.6rem;padding:0.75rem 1rem;background:color-mix(in srgb,var(--color-success) 12%,transparent);border:1px solid color-mix(in srgb,var(--color-success) 30%,transparent);border-radius:var(--radius);margin-bottom:1.25rem;">
           <span style="color:var(--color-success);font-size:1rem;">✓</span>
           <div>
             <div style="font-size:0.85rem;font-weight:500;color:var(--color-success);">Database active</div>
-            <div style="font-size:0.75rem;color:var(--color-muted);">${esc(s.description || 'GeoLite2-City')}${built ? ' · Built ' + esc(built) : ''}</div>
+            <div style="font-size:0.75rem;color:var(--color-muted);">${
+          esc(s.description || 'GeoLite2-City')
+        }${built ? ' · Built ' + esc(built) : ''}</div>
           </div>
-        </div>` : `
+        </div>`
+        : `
         <div style="display:flex;align-items:center;gap:0.6rem;padding:0.75rem 1rem;background:color-mix(in srgb,var(--color-warning,#f59e0b) 10%,transparent);border:1px solid color-mix(in srgb,var(--color-warning,#f59e0b) 25%,transparent);border-radius:var(--radius);margin-bottom:1.25rem;">
           <span style="font-size:1rem;">⚠</span>
           <div style="font-size:0.82rem;color:var(--color-text);">No database configured. Upload a <strong>GeoLite2-City.mmdb</strong> file to enable location lookups for client IPs in auth logs, sessions, and the dashboard.</div>
-        </div>`}
+        </div>`
+    }
 
         <div style="margin-bottom:1.25rem;">
           <div style="font-size:0.8rem;font-weight:600;color:var(--color-text);margin-bottom:0.65rem;">How to get the database (free)</div>
@@ -494,7 +542,9 @@ class IntegrationsPage extends HTMLElement {
         </div>
 
         <div style="margin-bottom:1rem;">
-          <div style="font-size:0.8rem;font-weight:600;color:var(--color-text);margin-bottom:0.5rem;">${isActive ? 'Replace database' : 'Upload database'}</div>
+          <div style="font-size:0.8rem;font-weight:600;color:var(--color-text);margin-bottom:0.5rem;">${
+      isActive ? 'Replace database' : 'Upload database'
+    }</div>
           <label id="mm-dropzone" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.5rem;padding:1.5rem;border:2px dashed var(--color-border);border-radius:var(--radius);cursor:pointer;transition:border-color 0.15s,background 0.15s;">
             <span style="font-size:1.75rem;">⬆</span>
             <span style="font-size:0.82rem;color:var(--color-muted);" id="mm-drop-label">Click to select <strong>GeoLite2-City.mmdb</strong>, or drag and drop here</span>
@@ -517,11 +567,13 @@ class IntegrationsPage extends HTMLElement {
     const close = () => overlay.remove();
     overlay.querySelector('#mm-close').addEventListener('click', close);
     overlay.querySelector('#mm-cancel').addEventListener('click', close);
-    overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) close();
+    });
 
     const fileInput = overlay.querySelector('#mm-file');
     const uploadBtn = overlay.querySelector('#mm-upload');
-    const dropzone  = overlay.querySelector('#mm-dropzone');
+    const dropzone = overlay.querySelector('#mm-dropzone');
     const dropLabel = overlay.querySelector('#mm-drop-label');
     let selectedFile = null;
 
@@ -531,17 +583,26 @@ class IntegrationsPage extends HTMLElement {
         return;
       }
       selectedFile = file;
-      dropLabel.innerHTML = `Selected: <strong>${esc(file.name)}</strong> (${(file.size / 1024 / 1024).toFixed(1)} MB)`;
+      dropLabel.innerHTML = `Selected: <strong>${esc(file.name)}</strong> (${
+        (file.size / 1024 / 1024).toFixed(1)
+      } MB)`;
       dropzone.style.borderColor = 'var(--color-accent)';
       dropzone.style.background = 'color-mix(in srgb,var(--color-accent) 5%,transparent)';
       uploadBtn.disabled = false;
     };
 
-    fileInput.addEventListener('change', () => { if (fileInput.files[0]) onFileSelected(fileInput.files[0]); });
+    fileInput.addEventListener('change', () => {
+      if (fileInput.files[0]) onFileSelected(fileInput.files[0]);
+    });
     dropzone.addEventListener('click', () => fileInput.click());
-    dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.style.borderColor = 'var(--color-accent)'; });
-    dropzone.addEventListener('dragleave', () => { if (!selectedFile) dropzone.style.borderColor = ''; });
-    dropzone.addEventListener('drop', e => {
+    dropzone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropzone.style.borderColor = 'var(--color-accent)';
+    });
+    dropzone.addEventListener('dragleave', () => {
+      if (!selectedFile) dropzone.style.borderColor = '';
+    });
+    dropzone.addEventListener('drop', (e) => {
       e.preventDefault();
       const file = e.dataTransfer.files[0];
       if (file) onFileSelected(file);
@@ -550,7 +611,7 @@ class IntegrationsPage extends HTMLElement {
     uploadBtn.addEventListener('click', async () => {
       if (!selectedFile) return;
       const progress = overlay.querySelector('#mm-progress');
-      const result   = overlay.querySelector('#mm-result');
+      const result = overlay.querySelector('#mm-result');
       uploadBtn.disabled = true;
       progress.style.display = 'block';
       result.innerHTML = '';
@@ -568,13 +629,23 @@ class IntegrationsPage extends HTMLElement {
         progress.style.display = 'none';
         if (!res.ok) throw new Error(data.detail || 'Upload failed');
 
-        const built = data.build_epoch ? new Date(data.build_epoch * 1000).toLocaleDateString() : '—';
+        const built = data.build_epoch
+          ? new Date(data.build_epoch * 1000).toLocaleDateString()
+          : '—';
         const testGeo = data.test_lookup;
         result.innerHTML = `
           <div style="padding:0.85rem 1rem;background:color-mix(in srgb,var(--color-success) 10%,transparent);border:1px solid color-mix(in srgb,var(--color-success) 25%,transparent);border-radius:var(--radius);">
             <div style="font-weight:600;color:var(--color-success);margin-bottom:0.35rem;">✓ Database uploaded and active</div>
-            <div style="font-size:0.78rem;color:var(--color-muted);">${esc(data.description || 'GeoLite2-City')} · Built ${esc(built)}</div>
-            ${testGeo ? `<div style="font-size:0.78rem;color:var(--color-muted);margin-top:0.3rem;">Smoke test (8.8.8.8): ${esc(testGeo.city || '')} ${testGeo.country_code ? '(' + testGeo.country_code + ')' : ''} ✓</div>` : ''}
+            <div style="font-size:0.78rem;color:var(--color-muted);">${
+          esc(data.description || 'GeoLite2-City')
+        } · Built ${esc(built)}</div>
+            ${
+          testGeo
+            ? `<div style="font-size:0.78rem;color:var(--color-muted);margin-top:0.3rem;">Smoke test (8.8.8.8): ${
+              esc(testGeo.city || '')
+            } ${testGeo.country_code ? '(' + testGeo.country_code + ')' : ''} ✓</div>`
+            : ''
+        }
           </div>
         `;
         overlay.querySelector('#mm-cancel').textContent = 'Close';
@@ -583,7 +654,10 @@ class IntegrationsPage extends HTMLElement {
         toast('GeoIP database activated', 'success');
       } catch (err) {
         progress.style.display = 'none';
-        result.innerHTML = `<div style="padding:0.75rem 1rem;background:color-mix(in srgb,var(--color-danger) 10%,transparent);border:1px solid color-mix(in srgb,var(--color-danger) 25%,transparent);border-radius:var(--radius);font-size:0.82rem;color:var(--color-danger);">✗ ${esc(err.message)}</div>`;
+        result.innerHTML =
+          `<div style="padding:0.75rem 1rem;background:color-mix(in srgb,var(--color-danger) 10%,transparent);border:1px solid color-mix(in srgb,var(--color-danger) 25%,transparent);border-radius:var(--radius);font-size:0.82rem;color:var(--color-danger);">✗ ${
+            esc(err.message)
+          }</div>`;
         uploadBtn.disabled = false;
         toast(err.message, 'error');
       }
@@ -593,10 +667,10 @@ class IntegrationsPage extends HTMLElement {
   // ── Modal ─────────────────────────────────────────────────────────────────
 
   _openModal(id) {
-    const editing = id != null ? this._integrations.find(i => i.id === id) : null;
+    const editing = id != null ? this._integrations.find((i) => i.id === id) : null;
     this._editingId = id ?? null;
     const title = this.shadowRoot.getElementById('modal-title');
-    const body  = this.shadowRoot.getElementById('modal-body');
+    const body = this.shadowRoot.getElementById('modal-body');
     title.textContent = editing ? 'Edit Integration' : 'Add Integration';
 
     const cfg = editing?.config ?? {};
@@ -605,19 +679,23 @@ class IntegrationsPage extends HTMLElement {
     body.innerHTML = `
       <div class="field">
         <label>Name</label>
-        <input class="input" id="m-name" value="${esc(editing?.name ?? '')}" placeholder="My Graylog" />
+        <input class="input" id="m-name" value="${
+      esc(editing?.name ?? '')
+    }" placeholder="My Graylog" />
       </div>
       <div class="field">
         <label>Type</label>
         <select class="select" id="m-type">
           <option value="graylog" ${type === 'graylog' ? 'selected' : ''}>Graylog</option>
-          <option value="zabbix"  ${type === 'zabbix'  ? 'selected' : ''}>Zabbix</option>
+          <option value="zabbix"  ${type === 'zabbix' ? 'selected' : ''}>Zabbix</option>
         </select>
       </div>
       <div id="m-config-fields"></div>
       <div class="field">
         <div class="toggle-wrap">
-          <input type="checkbox" class="toggle" id="m-enabled" ${(editing?.enabled ?? true) ? 'checked' : ''} />
+          <input type="checkbox" class="toggle" id="m-enabled" ${
+      (editing?.enabled ?? true) ? 'checked' : ''
+    } />
           <label for="m-enabled" style="font-size:0.82rem;color:var(--color-text);">Enabled</label>
         </div>
       </div>
@@ -627,29 +705,45 @@ class IntegrationsPage extends HTMLElement {
       const cf = body.querySelector('#m-config-fields');
       if (t === 'graylog') {
         cf.innerHTML = `
-          <div class="field"><label>Base URL</label><input class="input" id="m-base-url" value="${esc(cfg.base_url ?? '')}" placeholder="http://graylog:9000" /></div>
+          <div class="field"><label>Base URL</label><input class="input" id="m-base-url" value="${
+          esc(cfg.base_url ?? '')
+        }" placeholder="http://graylog:9000" /></div>
           <div class="form-row">
-            <div class="field"><label>Username</label><input class="input" id="m-username" value="${esc(cfg.username ?? '')}" /></div>
-            <div class="field"><label>Password</label><input class="input" id="m-password" type="password" value="${esc(cfg.password ?? '')}" /></div>
+            <div class="field"><label>Username</label><input class="input" id="m-username" value="${
+          esc(cfg.username ?? '')
+        }" /></div>
+            <div class="field"><label>Password</label><input class="input" id="m-password" type="password" value="${
+          esc(cfg.password ?? '')
+        }" /></div>
           </div>
-          <div class="field"><label>Stream ID <span style="font-weight:400;">(optional)</span></label><input class="input" id="m-stream-id" value="${esc(cfg.stream_id ?? '')}" placeholder="Leave blank to search all streams" /></div>
+          <div class="field"><label>Stream ID <span style="font-weight:400;">(optional)</span></label><input class="input" id="m-stream-id" value="${
+          esc(cfg.stream_id ?? '')
+        }" placeholder="Leave blank to search all streams" /></div>
           <div class="form-row">
             <div class="field">
               <label>NAS IP field</label>
-              <input class="input" id="m-nas-ip-field" value="${esc(cfg.nas_ip_field ?? 'source')}" placeholder="source" />
+              <input class="input" id="m-nas-ip-field" value="${
+          esc(cfg.nas_ip_field ?? 'source')
+        }" placeholder="source" />
               <span class="field-hint">Field containing the NAS IP. Use <strong>source</strong> for raw syslog (MikroTik/switches), <strong>nasipaddress</strong> for FreeRADIUS GELF.</span>
             </div>
             <div class="field">
               <label>Username field <span style="font-weight:400;">(optional)</span></label>
-              <input class="input" id="m-username-field" value="${esc(cfg.username_field ?? '')}" placeholder="leave blank" />
+              <input class="input" id="m-username-field" value="${
+          esc(cfg.username_field ?? '')
+        }" placeholder="leave blank" />
               <span class="field-hint">Leave blank to wildcard-search usernames inside <strong>message</strong>. Set to <strong>username</strong> for structured GELF.</span>
             </div>
           </div>
           <div class="form-row">
-            <div class="field"><label>Timeout (s)</label><input class="input" id="m-timeout" type="number" min="1" max="60" value="${cfg.timeout ?? 10}" /></div>
+            <div class="field"><label>Timeout (s)</label><input class="input" id="m-timeout" type="number" min="1" max="60" value="${
+          cfg.timeout ?? 10
+        }" /></div>
             <div class="field" style="justify-content:flex-end;">
               <div class="toggle-wrap" style="margin-top:1.4rem;">
-                <input type="checkbox" class="toggle" id="m-verify-ssl" ${cfg.verify_ssl ? 'checked' : ''} />
+                <input type="checkbox" class="toggle" id="m-verify-ssl" ${
+          cfg.verify_ssl ? 'checked' : ''
+        } />
                 <label for="m-verify-ssl" style="font-size:0.82rem;color:var(--color-text);">Verify SSL</label>
               </div>
             </div>
@@ -657,16 +751,26 @@ class IntegrationsPage extends HTMLElement {
         `;
       } else {
         cf.innerHTML = `
-          <div class="field"><label>API URL</label><input class="input" id="m-base-url" value="${esc(cfg.base_url ?? '')}" placeholder="http://zabbix/api_jsonrpc.php" /></div>
+          <div class="field"><label>API URL</label><input class="input" id="m-base-url" value="${
+          esc(cfg.base_url ?? '')
+        }" placeholder="http://zabbix/api_jsonrpc.php" /></div>
           <div class="form-row">
-            <div class="field"><label>Username</label><input class="input" id="m-username" value="${esc(cfg.username ?? '')}" /></div>
-            <div class="field"><label>Password</label><input class="input" id="m-password" type="password" value="${esc(cfg.password ?? '')}" /></div>
+            <div class="field"><label>Username</label><input class="input" id="m-username" value="${
+          esc(cfg.username ?? '')
+        }" /></div>
+            <div class="field"><label>Password</label><input class="input" id="m-password" type="password" value="${
+          esc(cfg.password ?? '')
+        }" /></div>
           </div>
           <div class="form-row">
-            <div class="field"><label>Timeout (s)</label><input class="input" id="m-timeout" type="number" min="1" max="60" value="${cfg.timeout ?? 10}" /></div>
+            <div class="field"><label>Timeout (s)</label><input class="input" id="m-timeout" type="number" min="1" max="60" value="${
+          cfg.timeout ?? 10
+        }" /></div>
             <div class="field" style="justify-content:flex-end;">
               <div class="toggle-wrap" style="margin-top:1.4rem;">
-                <input type="checkbox" class="toggle" id="m-verify-ssl" ${cfg.verify_ssl ? 'checked' : ''} />
+                <input type="checkbox" class="toggle" id="m-verify-ssl" ${
+          cfg.verify_ssl ? 'checked' : ''
+        } />
                 <label for="m-verify-ssl" style="font-size:0.82rem;color:var(--color-text);">Verify SSL</label>
               </div>
             </div>
@@ -676,7 +780,10 @@ class IntegrationsPage extends HTMLElement {
     };
 
     renderConfigFields(type);
-    body.querySelector('#m-type').addEventListener('change', (e) => renderConfigFields(e.target.value));
+    body.querySelector('#m-type').addEventListener(
+      'change',
+      (e) => renderConfigFields(e.target.value),
+    );
     this.shadowRoot.getElementById('modal-overlay').classList.add('open');
   }
 
@@ -691,31 +798,43 @@ class IntegrationsPage extends HTMLElement {
     const nameInput = sr.getElementById('m-name');
     const baseUrlInput = sr.getElementById('m-base-url');
     const usernameInput = sr.getElementById('m-username');
-    const name    = nameInput?.value.trim();
-    const type    = sr.getElementById('m-type')?.value;
+    const name = nameInput?.value.trim();
+    const type = sr.getElementById('m-type')?.value;
     const enabled = sr.getElementById('m-enabled')?.checked ?? true;
     const baseUrl = baseUrlInput?.value.trim();
     const username = usernameInput?.value.trim();
     const password = sr.getElementById('m-password')?.value;
-    const timeout  = parseInt(sr.getElementById('m-timeout')?.value ?? '10');
+    const timeout = parseInt(sr.getElementById('m-timeout')?.value ?? '10');
     const verifySsl = sr.getElementById('m-verify-ssl')?.checked ?? false;
 
     // Config is stored as a free dict server-side, so these client checks are
     // what keep an integration from being saved without the fields it needs.
     let ok = true;
-    if (!name)    { setFieldError(nameInput, 'Name is required'); ok = false; }
-    if (!baseUrl) { setFieldError(baseUrlInput, 'Base URL is required'); ok = false; }
-    if (!username){ setFieldError(usernameInput, 'Username is required'); ok = false; }
+    if (!name) {
+      setFieldError(nameInput, 'Name is required');
+      ok = false;
+    }
+    if (!baseUrl) {
+      setFieldError(baseUrlInput, 'Base URL is required');
+      ok = false;
+    }
+    if (!username) {
+      setFieldError(usernameInput, 'Username is required');
+      ok = false;
+    }
     if (!ok) return;
 
     const cfg = type === 'graylog'
       ? {
-          base_url: baseUrl, username, password,
-          stream_id: sr.getElementById('m-stream-id')?.value.trim() || null,
-          nas_ip_field: sr.getElementById('m-nas-ip-field')?.value.trim() || 'source',
-          username_field: sr.getElementById('m-username-field')?.value.trim() || '',
-          timeout, verify_ssl: verifySsl,
-        }
+        base_url: baseUrl,
+        username,
+        password,
+        stream_id: sr.getElementById('m-stream-id')?.value.trim() || null,
+        nas_ip_field: sr.getElementById('m-nas-ip-field')?.value.trim() || 'source',
+        username_field: sr.getElementById('m-username-field')?.value.trim() || '',
+        timeout,
+        verify_ssl: verifySsl,
+      }
       : { base_url: baseUrl, username, password, timeout, verify_ssl: verifySsl };
 
     const payload = { name, type, config: cfg, enabled };
@@ -794,7 +913,9 @@ class IntegrationsPage extends HTMLElement {
 
     tc.querySelector('#gl-search').addEventListener('click', () => this._runGraylogSearch(tc));
     tc.querySelector('#gl-autorefresh').addEventListener('change', (e) => {
-      this.shadowRoot.getElementById('gl-dot').style.display = e.target.checked ? 'inline-block' : 'none';
+      this.shadowRoot.getElementById('gl-dot').style.display = e.target.checked
+        ? 'inline-block'
+        : 'none';
       if (e.target.checked) {
         this._graylogStop = startPolling(() => this._runGraylogSearch(tc), 10000);
       } else {
@@ -806,13 +927,13 @@ class IntegrationsPage extends HTMLElement {
   _prefillGraylog(params) {
     const tc = this.shadowRoot.getElementById('tab-content');
     if (!tc) return;
-    const nasIp      = params.get('nas_ip') || '';
+    const nasIp = params.get('nas_ip') || '';
     const nasIdentId = params.get('nas_identifier') || '';
-    const username   = params.get('username') || '';
-    const since      = params.get('since') || '';
+    const username = params.get('username') || '';
+    const since = params.get('since') || '';
 
-    const ipEl   = tc.querySelector('#gl-nas-ip');
-    const idEl   = tc.querySelector('#gl-nas-identifier');
+    const ipEl = tc.querySelector('#gl-nas-ip');
+    const idEl = tc.querySelector('#gl-nas-identifier');
     const userEl = tc.querySelector('#gl-username');
     const sinceEl = tc.querySelector('#gl-since');
 
@@ -821,16 +942,23 @@ class IntegrationsPage extends HTMLElement {
     if (userEl) userEl.value = username;
     if (sinceEl && since) {
       const d = new Date(since);
-      if (!isNaN(d)) sinceEl.value = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+      if (!isNaN(d)) {
+        sinceEl.value = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(
+          0,
+          10,
+        );
+      }
     }
 
     // Auto-select NAS in dropdown and fill identifier if not already set
     if (nasIp && this._nasList.length) {
-      const nas = this._nasList.find(n => n.nasname === nasIp);
+      const nas = this._nasList.find((n) => n.nasname === nasIp);
       if (nas) {
         const select = tc.querySelector('#gl-nas-select');
         if (select) select.value = String(nas.id);
-        if (idEl && !nasIdentId && nas.shortname && nas.shortname !== nas.nasname) idEl.value = nas.shortname;
+        if (idEl && !nasIdentId && nas.shortname && nas.shortname !== nas.nasname) {
+          idEl.value = nas.shortname;
+        }
       }
     }
 
@@ -839,22 +967,31 @@ class IntegrationsPage extends HTMLElement {
 
   async _runGraylogSearch(tc) {
     if (this._graylogLoading) return;
-    const nasIp        = tc.querySelector('#gl-nas-ip')?.value.trim();
+    const nasIp = tc.querySelector('#gl-nas-ip')?.value.trim();
     const nasIdentifier = tc.querySelector('#gl-nas-identifier')?.value.trim();
-    const username     = tc.querySelector('#gl-username')?.value.trim();
-    const sinceVal     = tc.querySelector('#gl-since')?.value;
-    const untilVal     = tc.querySelector('#gl-until')?.value;
-    const limit        = parseInt(tc.querySelector('#gl-limit')?.value || '200');
-    const results      = this.shadowRoot.getElementById('gl-results');
-    const infoBar      = this.shadowRoot.getElementById('gl-info');
+    const username = tc.querySelector('#gl-username')?.value.trim();
+    const sinceVal = tc.querySelector('#gl-since')?.value;
+    const untilVal = tc.querySelector('#gl-until')?.value;
+    const limit = parseInt(tc.querySelector('#gl-limit')?.value || '200');
+    const results = this.shadowRoot.getElementById('gl-results');
+    const infoBar = this.shadowRoot.getElementById('gl-info');
 
-    if (!nasIp && !nasIdentifier) { toast('Enter NAS IP or NAS Name', 'error'); return; }
-    if (!sinceVal) { toast('"From" date is required', 'error'); return; }
+    if (!nasIp && !nasIdentifier) {
+      toast('Enter NAS IP or NAS Name', 'error');
+      return;
+    }
+    if (!sinceVal) {
+      toast('"From" date is required', 'error');
+      return;
+    }
 
     this._graylogLoading = true;
     results.innerHTML = `<div class="empty">Fetching logs…</div>`;
     try {
-      const params = new URLSearchParams({ since: new Date(sinceVal + 'T00:00:00').toISOString(), limit: String(limit) });
+      const params = new URLSearchParams({
+        since: new Date(sinceVal + 'T00:00:00').toISOString(),
+        limit: String(limit),
+      });
       if (nasIp) params.set('nas_ip', nasIp);
       if (nasIdentifier) params.set('nas_identifier', nasIdentifier);
       if (username) params.set('username', username);
@@ -866,7 +1003,9 @@ class IntegrationsPage extends HTMLElement {
       this.shadowRoot.getElementById('gl-count').textContent = `${data.count} log entries`;
       this._renderGraylogLogs(results, data.logs);
     } catch (e) {
-      results.innerHTML = `<div class="empty" style="color:var(--color-danger);">${esc(e.message)}</div>`;
+      results.innerHTML = `<div class="empty" style="color:var(--color-danger);">${
+        esc(e.message)
+      }</div>`;
       infoBar.style.display = 'none';
     } finally {
       this._graylogLoading = false;
@@ -875,27 +1014,40 @@ class IntegrationsPage extends HTMLElement {
 
   _renderGraylogLogs(container, logs) {
     if (!logs.length) {
-      container.innerHTML = `<div class="empty">No log entries found for the selected criteria.</div>`;
+      container.innerHTML =
+        `<div class="empty">No log entries found for the selected criteria.</div>`;
       return;
     }
     container.innerHTML = `
       <div class="log-wrap">
-        ${logs.map((l, i) => {
-          const lvl = LEVEL_LABELS[l.level] ?? String(l.level ?? '');
-          const hasFields = Object.keys(l.fields || {}).length > 0;
-          return `
+        ${
+      logs.map((l, i) => {
+        const lvl = LEVEL_LABELS[l.level] ?? String(l.level ?? '');
+        const hasFields = Object.keys(l.fields || {}).length > 0;
+        return `
             <div class="log-row">
-              <span class="log-ts">${esc(l.timestamp ? new Date(l.timestamp).toLocaleString() : '—')}</span>
-              <span class="log-lvl" style="color:${l.level != null && l.level <= 4 ? 'var(--color-danger)' : 'var(--color-muted)'};">${esc(lvl)}</span>
+              <span class="log-ts">${
+          esc(l.timestamp ? new Date(l.timestamp).toLocaleString() : '—')
+        }</span>
+              <span class="log-lvl" style="color:${
+          l.level != null && l.level <= 4 ? 'var(--color-danger)' : 'var(--color-muted)'
+        };">${esc(lvl)}</span>
               <span class="log-msg">${esc(l.message)}</span>
               ${hasFields ? `<span class="log-expand" data-idx="${i}">+fields</span>` : ''}
             </div>
-            ${hasFields ? `<div class="log-fields" id="log-fields-${i}">${esc(JSON.stringify(l.fields, null, 2))}</div>` : ''}
+            ${
+          hasFields
+            ? `<div class="log-fields" id="log-fields-${i}">${
+              esc(JSON.stringify(l.fields, null, 2))
+            }</div>`
+            : ''
+        }
           `;
-        }).join('')}
+      }).join('')
+    }
       </div>
     `;
-    container.querySelectorAll('.log-expand').forEach(el => {
+    container.querySelectorAll('.log-expand').forEach((el) => {
       el.addEventListener('click', () => {
         const fEl = container.querySelector(`#log-fields-${el.dataset.idx}`);
         if (fEl) {
@@ -907,7 +1059,10 @@ class IntegrationsPage extends HTMLElement {
   }
 
   _stopGraylogRefresh() {
-    if (this._graylogStop) { this._graylogStop(); this._graylogStop = null; }
+    if (this._graylogStop) {
+      this._graylogStop();
+      this._graylogStop = null;
+    }
   }
 
   // ── Zabbix tab ────────────────────────────────────────────────────────────
@@ -933,25 +1088,36 @@ class IntegrationsPage extends HTMLElement {
   }
 
   async _runZabbixSearch(tc) {
-    const nasIp   = tc.querySelector('#zb-nas-ip')?.value.trim();
+    const nasIp = tc.querySelector('#zb-nas-ip')?.value.trim();
     const results = this.shadowRoot.getElementById('zb-results');
-    if (!nasIp) { toast('NAS IP is required', 'error'); return; }
+    if (!nasIp) {
+      toast('NAS IP is required', 'error');
+      return;
+    }
     results.innerHTML = `<div class="empty">Fetching alarms…</div>`;
     try {
-      const data = await api.get(`/integrations/zabbix/host-problems?nas_ip=${encodeURIComponent(nasIp)}`);
+      const data = await api.get(
+        `/integrations/zabbix/host-problems?nas_ip=${encodeURIComponent(nasIp)}`,
+      );
       this._renderZabbixProblems(results, data.problems, nasIp);
     } catch (e) {
-      results.innerHTML = `<div class="empty" style="color:var(--color-danger);">${esc(e.message)}</div>`;
+      results.innerHTML = `<div class="empty" style="color:var(--color-danger);">${
+        esc(e.message)
+      }</div>`;
     }
   }
 
   _renderZabbixProblems(container, problems, nasIp) {
     if (!problems.length) {
-      container.innerHTML = `<div class="empty">No active alarms for <strong>${esc(nasIp)}</strong>.</div>`;
+      container.innerHTML = `<div class="empty">No active alarms for <strong>${
+        esc(nasIp)
+      }</strong>.</div>`;
       return;
     }
     container.innerHTML = `
-      <div style="font-size:0.78rem;color:var(--color-muted);margin-bottom:0.75rem;">${problems.length} active alarm(s) for ${esc(nasIp)}</div>
+      <div style="font-size:0.78rem;color:var(--color-muted);margin-bottom:0.75rem;">${problems.length} active alarm(s) for ${
+      esc(nasIp)
+    }</div>
       <div class="card" style="padding:0;overflow:hidden;">
         <table>
           <thead><tr>
@@ -962,15 +1128,23 @@ class IntegrationsPage extends HTMLElement {
             <th>ACK</th>
           </tr></thead>
           <tbody>
-            ${problems.map(p => `
+            ${
+      problems.map((p) => `
               <tr>
-                <td><span style="font-weight:600;color:${SEVERITY_COLOR[p.severity] || 'inherit'};">${esc(p.severity)}</span></td>
+                <td><span style="font-weight:600;color:${
+        SEVERITY_COLOR[p.severity] || 'inherit'
+      };">${esc(p.severity)}</span></td>
                 <td>${esc(p.name)}</td>
                 <td style="color:var(--color-muted);">${esc(p.hostname)}</td>
                 <td style="color:var(--color-muted);white-space:nowrap;">${fmtClock(p.clock)}</td>
-                <td>${p.acknowledged ? '<span class="badge badge-ok">Yes</span>' : '<span class="badge badge-off">No</span>'}</td>
+                <td>${
+        p.acknowledged
+          ? '<span class="badge badge-ok">Yes</span>'
+          : '<span class="badge badge-off">No</span>'
+      }</td>
               </tr>
-            `).join('')}
+            `).join('')
+    }
           </tbody>
         </table>
       </div>

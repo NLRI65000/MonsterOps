@@ -78,7 +78,7 @@ async function request(method, path, body, { _isRetry = false } = {}) {
   return res.status === 204 ? null : res.json();
 }
 
-async function _tryRefresh() {
+function _tryRefresh() {
   // Deduplicate: if a refresh is already in-flight, wait for it
   if (_refreshing) return _refreshing;
 
@@ -89,7 +89,9 @@ async function _tryRefresh() {
   })
     .then((res) => res.ok) // 204 on success — cookies are rotated server-side
     .catch(() => false)
-    .finally(() => { _refreshing = null; });
+    .finally(() => {
+      _refreshing = null;
+    });
 
   return _refreshing;
 }
@@ -111,17 +113,19 @@ async function upload(path, formData) {
       credentials: 'same-origin',
       body: formData,
     });
-  } finally { stopLoading(); }
+  } finally {
+    stopLoading();
+  }
   if (!res.ok) throw await _httpError(res);
   return res.status === 204 ? null : res.json();
 }
 
 export const api = {
-  get:    (path)        => request('GET',    path),
-  post:   (path, body)  => request('POST',   path, body),
-  put:    (path, body)  => request('PUT',    path, body),
-  patch:  (path, body)  => request('PATCH',  path, body),
-  delete: (path)        => request('DELETE', path),
+  get: (path) => request('GET', path),
+  post: (path, body) => request('POST', path, body),
+  put: (path, body) => request('PUT', path, body),
+  patch: (path, body) => request('PATCH', path, body),
+  delete: (path) => request('DELETE', path),
   upload,
   clearSession: _clearSession,
 };

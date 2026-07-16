@@ -6,8 +6,8 @@ import logging
 import os
 import shutil
 import signal
-import tempfile
 import subprocess
+import tempfile
 import time
 from collections import deque
 from pathlib import Path
@@ -21,7 +21,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from monsterops.config import settings
 from monsterops.database import get_db
 from monsterops.modules.auth.utils import get_current_user, require_roles
-from .schemas import DBHealth, HealthStatus, LogFile, LogTailResponse, ServiceActionResult, ServiceStatus
+
+from .schemas import (
+    DBHealth,
+    HealthStatus,
+    LogFile,
+    LogTailResponse,
+    ServiceActionResult,
+    ServiceStatus,
+)
 
 router = APIRouter(prefix="/api/health", tags=["health"])
 
@@ -48,20 +56,24 @@ class _AppLogHandler(logging.Handler):
 
 
 _app_log_handler = _AppLogHandler()
-_app_log_handler.setFormatter(logging.Formatter(
-    "%(asctime)s %(levelname)-8s %(name)s — %(message)s",
-    datefmt="%H:%M:%S",
-))
+_app_log_handler.setFormatter(
+    logging.Formatter(
+        "%(asctime)s %(levelname)-8s %(name)s — %(message)s",
+        datefmt="%H:%M:%S",
+    )
+)
 logging.getLogger().addHandler(_app_log_handler)
+
 
 
 
 def _get_service_status() -> ServiceStatus:
     try:
         result = subprocess.run(
-            ["systemctl", "show", _SERVICE,
-             "--property=ActiveState,SubState,LoadState"],
-            capture_output=True, text=True, timeout=5,
+            ["systemctl", "show", _SERVICE, "--property=ActiveState,SubState,LoadState"],
+            capture_output=True,
+            text=True,
+            timeout=5,
         )
         props: dict[str, str] = {}
         for line in result.stdout.splitlines():
@@ -75,11 +87,16 @@ def _get_service_status() -> ServiceStatus:
             load_state=props.get("LoadState", "unknown"),
         )
     except FileNotFoundError:
-        return ServiceStatus(service=_SERVICE, active_state="unknown",
-                             sub_state="systemctl not found", load_state="unknown")
+        return ServiceStatus(
+            service=_SERVICE,
+            active_state="unknown",
+            sub_state="systemctl not found",
+            load_state="unknown",
+        )
     except Exception as exc:
-        return ServiceStatus(service=_SERVICE, active_state="unknown",
-                             sub_state=str(exc), load_state="unknown")
+        return ServiceStatus(
+            service=_SERVICE, active_state="unknown", sub_state=str(exc), load_state="unknown"
+        )
 
 
 def _allowed_log_files() -> dict[str, str]:
@@ -97,13 +114,13 @@ def _resolve_log_path(file: str) -> str:
     if key not in allowed:
         raise HTTPException(
             status_code=400,
-            detail=f"Log file not configured: {key}. "
-                   f"Allowed: {', '.join(sorted(allowed))}",
+            detail=f"Log file not configured: {key}. Allowed: {', '.join(sorted(allowed))}",
         )
     path = allowed[key]
     if not os.path.exists(path):
         raise HTTPException(status_code=404, detail=f"Log file not found: {key}")
     return path
+
 
 
 
@@ -135,7 +152,8 @@ async def get_health_status(
 async def validate_config(_user=Depends(require_roles("superadmin", "admin"))):
     try:
         proc = await asyncio.create_subprocess_exec(
-            "/usr/sbin/freeradius", "-C",
+            "/usr/sbin/freeradius",
+            "-C",
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.STDOUT,
         )
@@ -162,15 +180,14 @@ async def control_service(
 
     def _run() -> ServiceActionResult:
         import shutil
+
         cmd = ["systemctl", action, _SERVICE]
         if shutil.which("sudo"):
             cmd = ["sudo", "-n"] + cmd
         try:
             res = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
             output = (res.stdout + res.stderr).strip() or f"{action} completed"
-            return ServiceActionResult(
-                action=action, success=res.returncode == 0, output=output
-            )
+            return ServiceActionResult(action=action, success=res.returncode == 0, output=output)
         except subprocess.TimeoutExpired:
             return ServiceActionResult(action=action, success=False, output="Command timed out")
         except FileNotFoundError:
@@ -188,11 +205,13 @@ async def list_log_files(_user=Depends(get_current_user)):
     for raw in settings.radius_log_files.split(","):
         p = raw.strip()
         if p:
-            result.append(LogFile(
-                name=os.path.basename(p),
-                path=p,
-                exists=os.path.exists(p),
-            ))
+            result.append(
+                LogFile(
+                    name=os.path.basename(p),
+                    path=p,
+                    exists=os.path.exists(p),
+                )
+            )
     return result
 
 
@@ -271,6 +290,7 @@ async def stream_log(
         yield ": keepalive\n\n"
 
         while True:
+
             def _read_new() -> list[str]:
                 try:
                     size = os.path.getsize(path)
@@ -311,6 +331,7 @@ async def stream_log(
             "X-Accel-Buffering": "no",
         },
     )
+
 
 
 
@@ -376,21 +397,34 @@ async def run_console_command(
 
     if command_id == "reload_freeradius":
         from monsterops.radius_reload import reload_freeradius
+
         ok = await reload_freeradius()
-        return {"command": command_id, "success": ok,
-                "message": "FreeRADIUS reloaded" if ok else "Reload failed — check logs"}
+        return {
+            "command": command_id,
+            "success": ok,
+            "message": "FreeRADIUS reloaded" if ok else "Reload failed — check logs",
+        }
 
     if command_id == "restart_freeradius":
         from monsterops.radius_reload import restart_freeradius
+
         ok = await restart_freeradius()
-        return {"command": command_id, "success": ok,
-                "message": "FreeRADIUS restarted" if ok else "Restart failed — check logs"}
+        return {
+            "command": command_id,
+            "success": ok,
+            "message": "FreeRADIUS restarted" if ok else "Restart failed — check logs",
+        }
 
     if command_id == "run_migrations":
         import sys
+
         try:
             proc = await asyncio.create_subprocess_exec(
-                sys.executable, "-m", "alembic", "upgrade", "head",
+                sys.executable,
+                "-m",
+                "alembic",
+                "upgrade",
+                "head",
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.STDOUT,
             )
@@ -399,7 +433,11 @@ async def run_console_command(
             success = proc.returncode == 0
             return {"command": command_id, "success": success, "message": output or "No output"}
         except asyncio.TimeoutError:
-            return {"command": command_id, "success": False, "message": "Migration timed out after 60s"}
+            return {
+                "command": command_id,
+                "success": False,
+                "message": "Migration timed out after 60s",
+            }
 
     raise HTTPException(400, f"Unhandled command: {command_id}")
 
@@ -436,10 +474,16 @@ async def geoip_status(_user=Depends(get_current_user)) -> dict:
     db_path = settings.geoip_db or str(_GEOIP_STORE)
     p = Path(db_path)
     if not p.exists():
-        return {"configured": bool(settings.geoip_db), "db_exists": False,
-                "db_path": db_path, "build_epoch": None, "description": None}
+        return {
+            "configured": bool(settings.geoip_db),
+            "db_exists": False,
+            "db_path": db_path,
+            "build_epoch": None,
+            "description": None,
+        }
     try:
         import geoip2.database
+
         with geoip2.database.Reader(str(p)) as r:
             meta = r.metadata()
             return {
@@ -452,9 +496,14 @@ async def geoip_status(_user=Depends(get_current_user)) -> dict:
                 "ip_version": meta.ip_version,
             }
     except Exception as exc:
-        return {"configured": bool(settings.geoip_db), "db_exists": True,
-                "db_path": db_path, "build_epoch": None, "description": None,
-                "error": str(exc)}
+        return {
+            "configured": bool(settings.geoip_db),
+            "db_exists": True,
+            "db_path": db_path,
+            "build_epoch": None,
+            "description": None,
+            "error": str(exc),
+        }
 
 
 @router.post("/geoip/upload")
@@ -474,6 +523,7 @@ async def geoip_upload(
 
     try:
         import geoip2.database
+
         with tempfile.NamedTemporaryFile(suffix=".mmdb", delete=False) as tmp:
             tmp.write(content)
             tmp_path = Path(tmp.name)
@@ -492,6 +542,7 @@ async def geoip_upload(
     _update_env("MONSTEROPS_GEOIP_DB", str(_GEOIP_STORE))
 
     from monsterops import geo as _geo_module
+
     _geo_module.reload_reader()
 
     test_result = _geo_module.lookup("8.8.8.8")
@@ -507,8 +558,10 @@ async def geoip_upload(
 
 @router.post("/geoip/restart-app")
 async def restart_app(_user=Depends(require_roles("superadmin"))) -> dict:
+
     async def _delayed_kill():
         await asyncio.sleep(1.5)
         os.kill(os.getpid(), signal.SIGTERM)
+
     asyncio.create_task(_delayed_kill())
     return {"ok": True, "message": "Application is restarting…"}

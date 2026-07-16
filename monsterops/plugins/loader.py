@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib
 import importlib.metadata
+import importlib.util
 import logging
 
 from fastapi import FastAPI
@@ -16,13 +17,19 @@ PLUGIN_ENTRY_POINT_GROUP = "monsterops.plugins"
 
 def load_modules(app: FastAPI) -> None:
     for name in settings.module_list:
-        module_path = f"{BUILTIN_MODULE_PATH}.{name}.router"
+        router_path = f"{BUILTIN_MODULE_PATH}.{name}.router"
         try:
-            mod = importlib.import_module(module_path)
-            app.include_router(mod.router)
-            logger.info("Loaded module: %s", name)
+            spec = importlib.util.find_spec(router_path)
         except ModuleNotFoundError:
             logger.warning("Module '%s' not found — skipping", name)
+            continue
+        if spec is None:
+            logger.debug("Module '%s' is UI-only (no router) — skipping router", name)
+            continue
+        try:
+            mod = importlib.import_module(router_path)
+            app.include_router(mod.router)
+            logger.info("Loaded module: %s", name)
         except Exception:
             logger.exception("Failed to load module '%s'", name)
 

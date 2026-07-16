@@ -10,13 +10,19 @@ import './components/app-statusbar.js';
 import './components/mr-card.js';
 import './components/signal-pulse.js';
 
-const sidebar   = document.querySelector('app-sidebar');
+const sidebar = document.querySelector('app-sidebar');
 const statusbar = document.querySelector('app-statusbar');
 const hamburger = document.getElementById('menu-toggle');
-const backdrop  = document.getElementById('sidebar-backdrop');
+const backdrop = document.getElementById('sidebar-backdrop');
 
-router.register('/login', () => { enterUnauthMode(); return LoginView(); });
-router.register('/setup', () => { enterUnauthMode(); return SetupView(); });
+router.register('/login', () => {
+  enterUnauthMode();
+  return LoginView();
+});
+router.register('/setup', () => {
+  enterUnauthMode();
+  return SetupView();
+});
 
 router.register('/logout', () => {
   api.clearSession();
@@ -183,7 +189,7 @@ async function loadModuleScripts(manifests) {
   await Promise.all(
     manifests
       .filter((m) => m.js)
-      .map((m) => import(m.js).catch((err) => console.warn(`Module ${m.module} failed:`, err)))
+      .map((m) => import(m.js).catch((err) => console.warn(`Module ${m.module} failed:`, err))),
   );
 }
 

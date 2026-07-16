@@ -71,6 +71,7 @@ async def _get_or_404(db: AsyncSession, tunnel_id: int) -> VpnTunnel:
 
 
 
+
 @router.get("", response_model=list[TunnelOut])
 async def list_tunnels(db: AsyncSession = Depends(get_db), _user=Depends(get_current_user)):
     tunnels = (await db.execute(select(VpnTunnel).order_by(VpnTunnel.name))).scalars().all()
@@ -84,22 +85,32 @@ async def create_tunnel(
     db: AsyncSession = Depends(get_db),
     current=Depends(require_roles("superadmin", "admin")),
 ):
-    dup = await db.scalar(select(func.count()).select_from(VpnTunnel).where(VpnTunnel.name == body.name))
+    dup = await db.scalar(
+        select(func.count()).select_from(VpnTunnel).where(VpnTunnel.name == body.name)
+    )
     if dup:
         raise HTTPException(409, f"VPN tunnel '{body.name}' already exists")
     t = VpnTunnel()
     _populate(t, body, creating=True)
     db.add(t)
     await db.flush()
-    await audit(db, user_id=current.id, username=current.username,
-                action="vpn.create", target=body.name, request=request)
+    await audit(
+        db,
+        user_id=current.id,
+        username=current.username,
+        action="vpn.create",
+        target=body.name,
+        request=request,
+    )
     await db.commit()
     await db.refresh(t)
     return _out(t)
 
 
 @router.get("/{tunnel_id}", response_model=TunnelOut)
-async def get_tunnel(tunnel_id: int, db: AsyncSession = Depends(get_db), _user=Depends(get_current_user)):
+async def get_tunnel(
+    tunnel_id: int, db: AsyncSession = Depends(get_db), _user=Depends(get_current_user)
+):
     return _out(await _get_or_404(db, tunnel_id))
 
 
@@ -113,14 +124,21 @@ async def update_tunnel(
 ):
     t = await _get_or_404(db, tunnel_id)
     dup = await db.scalar(
-        select(func.count()).select_from(VpnTunnel)
+        select(func.count())
+        .select_from(VpnTunnel)
         .where(VpnTunnel.name == body.name, VpnTunnel.id != tunnel_id)
     )
     if dup:
         raise HTTPException(409, f"VPN tunnel '{body.name}' already exists")
     _populate(t, body, creating=False)
-    await audit(db, user_id=current.id, username=current.username,
-                action="vpn.update", target=t.name, request=request)
+    await audit(
+        db,
+        user_id=current.id,
+        username=current.username,
+        action="vpn.update",
+        target=t.name,
+        request=request,
+    )
     await db.commit()
     await db.refresh(t)
     return _out(t)
@@ -139,9 +157,16 @@ async def delete_tunnel(
     except Exception:  # noqa: BLE001
         logger.warning("Teardown of VPN tunnel %s during delete failed", t.name, exc_info=True)
     await db.delete(t)
-    await audit(db, user_id=current.id, username=current.username,
-                action="vpn.delete", target=t.name, request=request)
+    await audit(
+        db,
+        user_id=current.id,
+        username=current.username,
+        action="vpn.delete",
+        target=t.name,
+        request=request,
+    )
     await db.commit()
+
 
 
 
@@ -167,9 +192,15 @@ async def bring_up(
     st = await get_backend(t.type).up(t)
     t.enabled = True
     apply_status(t, st)
-    await audit(db, user_id=current.id, username=current.username,
-                action="vpn.up", target=t.name,
-                detail={"result": st.oper_state}, request=request)
+    await audit(
+        db,
+        user_id=current.id,
+        username=current.username,
+        action="vpn.up",
+        target=t.name,
+        detail={"result": st.oper_state},
+        request=request,
+    )
     await db.commit()
     await db.refresh(t)
     return TunnelActionResult(tunnel=_out(t), ok=st.oper_state == "up", detail=st.detail)
@@ -186,8 +217,14 @@ async def bring_down(
     st = await get_backend(t.type).down(t)
     t.enabled = False
     apply_status(t, st)
-    await audit(db, user_id=current.id, username=current.username,
-                action="vpn.down", target=t.name, request=request)
+    await audit(
+        db,
+        user_id=current.id,
+        username=current.username,
+        action="vpn.down",
+        target=t.name,
+        request=request,
+    )
     await db.commit()
     await db.refresh(t)
     return TunnelActionResult(tunnel=_out(t), ok=st.oper_state != "error", detail=st.detail)
@@ -218,8 +255,14 @@ async def regenerate_keys(
     if t.type != "wireguard":
         raise HTTPException(400, "Key regeneration only applies to WireGuard tunnels")
     t.wg_private_key, t.wg_public_key = generate_keypair()
-    await audit(db, user_id=current.id, username=current.username,
-                action="vpn.regenerate_keys", target=t.name, request=request)
+    await audit(
+        db,
+        user_id=current.id,
+        username=current.username,
+        action="vpn.regenerate_keys",
+        target=t.name,
+        request=request,
+    )
     await db.commit()
     await db.refresh(t)
     return _out(t)

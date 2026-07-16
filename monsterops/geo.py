@@ -1,3 +1,4 @@
+
 from __future__ import annotations
 
 import ipaddress
@@ -29,11 +30,13 @@ def _get_reader():
         if _reader is not None:
             return _reader
         from monsterops.config import settings
+
         db_path = getattr(settings, "geoip_db", "")
         if not db_path:
             return None
         try:
             import geoip2.database
+
             _reader = geoip2.database.Reader(db_path)
             logger.info("GeoIP2 database loaded from %s", db_path)
         except FileNotFoundError:
@@ -55,7 +58,9 @@ def _get_reader():
 def _is_public(ip: str) -> bool:
     try:
         addr = ipaddress.ip_address(ip)
-        return not (addr.is_private or addr.is_loopback or addr.is_link_local or addr.is_unspecified)
+        return not (
+            addr.is_private or addr.is_loopback or addr.is_link_local or addr.is_unspecified
+        )
     except ValueError:
         return False
 

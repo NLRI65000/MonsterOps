@@ -4,14 +4,18 @@ import { toast as showToast } from '/js/components/app-toast.js';
 import { confirmDialog } from '/js/components/app-confirm.js';
 import { openModal } from '/js/components/mr-modal.js';
 import { emptyStateHTML, skeletonRows } from '/js/utils/empty.js';
-import { setFieldError, clearFieldError, clearFieldErrors, applyServerErrors } from '/js/utils/form.js';
+import {
+  applyServerErrors,
+  clearFieldError,
+  clearFieldErrors,
+  setFieldError,
+} from '/js/utils/form.js';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
 // The subscriptions table header, reused for the populated table and the loading
 // skeleton so the table keeps its shape while it loads.
-const SUBS_THEAD =
-  '<thead><tr><th>Name</th><th>URL</th><th>Events</th><th>Signed</th>' +
+const SUBS_THEAD = '<thead><tr><th>Name</th><th>URL</th><th>Events</th><th>Signed</th>' +
   '<th>Status</th><th>Created</th><th></th></tr></thead>';
 
 function fmtDate(iso) {
@@ -28,11 +32,24 @@ function badge(text, ok) {
 }
 
 const KNOWN_EVENTS = [
-  'user.created', 'user.updated', 'user.deleted',
-  'group.created', 'group.deleted', 'group.member_added', 'group.member_removed',
-  'nas.created', 'nas.updated', 'nas.deleted',
-  'admin.create', 'admin.update', 'admin.delete',
-  'audit.*', 'user.*', 'nas.*', 'group.*', '*',
+  'user.created',
+  'user.updated',
+  'user.deleted',
+  'group.created',
+  'group.deleted',
+  'group.member_added',
+  'group.member_removed',
+  'nas.created',
+  'nas.updated',
+  'nas.deleted',
+  'admin.create',
+  'admin.update',
+  'admin.delete',
+  'audit.*',
+  'user.*',
+  'nas.*',
+  'group.*',
+  '*',
 ];
 
 // ── WebhooksPage ───────────────────────────────────────────────────────────────
@@ -49,7 +66,10 @@ class WebhooksPage extends HTMLElement {
   }
 
   disconnectedCallback() {
-    if (this._sse) { this._sse.close(); this._sse = null; }
+    if (this._sse) {
+      this._sse.close();
+      this._sse = null;
+    }
   }
 
   render() {
@@ -139,10 +159,10 @@ class WebhooksPage extends HTMLElement {
         <div id="tab-content"></div>
       </div>
     `;
-    this.querySelectorAll('.tab-btn').forEach(btn => {
+    this.querySelectorAll('.tab-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
         this._tab = btn.dataset.tab;
-        this.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b === btn));
+        this.querySelectorAll('.tab-btn').forEach((b) => b.classList.toggle('active', b === btn));
         this._renderTab();
       });
     });
@@ -172,14 +192,17 @@ class WebhooksPage extends HTMLElement {
     return `<table>
         ${SUBS_THEAD}
         <tbody>
-          ${this._subs.map(s => `
+          ${
+      this._subs.map((s) => `
             <tr>
               <td>${this._esc(s.name)}</td>
               <td style="font-family:monospace;font-size:0.8rem;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
                   title="${this._esc(s.url)}">${this._esc(s.url)}</td>
               <td>
                 <div class="events-tags">
-                  ${(s.events || []).map(e => `<span class="evt-tag">${this._esc(e)}</span>`).join('')}
+                  ${
+        (s.events || []).map((e) => `<span class="evt-tag">${this._esc(e)}</span>`).join('')
+      }
                 </div>
               </td>
               <td>${s.has_secret ? badge('signed', true) : badge('plain', false)}</td>
@@ -193,7 +216,8 @@ class WebhooksPage extends HTMLElement {
                 </div>
               </td>
             </tr>
-          `).join('')}
+          `).join('')
+    }
         </tbody>
       </table>`;
   }
@@ -211,11 +235,11 @@ class WebhooksPage extends HTMLElement {
       ${this._subsBody()}
     `;
     panel.querySelector('#btn-new-sub')?.addEventListener('click', () => this._openForm(null));
-    panel.querySelectorAll('[data-action]').forEach(btn => {
+    panel.querySelectorAll('[data-action]').forEach((btn) => {
       btn.addEventListener('click', () => {
         const id = parseInt(btn.dataset.id);
         if (btn.dataset.action === 'delete') this._delete(id);
-        else if (btn.dataset.action === 'edit') this._openForm(this._subs.find(s => s.id === id));
+        else if (btn.dataset.action === 'edit') this._openForm(this._subs.find((s) => s.id === id));
         else if (btn.dataset.action === 'test') this._test(id);
       });
     });
@@ -227,22 +251,27 @@ class WebhooksPage extends HTMLElement {
     panel.innerHTML = `
       <div class="stream-bar">
         <div class="stream-dot ${isLive ? 'live' : ''}" id="stream-dot"></div>
-        <span style="font-size:0.88rem;color:var(--color-muted);">${isLive ? 'Connected — receiving live events' : 'Not connected'}</span>
+        <span style="font-size:0.88rem;color:var(--color-muted);">${
+      isLive ? 'Connected — receiving live events' : 'Not connected'
+    }</span>
         <button class="btn btn-ghost btn-sm" id="btn-connect" style="margin-left:auto;">
           ${isLive ? 'Disconnect' : 'Connect'}
         </button>
         <button class="btn btn-ghost btn-sm" id="btn-clear">Clear</button>
       </div>
       <div class="event-log" id="event-log">
-        ${this._eventLog.length === 0
-          ? '<span style="color:var(--color-muted)">No events yet — click Connect to start the stream.</span>'
-          : this._eventLog.map(e => this._fmtEvt(e)).join('')
-        }
+        ${
+      this._eventLog.length === 0
+        ? '<span style="color:var(--color-muted)">No events yet — click Connect to start the stream.</span>'
+        : this._eventLog.map((e) => this._fmtEvt(e)).join('')
+    }
       </div>
     `;
     panel.querySelector('#btn-connect').addEventListener('click', () => {
-      if (this._sse) { this._sse.close(); this._sse = null; }
-      else this._connectSSE();
+      if (this._sse) {
+        this._sse.close();
+        this._sse = null;
+      } else this._connectSSE();
       this._renderStream();
     });
     panel.querySelector('#btn-clear').addEventListener('click', () => {
@@ -258,7 +287,11 @@ class WebhooksPage extends HTMLElement {
       <span class="evt-type">${this._esc(e.type)}</span>
       <span class="evt-actor">${this._esc(e.actor || '')}</span>
       <span class="evt-entity"> → ${this._esc(e.entity_id || '')}</span>
-      ${e.data && Object.keys(e.data).length ? `<span class="evt-entity"> · ${this._esc(JSON.stringify(e.data))}</span>` : ''}
+      ${
+      e.data && Object.keys(e.data).length
+        ? `<span class="evt-entity"> · ${this._esc(JSON.stringify(e.data))}</span>`
+        : ''
+    }
     </div>`;
   }
 
@@ -282,12 +315,13 @@ class WebhooksPage extends HTMLElement {
           const dot = this.querySelector('#stream-dot');
           if (dot && !dot.classList.contains('live')) {
             dot.classList.add('live');
-            this.querySelector('.stream-bar span').textContent = 'Connected — receiving live events';
+            this.querySelector('.stream-bar span').textContent =
+              'Connected — receiving live events';
             const btn = this.querySelector('#btn-connect');
             if (btn) btn.textContent = 'Disconnect';
           }
         }
-      } catch (_) {}
+      } catch { /* ignore malformed SSE frame */ }
     };
     this._sse.onerror = () => {
       const dot = this.querySelector('#stream-dot');
@@ -310,7 +344,7 @@ class WebhooksPage extends HTMLElement {
   }
 
   async _delete(id) {
-    const sub = this._subs.find(s => s.id === id);
+    const sub = this._subs.find((s) => s.id === id);
     if (!await confirmDialog(`Delete webhook "${sub?.name}"?`)) return;
     try {
       await api.delete(`/webhooks/${id}`);
@@ -322,7 +356,7 @@ class WebhooksPage extends HTMLElement {
   }
 
   async _test(id) {
-    const sub = this._subs.find(s => s.id === id);
+    const sub = this._subs.find((s) => s.id === id);
     try {
       await api.post(`/webhooks/${id}/test`, {});
       showToast(`Test event queued for "${sub?.name}"`, 'success');
@@ -342,26 +376,40 @@ class WebhooksPage extends HTMLElement {
       bodyHTML: `
         <div class="mrm-field">
           <label class="mrm-label" for="f-name">Name</label>
-          <input id="f-name" class="mrm-input" value="${this._esc(sub?.name || '')}" placeholder="e.g. Slack alerts">
+          <input id="f-name" class="mrm-input" value="${
+        this._esc(sub?.name || '')
+      }" placeholder="e.g. Slack alerts">
         </div>
         <div class="mrm-field">
           <label class="mrm-label" for="f-url">Endpoint URL</label>
-          <input id="f-url" class="mrm-input mrm-mono" value="${this._esc(sub?.url || '')}" placeholder="https://example.com/webhook">
+          <input id="f-url" class="mrm-input mrm-mono" value="${
+        this._esc(sub?.url || '')
+      }" placeholder="https://example.com/webhook">
         </div>
         <div class="mrm-field">
           <label class="mrm-label" for="f-secret">Secret <span class="mrm-label-note">— optional, signs each request</span></label>
-          <input id="f-secret" class="mrm-input" type="password" placeholder="${isEdit && sub.has_secret ? '(unchanged)' : 'Leave blank for no signature'}">
-          ${isEdit && sub.has_secret ? '<div class="mrm-help">A secret is already set. Leave blank to keep it.</div>' : ''}
+          <input id="f-secret" class="mrm-input" type="password" placeholder="${
+        isEdit && sub.has_secret ? '(unchanged)' : 'Leave blank for no signature'
+      }">
+          ${
+        isEdit && sub.has_secret
+          ? '<div class="mrm-help">A secret is already set. Leave blank to keep it.</div>'
+          : ''
+      }
         </div>
         <div class="mrm-field">
           <span class="mrm-label">Events to subscribe to</span>
           <div class="mrm-evt-grid">
-            ${KNOWN_EVENTS.map(e => `
+            ${
+        KNOWN_EVENTS.map((e) => `
               <label class="mrm-evt">
-                <input type="checkbox" name="evt" value="${e}" ${selectedEvents.has(e) ? 'checked' : ''}>
+                <input type="checkbox" name="evt" value="${e}" ${
+          selectedEvents.has(e) ? 'checked' : ''
+        }>
                 <code>${e}</code>
               </label>
-            `).join('')}
+            `).join('')
+      }
           </div>
           <div class="mrm-help">Use <code>*</code> for all events, <code>user.*</code> for all user events.</div>
         </div>
@@ -386,14 +434,23 @@ class WebhooksPage extends HTMLElement {
       const name = nameInput.value.trim();
       const url = urlInput.value.trim();
       const secret = overlay.querySelector('#f-secret').value || null;
-      const events = [...overlay.querySelectorAll('input[name="evt"]:checked')].map(c => c.value);
+      const events = [...overlay.querySelectorAll('input[name="evt"]:checked')].map((c) => c.value);
       const enabled = overlay.querySelector('#f-enabled').checked;
 
       // Client-side required checks land inline under the offending field.
       let ok = true;
-      if (!name) { setFieldError(nameInput, 'Name is required'); ok = false; }
-      if (!url) { setFieldError(urlInput, 'Endpoint URL is required'); ok = false; }
-      if (events.length === 0) { setFieldError(evtGrid, 'Select at least one event'); ok = false; }
+      if (!name) {
+        setFieldError(nameInput, 'Name is required');
+        ok = false;
+      }
+      if (!url) {
+        setFieldError(urlInput, 'Endpoint URL is required');
+        ok = false;
+      }
+      if (events.length === 0) {
+        setFieldError(evtGrid, 'Select at least one event');
+        ok = false;
+      }
       if (!ok) return;
 
       const body = { name, url, events, enabled, secret };
@@ -403,7 +460,10 @@ class WebhooksPage extends HTMLElement {
       const saveBtn = m.submitBtn;
       saveBtn.disabled = true;
       saveBtn.textContent = 'Saving…';
-      const restore = () => { saveBtn.disabled = false; saveBtn.textContent = isEdit ? 'Save changes' : 'Create'; };
+      const restore = () => {
+        saveBtn.disabled = false;
+        saveBtn.textContent = isEdit ? 'Save changes' : 'Create';
+      };
 
       try {
         if (isEdit) await api.put(`/webhooks/${sub.id}`, body);
@@ -414,14 +474,21 @@ class WebhooksPage extends HTMLElement {
       } catch (err) {
         restore();
         // The server validates url as an HttpUrl — map a bad-URL 422 to its field.
-        if (applyServerErrors(overlay, err, (f) => (f === 'events' ? evtGrid : overlay.querySelector(`#f-${f}`)))) return;
+        if (
+          applyServerErrors(
+            overlay,
+            err,
+            (f) => (f === 'events' ? evtGrid : overlay.querySelector(`#f-${f}`)),
+          )
+        ) return;
         showToast(err.message || 'Save failed', 'error');
       }
     });
   }
 
   _esc(s) {
-    return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
   }
 }
 

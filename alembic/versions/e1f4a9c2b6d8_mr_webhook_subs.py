@@ -1,8 +1,10 @@
+
 from __future__ import annotations
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import ARRAY
+
+from alembic import op
 
 revision = "e1f4a9c2b6d8"
 down_revision = "d2e8b3f1a9c7"

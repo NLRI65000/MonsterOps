@@ -1,3 +1,4 @@
+
 from __future__ import annotations
 
 import argparse
@@ -15,25 +16,37 @@ def _client(url: str, api_key: str) -> "_Client":
 class _Client:
     def __init__(self, base: str, api_key: str) -> None:
         self._base = base
-        self._headers = {"X-API-Key": api_key, "Content-Type": "application/json", "Accept": "application/json"}
+        self._headers = {
+            "X-API-Key": api_key,
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        }
 
     def get(self, path: str, params: dict | None = None) -> Any:
         import httpx
+
         r = httpx.get(f"{self._base}{path}", headers=self._headers, params=params or {}, timeout=15)
         return _check(r)
 
     def post(self, path: str, body: dict) -> Any:
         import httpx
-        r = httpx.post(f"{self._base}{path}", headers=self._headers, content=json.dumps(body), timeout=15)
+
+        r = httpx.post(
+            f"{self._base}{path}", headers=self._headers, content=json.dumps(body), timeout=15
+        )
         return _check(r)
 
     def put(self, path: str, body: dict) -> Any:
         import httpx
-        r = httpx.put(f"{self._base}{path}", headers=self._headers, content=json.dumps(body), timeout=15)
+
+        r = httpx.put(
+            f"{self._base}{path}", headers=self._headers, content=json.dumps(body), timeout=15
+        )
         return _check(r)
 
     def delete(self, path: str) -> None:
         import httpx
+
         r = httpx.delete(f"{self._base}{path}", headers=self._headers, timeout=15)
         if r.status_code not in (200, 204):
             _err(r)
@@ -106,9 +119,14 @@ def _fmt(args: argparse.Namespace) -> str:
 
 
 def _add_conn(p: argparse.ArgumentParser) -> None:
-    p.add_argument("--url", metavar="URL", help="Server URL (default: http://localhost:8000 or $MONSTEROPS_URL)")
+    p.add_argument(
+        "--url",
+        metavar="URL",
+        help="Server URL (default: http://localhost:8000 or $MONSTEROPS_URL)",
+    )
     p.add_argument("--api-key", dest="api_key", metavar="KEY", help="API key ($MONSTEROPS_API_KEY)")
     p.add_argument("--format", choices=["table", "json"], default="table")
+
 
 
 
@@ -130,11 +148,22 @@ def _users(sub: Any) -> None:
     _add_conn(pc)
     pc.add_argument("username")
     pc.add_argument("--password", required=True)
-    pc.add_argument("--password-type", dest="password_type", default="Cleartext-Password",
-                    choices=["Cleartext-Password", "MD5-Password", "NT-Password", "SHA-Password", "Crypt-Password"])
+    pc.add_argument(
+        "--password-type",
+        dest="password_type",
+        default="Cleartext-Password",
+        choices=[
+            "Cleartext-Password",
+            "MD5-Password",
+            "NT-Password",
+            "SHA-Password",
+            "Crypt-Password",
+        ],
+    )
     pc.add_argument("--group", dest="groups", action="append", default=[], metavar="GROUP")
-    pc.add_argument("--expiration", default=None, metavar="DATE",
-                    help="Expiration date, e.g. '01 Jan 2025'")
+    pc.add_argument(
+        "--expiration", default=None, metavar="DATE", help="Expiration date, e.g. '01 Jan 2025'"
+    )
     pc.add_argument("--simultaneous-use", dest="simultaneous_use", type=int, default=None)
     pc.add_argument("--disabled", action="store_true")
 
@@ -147,8 +176,9 @@ def _users(sub: Any) -> None:
     pu.add_argument("--disable", dest="enabled", action="store_false")
     pu.add_argument("--expiration", default=None)
     pu.add_argument("--simultaneous-use", dest="simultaneous_use", type=int, default=None)
-    pu.add_argument("--groups", nargs="+", default=None, metavar="GROUP",
-                    help="Replace all group memberships")
+    pu.add_argument(
+        "--groups", nargs="+", default=None, metavar="GROUP", help="Replace all group memberships"
+    )
 
     pd = s.add_parser("delete", help="Delete a user")
     _add_conn(pd)
@@ -175,9 +205,13 @@ def _run_users(args: argparse.Namespace) -> None:
     elif cmd == "get":
         _out(c.get(f"/api/v1/users/{args.username}"), _fmt(args))
     elif cmd == "create":
-        body: dict = {"username": args.username, "password": args.password,
-                      "password_type": args.password_type, "groups": args.groups,
-                      "enabled": not args.disabled}
+        body: dict = {
+            "username": args.username,
+            "password": args.password,
+            "password_type": args.password_type,
+            "groups": args.groups,
+            "enabled": not args.disabled,
+        }
         if args.expiration:
             body["expiration"] = args.expiration
         if args.simultaneous_use is not None:
@@ -212,6 +246,7 @@ def _run_users(args: argparse.Namespace) -> None:
     else:
         print("Usage: monsterops users <list|get|create|update|delete|enable|disable>")
         sys.exit(1)
+
 
 
 
@@ -256,7 +291,10 @@ def _run_groups(args: argparse.Namespace) -> None:
     cmd = args.groups_cmd
 
     if cmd == "list":
-        _out(c.get("/api/v1/groups", {"search": args.search, "page": args.page, "size": args.size}), _fmt(args))
+        _out(
+            c.get("/api/v1/groups", {"search": args.search, "page": args.page, "size": args.size}),
+            _fmt(args),
+        )
     elif cmd == "get":
         _out(c.get(f"/api/v1/groups/{args.groupname}"), _fmt(args))
     elif cmd == "create":
@@ -269,8 +307,10 @@ def _run_groups(args: argparse.Namespace) -> None:
         c.delete(f"/api/v1/groups/{args.groupname}")
         print(f"Deleted group '{args.groupname}'.")
     elif cmd == "add-member":
-        c.post(f"/api/v1/groups/{args.groupname}/members",
-               {"username": args.username, "priority": args.priority})
+        c.post(
+            f"/api/v1/groups/{args.groupname}/members",
+            {"username": args.username, "priority": args.priority},
+        )
         print(f"Added '{args.username}' to group '{args.groupname}'.")
     elif cmd == "remove-member":
         c.delete(f"/api/v1/groups/{args.groupname}/members/{args.username}")
@@ -278,6 +318,7 @@ def _run_groups(args: argparse.Namespace) -> None:
     else:
         print("Usage: monsterops groups <list|get|create|delete|add-member|remove-member>")
         sys.exit(1)
+
 
 
 
@@ -300,8 +341,12 @@ def _nas(sub: Any) -> None:
     pc.add_argument("--nasname", required=True, metavar="IP/FQDN")
     pc.add_argument("--secret", required=True)
     pc.add_argument("--shortname", default=None)
-    pc.add_argument("--type", default="other", dest="nas_type",
-                    choices=["other", "cisco", "mikrotik", "huawei", "juniper"])
+    pc.add_argument(
+        "--type",
+        default="other",
+        dest="nas_type",
+        choices=["other", "cisco", "mikrotik", "huawei", "juniper"],
+    )
     pc.add_argument("--description", default=None)
 
     pu = s.add_parser("update", help="Update a NAS device")
@@ -325,7 +370,10 @@ def _run_nas(args: argparse.Namespace) -> None:
     cmd = args.nas_cmd
 
     if cmd == "list":
-        _out(c.get("/api/v1/nas", {"search": args.search, "page": args.page, "size": args.size}), _fmt(args))
+        _out(
+            c.get("/api/v1/nas", {"search": args.search, "page": args.page, "size": args.size}),
+            _fmt(args),
+        )
     elif cmd == "get":
         _out(c.get(f"/api/v1/nas/{args.nas_id}"), _fmt(args))
     elif cmd == "create":
@@ -361,6 +409,7 @@ def _run_nas(args: argparse.Namespace) -> None:
 
 
 
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         prog="monsterops",
@@ -387,6 +436,7 @@ def main() -> None:
 
     if args.command == "serve":
         import uvicorn
+
         uvicorn.run("monsterops.app:app", host=args.host, port=args.port, reload=args.reload)
     elif args.command == "users":
         _run_users(args)

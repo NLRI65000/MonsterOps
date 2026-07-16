@@ -7,10 +7,10 @@
 
 import { sparkline } from '/js/utils/sparkline.js';
 
-const HEALTH_MS  = 10_000;
-const STATS_MS   = 15_000;
-const CLOCK_MS   = 1_000;
-const SPARK_MAX  = 32;
+const HEALTH_MS = 10_000;
+const STATS_MS = 15_000;
+const CLOCK_MS = 1_000;
+const SPARK_MAX = 32;
 
 // Background fetch that deliberately does NOT go through api.js, so the global
 // loading spinner never flickers on these silent polls. The session cookie is
@@ -32,8 +32,12 @@ class AppStatusbar extends HTMLElement {
     this._started = false;
   }
 
-  connectedCallback() { this._render(); }
-  disconnectedCallback() { this.stop(); }
+  connectedCallback() {
+    this._render();
+  }
+  disconnectedCallback() {
+    this.stop();
+  }
 
   start() {
     if (this._started) return;
@@ -134,16 +138,21 @@ class AppStatusbar extends HTMLElement {
       const radiusOk = h?.freeradius?.active_state === 'active';
       const radiusUnknown = !h?.freeradius || h.freeradius.active_state === 'unknown';
       this._setLed('led-radius', radiusUnknown ? 'warn' : (radiusOk ? 'on' : 'off'));
-      this._setText('v-radius', h?.freeradius?.active_state || 'n/a',
-        radiusOk ? 'on' : (radiusUnknown ? '' : 'off'));
+      this._setText(
+        'v-radius',
+        h?.freeradius?.active_state || 'n/a',
+        radiusOk ? 'on' : (radiusUnknown ? '' : 'off'),
+      );
 
       const dbOk = !!h?.database?.ok;
       this._setLed('led-db', dbOk ? 'on' : 'off');
       const lat = h?.database?.latency_ms;
       this._setText('v-db', dbOk ? (lat != null ? `${lat}ms` : 'ok') : 'down', dbOk ? 'on' : 'off');
     } catch {
-      this._setLed('led-radius', 'idle'); this._setText('v-radius', 'n/a', '');
-      this._setLed('led-db', 'idle');     this._setText('v-db', 'n/a', '');
+      this._setLed('led-radius', 'idle');
+      this._setText('v-radius', 'n/a', '');
+      this._setLed('led-db', 'idle');
+      this._setText('v-db', 'n/a', '');
     }
   }
 
@@ -168,7 +177,10 @@ class AppStatusbar extends HTMLElement {
 
   _setText(id, text, cls) {
     const el = this.shadowRoot.getElementById(id);
-    if (el) { el.textContent = text; el.className = `v${cls ? ' ' + cls : ''}`; }
+    if (el) {
+      el.textContent = text;
+      el.className = `v${cls ? ' ' + cls : ''}`;
+    }
   }
 }
 

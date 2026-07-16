@@ -16,7 +16,7 @@ const COLORS = {
   accept: 'var(--mr-accept, #4ADE9A)',
   reject: 'var(--mr-reject, #FF6B5B)',
   action: 'var(--mr-action, #4FA8FF)',
-  muted:  'var(--mr-text-muted, #8B95A5)',
+  muted: 'var(--mr-text-muted, #8B95A5)',
 };
 
 const STYLE = `
@@ -61,15 +61,21 @@ const STYLE = `
 `;
 
 class SignalPulse extends HTMLElement {
-  static get observedAttributes() { return ['state', 'label']; }
+  static get observedAttributes() {
+    return ['state', 'label'];
+  }
 
   constructor() {
     super();
     this.attachShadow({ mode: 'open' });
   }
 
-  connectedCallback() { this._render(); }
-  attributeChangedCallback() { this._render(); }
+  connectedCallback() {
+    this._render();
+  }
+  attributeChangedCallback() {
+    this._render();
+  }
 
   _render() {
     const state = this.getAttribute('state') ?? 'muted';
@@ -88,7 +94,8 @@ class SignalPulse extends HTMLElement {
   }
 
   _defaultLabel(state) {
-    return { accept: 'Online', reject: 'Offline', action: 'Active', muted: 'Unknown' }[state] ?? 'Unknown';
+    return { accept: 'Online', reject: 'Offline', action: 'Active', muted: 'Unknown' }[state] ??
+      'Unknown';
   }
 }
 

@@ -34,6 +34,7 @@ def client_ip(request: Request) -> str | None:
 
 
 
+
 def hash_password(plain: str) -> str:
     return _ph.hash(plain)
 
@@ -48,6 +49,7 @@ def verify_password(plain: str, hashed: str) -> bool:
         return bcrypt.checkpw(plain.encode(), hashed.encode())
     except Exception:
         return False
+
 
 
 
@@ -76,6 +78,7 @@ def _decode(token: str) -> dict:
         raise HTTPException(status_code=401, detail="Token expired")
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid token")
+
 
 
 
@@ -114,10 +117,12 @@ async def get_current_user(
 
 
 def require_roles(*roles: str):
+
     async def _dep(user=Depends(get_current_user)):
         if user.role not in roles:
             raise HTTPException(status_code=403, detail="Insufficient permissions")
         return user
+
     return _dep
 
 
@@ -139,6 +144,7 @@ async def get_user_from_refresh_cookie(
     if not user or not user.is_active:
         raise HTTPException(status_code=401, detail="User inactive or not found")
     return user
+
 
 
 
@@ -166,18 +172,21 @@ async def audit(
         if ua:
             enriched.setdefault("user_agent", ua[:200])
 
-    db.add(AuditLog(
-        admin_id=user_id,
-        admin_username=username,
-        action=action,
-        target=target,
-        detail=enriched or None,
-        ip_address=ip,
-    ))
+    db.add(
+        AuditLog(
+            admin_id=user_id,
+            admin_username=username,
+            action=action,
+            target=target,
+            detail=enriched or None,
+            ip_address=ip,
+        )
+    )
     await db.commit()
 
     try:
         from monsterops.events import Event, fire
+
         parts = action.split(".", 1)
         entity_type = parts[0] if len(parts) > 1 else action
         event = Event(

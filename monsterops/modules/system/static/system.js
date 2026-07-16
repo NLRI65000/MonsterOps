@@ -1,16 +1,38 @@
 import { router } from '/js/router.js';
 import { api } from '/js/api.js';
 import { toast } from '/js/components/app-toast.js';
-import { emptyStateHTML, emptyRowHTML, skeletonBlock } from '/js/utils/empty.js';
-import { setFieldError, clearFieldErrors, applyServerErrors } from '/js/utils/form.js';
+import { emptyRowHTML, emptyStateHTML, skeletonBlock } from '/js/utils/empty.js';
+import { applyServerErrors, clearFieldErrors, setFieldError } from '/js/utils/form.js';
 
 function _esc(s) {
-  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(
+    /"/g,
+    '&quot;',
+  );
 }
-function _fmtTime(s) { return s ? new Date(s).toLocaleString() : '—'; }
+function _fmtTime(s) {
+  return s ? new Date(s).toLocaleString() : '—';
+}
 
 // Words that should stay fully upper-cased when humanizing action names.
-const _ACRONYMS = new Set(['nas', 'ip', 'vpn', 'api', 'ssh', 'url', 'db', 'coa', 'id', 'dns', 'tls', 'http', 'https', 'gelf', 'hmac', 'sql']);
+const _ACRONYMS = new Set([
+  'nas',
+  'ip',
+  'vpn',
+  'api',
+  'ssh',
+  'url',
+  'db',
+  'coa',
+  'id',
+  'dns',
+  'tls',
+  'http',
+  'https',
+  'gelf',
+  'hmac',
+  'sql',
+]);
 function _titleWord(w) {
   if (!w) return w;
   if (_ACRONYMS.has(w.toLowerCase())) return w.toUpperCase();
@@ -37,7 +59,9 @@ function _auditDetailSummary(l) {
   }
   if (!bits.length) return '<span class="muted">—</span>';
   const MAX = 2;
-  const chips = bits.slice(0, MAX).map(b => `<span class="detail-chip">${_esc(b)}</span>`).join('');
+  const chips = bits.slice(0, MAX).map((b) => `<span class="detail-chip">${_esc(b)}</span>`).join(
+    '',
+  );
   const extra = bits.length - MAX;
   return chips + (extra > 0 ? `<span class="more-badge">+${extra}</span>` : '');
 }
@@ -152,7 +176,7 @@ const STYLE = `
 class SystemView extends HTMLElement {
   _tab = 'admins';
   _me = null;
-  _editId = null;  // null = create mode, number = edit mode
+  _editId = null; // null = create mode, number = edit mode
   _confirmDeleteId = null;
 
   async connectedCallback() {
@@ -160,49 +184,61 @@ class SystemView extends HTMLElement {
     this._me = await api.get('/auth/me').catch(() => null);
     // Deep-link a tab via ?view= (the retired /apikeys route redirects here).
     const view = new URLSearchParams(location.hash.split('?')[1] || '').get('view');
-    if (view && this._tabs().some(t => t.key === view)) this._tab = view;
+    if (view && this._tabs().some((t) => t.key === view)) this._tab = view;
     this._render();
   }
 
-  _isSuperadmin() { return this._me?.role === 'superadmin'; }
-  _isAdmin() { return this._me?.role === 'superadmin' || this._me?.role === 'admin'; }
+  _isSuperadmin() {
+    return this._me?.role === 'superadmin';
+  }
+  _isAdmin() {
+    return this._me?.role === 'superadmin' || this._me?.role === 'admin';
+  }
 
   _tabs() {
     const all = [
-      { key: 'admins',    label: 'Admins',    super: true },
-      { key: 'audit',     label: 'Audit Log', super: true },
-      { key: 'apikeys',   label: 'API Keys',  admin: true },
-      { key: 'settings',  label: 'Settings',  super: false },
-      { key: 'backup',    label: 'Backup',    super: true },
-      { key: 'plugins',   label: 'Plugins',   super: false },
+      { key: 'admins', label: 'Admins', super: true },
+      { key: 'audit', label: 'Audit Log', super: true },
+      { key: 'apikeys', label: 'API Keys', admin: true },
+      { key: 'settings', label: 'Settings', super: false },
+      { key: 'backup', label: 'Backup', super: true },
+      { key: 'plugins', label: 'Plugins', super: false },
     ];
-    return all.filter(t => {
-      if (t.super) return this._isSuperadmin();      // superadmin only
-      if (t.admin) return this._isAdmin();           // superadmin or admin
-      return true;                                   // everyone
+    return all.filter((t) => {
+      if (t.super) return this._isSuperadmin(); // superadmin only
+      if (t.admin) return this._isAdmin(); // superadmin or admin
+      return true; // everyone
     });
   }
 
   _render() {
     const tabs = this._tabs();
-    if (!tabs.find(t => t.key === this._tab)) this._tab = tabs[0]?.key ?? 'settings';
+    if (!tabs.find((t) => t.key === this._tab)) this._tab = tabs[0]?.key ?? 'settings';
 
     this.shadowRoot.innerHTML = `
       ${STYLE}
       <div class="page-title">System</div>
       <div class="tab-bar">
-        ${tabs.map(t => `<button data-t="${t.key}" class="${t.key === this._tab ? 'active' : ''}">${t.label}</button>`).join('')}
+        ${
+      tabs.map((t) =>
+        `<button data-t="${t.key}" class="${
+          t.key === this._tab ? 'active' : ''
+        }">${t.label}</button>`
+      ).join('')
+    }
       </div>
       <div id="content"><div class="loading">Loading…</div></div>
     `;
 
-    this.shadowRoot.querySelector('.tab-bar').addEventListener('click', e => {
+    this.shadowRoot.querySelector('.tab-bar').addEventListener('click', (e) => {
       const btn = e.target.closest('button[data-t]');
       if (!btn) return;
       this._tab = btn.dataset.t;
       this._editId = null;
       this._confirmDeleteId = null;
-      this.shadowRoot.querySelectorAll('.tab-bar button').forEach(b => b.classList.toggle('active', b.dataset.t === this._tab));
+      this.shadowRoot.querySelectorAll('.tab-bar button').forEach((b) =>
+        b.classList.toggle('active', b.dataset.t === this._tab)
+      );
       this._loadTab();
     });
 
@@ -242,19 +278,21 @@ class SystemView extends HTMLElement {
 
   _renderAdminsHTML(admins) {
     const showForm = this._editId !== null || this._showCreate;
-    const editing = this._editId !== null ? admins.find(a => a.id === this._editId) : null;
+    const editing = this._editId !== null ? admins.find((a) => a.id === this._editId) : null;
 
     return `
       ${showForm ? this._renderAdminForm(editing) : ''}
       <div class="card">
         <div class="card-header">
           <span class="card-title">Admin Accounts</span>
-          ${!showForm ? `<button class="btn btn-primary btn-sm" id="btn-create">+ New Admin</button>` : ''}
+          ${
+      !showForm ? `<button class="btn btn-primary btn-sm" id="btn-create">+ New Admin</button>` : ''
+    }
         </div>
         <table>
           <thead><tr><th>Username</th><th>Email</th><th>Role</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead>
           <tbody>
-            ${admins.map(a => this._renderAdminRow(a)).join('')}
+            ${admins.map((a) => this._renderAdminRow(a)).join('')}
           </tbody>
         </table>
       </div>
@@ -266,7 +304,9 @@ class SystemView extends HTMLElement {
     const isConfirm = this._confirmDeleteId === a.id;
     if (isConfirm) {
       return `<tr class="confirm-row">
-        <td colspan="5"><span style="font-size:0.83rem">Delete <strong>${_esc(a.username)}</strong>? This cannot be undone.</span></td>
+        <td colspan="5"><span style="font-size:0.83rem">Delete <strong>${
+        _esc(a.username)
+      }</strong>? This cannot be undone.</span></td>
         <td>
           <button class="btn btn-danger btn-sm" data-action="confirm-delete" data-id="${a.id}">Delete</button>
           <button class="btn btn-sm" data-action="cancel-delete" style="margin-left:4px">Cancel</button>
@@ -275,14 +315,22 @@ class SystemView extends HTMLElement {
     }
     const roleColor = ROLE_COLORS[a.role] ?? 'info';
     return `<tr>
-      <td><strong>${_esc(a.username)}</strong>${isSelf ? ' <span class="badge badge-info">You</span>' : ''}</td>
+      <td><strong>${_esc(a.username)}</strong>${
+      isSelf ? ' <span class="badge badge-info">You</span>' : ''
+    }</td>
       <td class="muted">${_esc(a.email ?? '—')}</td>
       <td><span class="badge badge-${roleColor}">${_esc(a.role)}</span></td>
-      <td><span class="badge ${a.is_active ? 'badge-success' : 'badge-danger'}">${a.is_active ? 'Active' : 'Disabled'}</span></td>
+      <td><span class="badge ${a.is_active ? 'badge-success' : 'badge-danger'}">${
+      a.is_active ? 'Active' : 'Disabled'
+    }</span></td>
       <td class="muted" style="font-size:0.78rem">${_fmtTime(a.created_at)}</td>
       <td>
         <button class="btn btn-sm" data-action="edit" data-id="${a.id}">Edit</button>
-        ${!isSelf ? `<button class="btn btn-sm btn-danger" data-action="delete" data-id="${a.id}" style="margin-left:4px">Delete</button>` : ''}
+        ${
+      !isSelf
+        ? `<button class="btn btn-sm btn-danger" data-action="delete" data-id="${a.id}" style="margin-left:4px">Delete</button>`
+        : ''
+    }
       </td>
     </tr>`;
   }
@@ -291,36 +339,56 @@ class SystemView extends HTMLElement {
     const isEdit = !!admin;
     return `
       <div class="form-panel">
-        <div style="font-size:0.85rem;font-weight:600;color:var(--color-text);margin-bottom:0.75rem">${isEdit ? `Edit ${_esc(admin.username)}` : 'New Admin'}</div>
+        <div style="font-size:0.85rem;font-weight:600;color:var(--color-text);margin-bottom:0.75rem">${
+      isEdit ? `Edit ${_esc(admin.username)}` : 'New Admin'
+    }</div>
         <div class="form-grid">
           <div class="form-group">
             <label class="form-label">Username</label>
-            <input class="input" id="f-username" value="${_esc(admin?.username ?? '')}" ${isEdit ? 'disabled' : ''} placeholder="username" />
+            <input class="input" id="f-username" value="${_esc(admin?.username ?? '')}" ${
+      isEdit ? 'disabled' : ''
+    } placeholder="username" />
           </div>
           <div class="form-group">
             <label class="form-label">Email</label>
-            <input class="input" id="f-email" value="${_esc(admin?.email ?? '')}" placeholder="admin@example.com" type="email" />
+            <input class="input" id="f-email" value="${
+      _esc(admin?.email ?? '')
+    }" placeholder="admin@example.com" type="email" />
           </div>
           <div class="form-group">
-            <label class="form-label">${isEdit ? 'New Password (leave blank to keep)' : 'Password'}</label>
-            <input class="input" id="f-password" type="password" placeholder="${isEdit ? '(unchanged)' : 'min 8 chars'}" />
+            <label class="form-label">${
+      isEdit ? 'New Password (leave blank to keep)' : 'Password'
+    }</label>
+            <input class="input" id="f-password" type="password" placeholder="${
+      isEdit ? '(unchanged)' : 'min 8 chars'
+    }" />
           </div>
           <div class="form-group">
             <label class="form-label">Role</label>
             <select class="input" id="f-role">
-              ${['superadmin','admin','readonly'].map(r => `<option value="${r}" ${(admin?.role ?? 'readonly') === r ? 'selected' : ''}>${r}</option>`).join('')}
+              ${
+      ['superadmin', 'admin', 'readonly'].map((r) =>
+        `<option value="${r}" ${(admin?.role ?? 'readonly') === r ? 'selected' : ''}>${r}</option>`
+      ).join('')
+    }
             </select>
           </div>
-          ${isEdit ? `<div class="form-group">
+          ${
+      isEdit
+        ? `<div class="form-group">
             <label class="form-label">Status</label>
             <select class="input" id="f-active">
               <option value="true" ${admin.is_active ? 'selected' : ''}>Active</option>
               <option value="false" ${!admin.is_active ? 'selected' : ''}>Disabled</option>
             </select>
-          </div>` : ''}
+          </div>`
+        : ''
+    }
         </div>
         <div class="form-actions">
-          <button class="btn btn-primary btn-sm" id="btn-save">${isEdit ? 'Save Changes' : 'Create'}</button>
+          <button class="btn btn-primary btn-sm" id="btn-save">${
+      isEdit ? 'Save Changes' : 'Create'
+    }</button>
           <button class="btn btn-sm" id="btn-cancel">Cancel</button>
         </div>
         <div class="error-msg" id="form-error"></div>
@@ -346,7 +414,7 @@ class SystemView extends HTMLElement {
 
     el.querySelector('#btn-save')?.addEventListener('click', () => this._saveAdmin(el));
 
-    el.querySelector('tbody')?.addEventListener('click', async e => {
+    el.querySelector('tbody')?.addEventListener('click', async (e) => {
       const btn = e.target.closest('button[data-action]');
       if (!btn) return;
       const id = parseInt(btn.dataset.id);
@@ -363,7 +431,10 @@ class SystemView extends HTMLElement {
         el.innerHTML = this._renderAdminsHTML(this._adminsData);
         this._bindAdmins(el);
       } else if (action === 'confirm-delete') {
-        await api.delete(`/auth/admins/${id}`).catch(e2 => { toast(e2.message, 'error'); throw e2; });
+        await api.delete(`/auth/admins/${id}`).catch((e2) => {
+          toast(e2.message, 'error');
+          throw e2;
+        });
         this._confirmDeleteId = null;
         this._editId = null;
         await this._tab_admins(el);
@@ -392,8 +463,14 @@ class SystemView extends HTMLElement {
     // Client-side required checks land inline under the offending field.
     if (!isEdit) {
       let ok = true;
-      if (!username) { setFieldError(usernameInput, 'Username is required'); ok = false; }
-      if (!password || password.length < 8) { setFieldError(passwordInput, 'Password must be at least 8 characters'); ok = false; }
+      if (!username) {
+        setFieldError(usernameInput, 'Username is required');
+        ok = false;
+      }
+      if (!password || password.length < 8) {
+        setFieldError(passwordInput, 'Password must be at least 8 characters');
+        ok = false;
+      }
       if (!ok) return;
     } else if (password && password.length < 8) {
       setFieldError(passwordInput, 'Password must be at least 8 characters');
@@ -417,7 +494,10 @@ class SystemView extends HTMLElement {
       if (applyServerErrors(el, e, (f) => el.querySelector(`#f-${f}`))) return;
       // The duplicate-username 409 is a string detail — map it to the username field.
       const msg = e.message ?? 'Save failed';
-      if (/username/i.test(msg) && /taken|exist/i.test(msg) && usernameInput && !usernameInput.disabled) {
+      if (
+        /username/i.test(msg) && /taken|exist/i.test(msg) && usernameInput &&
+        !usernameInput.disabled
+      ) {
         setFieldError(usernameInput, msg);
       } else {
         errEl.textContent = msg;
@@ -459,7 +539,7 @@ class SystemView extends HTMLElement {
     `;
 
     // Row click → expand/collapse detail panel; Close button → collapse
-    el.querySelector('#audit-body').addEventListener('click', e => {
+    el.querySelector('#audit-body').addEventListener('click', (e) => {
       // Close button inside an expand panel
       if (e.target.closest('.detail-close-btn')) {
         const detailRow = e.target.closest('.audit-detail-row');
@@ -476,8 +556,10 @@ class SystemView extends HTMLElement {
       const detailRow = el.querySelector(`#adr-${idx}`);
       if (!detailRow) return;
       const wasHidden = detailRow.hidden;
-      el.querySelectorAll('.audit-detail-row').forEach(r => { r.hidden = true; });
-      el.querySelectorAll('.audit-row.expanded').forEach(r => r.classList.remove('expanded'));
+      el.querySelectorAll('.audit-detail-row').forEach((r) => {
+        r.hidden = true;
+      });
+      el.querySelectorAll('.audit-row.expanded').forEach((r) => r.classList.remove('expanded'));
       detailRow.hidden = !wasHidden;
       if (wasHidden) row.classList.add('expanded');
     });
@@ -488,7 +570,9 @@ class SystemView extends HTMLElement {
       const rows = this._auditLogs.filter((l) => {
         if (who && l.admin_username !== who) return false;
         if (!q) return true;
-        const hay = `${l.admin_username} ${l.action} ${l.target ?? ''} ${JSON.stringify(l.detail ?? {})}`.toLowerCase();
+        const hay = `${l.admin_username} ${l.action} ${l.target ?? ''} ${
+          JSON.stringify(l.detail ?? {})
+        }`.toLowerCase();
         return hay.includes(q);
       });
       el.querySelector('#audit-body').innerHTML = this._auditRows(rows);
@@ -498,10 +582,17 @@ class SystemView extends HTMLElement {
   }
 
   _auditRows(logs) {
-    if (!logs.length) return emptyRowHTML(5, { title: 'No audit entries yet', message: 'Administrative actions will be recorded here.' });
+    if (!logs.length) {
+      return emptyRowHTML(5, {
+        title: 'No audit entries yet',
+        message: 'Administrative actions will be recorded here.',
+      });
+    }
     return logs.map((l, i) => `
       <tr class="audit-row" data-idx="${i}" title="Click to view full detail">
-        <td style="font-size:0.78rem;white-space:nowrap" class="muted">${_fmtTime(l.created_at)}</td>
+        <td style="font-size:0.78rem;white-space:nowrap" class="muted">${
+      _fmtTime(l.created_at)
+    }</td>
         <td>${_esc(l.admin_username)}</td>
         <td><span title="${_esc(l.action)}">${_esc(_humanAction(l.action))}</span></td>
         <td class="td-detail"><div class="td-detail-inner">${_auditDetailSummary(l)}</div></td>
@@ -532,21 +623,37 @@ class SystemView extends HTMLElement {
             <span class="dml">Action</span>
             <span class="dmv">${_esc(_humanAction(l.action))}</span>
           </div>
-          ${l.ip_address ? `<div class="detail-meta-item">
+          ${
+      l.ip_address
+        ? `<div class="detail-meta-item">
             <span class="dml">IP</span>
             <span class="dmv mono">${_esc(l.ip_address)}</span>
-          </div>` : ''}
-          ${l.target ? `<div class="detail-meta-item">
+          </div>`
+        : ''
+    }
+          ${
+      l.target
+        ? `<div class="detail-meta-item">
             <span class="dml">Target</span>
             <span class="dmv">${_esc(l.target)}</span>
-          </div>` : ''}
+          </div>`
+        : ''
+    }
         </div>
-        ${(method || path) ? `<div class="detail-http">${_esc(method || '')} ${_esc(path || '')}</div>` : ''}
+        ${
+      (method || path)
+        ? `<div class="detail-http">${_esc(method || '')} ${_esc(path || '')}</div>`
+        : ''
+    }
         ${user_agent ? `<div class="detail-ua">${_esc(user_agent)}</div>` : ''}
-        ${hasRest ? `
+        ${
+      hasRest
+        ? `
           <div class="detail-json-label">Detail</div>
           <pre class="detail-json">${_esc(JSON.stringify(rest, null, 2))}</pre>
-        ` : '<span class="muted" style="font-size:0.78rem">No additional detail recorded.</span>'}
+        `
+        : '<span class="muted" style="font-size:0.78rem">No additional detail recorded.</span>'
+    }
         <div class="detail-close-row">
           <button class="btn btn-sm detail-close-btn">Close</button>
         </div>
@@ -567,7 +674,9 @@ class SystemView extends HTMLElement {
         <div class="settings-grid">
           ${this._settingRow('MONSTEROPS_DATABASE_URL', cfg.database_url)}
           ${this._settingRow('MONSTEROPS_LOG_LEVEL', cfg.log_level)}
-          ${this._settingRow('MONSTEROPS_ACCESS_TOKEN_EXPIRE_MINUTES', cfg.access_token_expire_minutes)}
+          ${
+      this._settingRow('MONSTEROPS_ACCESS_TOKEN_EXPIRE_MINUTES', cfg.access_token_expire_minutes)
+    }
           ${this._settingRow('MONSTEROPS_RADIUS_LOG_FILES', cfg.radius_log_files)}
         </div>
         <div class="section-label">Security</div>
@@ -575,20 +684,33 @@ class SystemView extends HTMLElement {
           <div class="setting-row">
             <span class="setting-key">MONSTEROPS_SECRET_KEY</span>
             <span class="setting-val ${cfg.secret_key_ok ? 'ok' : 'bad'}">
-              ${cfg.secret_key_ok ? '✓ Custom key configured' : '⚠ Using default key — change before production!'}
+              ${
+      cfg.secret_key_ok
+        ? '✓ Custom key configured'
+        : '⚠ Using default key — change before production!'
+    }
             </span>
           </div>
           ${this._settingRow('MONSTEROPS_DEBUG', String(cfg.debug))}
-          ${this._settingRow('MONSTEROPS_ALLOWED_ORIGINS', cfg.allowed_origins || '(none — CORS disabled)')}
+          ${
+      this._settingRow(
+        'MONSTEROPS_ALLOWED_ORIGINS',
+        cfg.allowed_origins || '(none — CORS disabled)',
+      )
+    }
         </div>
         <div class="section-label">Modules</div>
         <div class="module-grid" id="module-grid">
-          ${mods.map(m => `
+          ${
+      mods.map((m) => `
             <label class="module-chip ${enabled.has(m) ? 'enabled' : ''}" style="cursor:pointer">
-              <input type="checkbox" data-mod="${m}" ${enabled.has(m) ? 'checked' : ''} style="display:none">
+              <input type="checkbox" data-mod="${m}" ${
+        enabled.has(m) ? 'checked' : ''
+      } style="display:none">
               ${_esc(m)}
             </label>
-          `).join('')}
+          `).join('')
+    }
         </div>
         <div style="padding:0.75rem 1rem;border-top:1px solid var(--color-border);display:flex;gap:0.5rem;align-items:center">
           <button class="btn btn-primary btn-sm" id="btn-gen-env">⬇ Download .env</button>
@@ -598,14 +720,16 @@ class SystemView extends HTMLElement {
     `;
 
     // Module chip toggle styling
-    el.querySelectorAll('#module-grid input[data-mod]').forEach(cb => {
+    el.querySelectorAll('#module-grid input[data-mod]').forEach((cb) => {
       cb.addEventListener('change', () => {
         cb.closest('label').classList.toggle('enabled', cb.checked);
       });
     });
 
     el.querySelector('#btn-gen-env').addEventListener('click', () => {
-      const selected = [...el.querySelectorAll('#module-grid input[data-mod]:checked')].map(c => c.dataset.mod);
+      const selected = [...el.querySelectorAll('#module-grid input[data-mod]:checked')].map((c) =>
+        c.dataset.mod
+      );
       const lines = [
         `MONSTEROPS_DATABASE_URL="${cfg.database_url}"`,
         `MONSTEROPS_SECRET_KEY="change-me-before-production"`,
@@ -626,7 +750,9 @@ class SystemView extends HTMLElement {
   }
 
   _settingRow(key, val) {
-    return `<div class="setting-row"><span class="setting-key">${_esc(key)}</span><span class="setting-val">${_esc(String(val))}</span></div>`;
+    return `<div class="setting-row"><span class="setting-key">${
+      _esc(key)
+    }</span><span class="setting-val">${_esc(String(val))}</span></div>`;
   }
 
   // ── Backup ────────────────────────────────────────────────────────────────
@@ -638,7 +764,9 @@ class SystemView extends HTMLElement {
 
   async _renderBackup(el) {
     let snaps = [];
-    try { snaps = await api.get('/system/backup/list'); } catch (_) {}
+    try {
+      snaps = await api.get('/system/backup/list');
+    } catch { /* fetch failed → render empty list */ }
 
     el.innerHTML = `
       <div class="card" style="margin-bottom:1rem">
@@ -647,13 +775,20 @@ class SystemView extends HTMLElement {
           <button class="btn btn-primary btn-sm" id="btn-create-snap">+ Create Snapshot</button>
         </div>
         <div id="snap-status" style="display:none;padding:0.5rem 1rem;font-size:0.8rem"></div>
-        ${snaps.length ? `
+        ${
+      snaps.length
+        ? `
         <table>
           <thead><tr><th>Snapshot</th><th>Size</th><th>Files</th><th>Actions</th></tr></thead>
           <tbody>
-            ${snaps.map(s => this._renderSnapRow(s)).join('')}
+            ${snaps.map((s) => this._renderSnapRow(s)).join('')}
           </tbody>
-        </table>` : emptyStateHTML({ title: 'No snapshots yet', message: 'Click “Create Snapshot” to capture the first backup.' })}
+        </table>`
+        : emptyStateHTML({
+          title: 'No snapshots yet',
+          message: 'Click “Create Snapshot” to capture the first backup.',
+        })
+    }
       </div>
       <div class="card">
         <div class="card-header"><span class="card-title">Quick DB Download</span></div>
@@ -667,25 +802,32 @@ class SystemView extends HTMLElement {
 
     el.querySelector('#btn-create-snap').addEventListener('click', () => this._createSnapshot(el));
 
-    el.querySelector('tbody')?.addEventListener('click', async e => {
+    el.querySelector('tbody')?.addEventListener('click', async (e) => {
       const btn = e.target.closest('button[data-snap-action]');
       if (!btn) return;
       const snap = btn.dataset.snap;
       const action = btn.dataset.snapAction;
-      if (action === 'download-db') this._downloadFile(`/api/system/backup/${snap}/download-db`, `monsterops-${snap}.sql`);
-      else if (action === 'download-config') this._downloadFile(`/api/system/backup/${snap}/download-config`, `freeradius-config-${snap}.tar.gz`);
-      else if (action === 'delete') {
+      if (action === 'download-db') {
+        this._downloadFile(`/api/system/backup/${snap}/download-db`, `monsterops-${snap}.sql`);
+      } else if (action === 'download-config') {
+        this._downloadFile(
+          `/api/system/backup/${snap}/download-config`,
+          `freeradius-config-${snap}.tar.gz`,
+        );
+      } else if (action === 'delete') {
         this._snapConfirmDelete = snap;
-        el.querySelector('tbody').innerHTML = snaps.map(s => this._renderSnapRow(s)).join('');
+        el.querySelector('tbody').innerHTML = snaps.map((s) => this._renderSnapRow(s)).join('');
       } else if (action === 'confirm-delete') {
         try {
           await api.delete(`/system/backup/${snap}`);
           this._snapConfirmDelete = null;
           await this._renderBackup(el);
-        } catch (e2) { toast(e2.message, 'error'); }
+        } catch (e2) {
+          toast(e2.message, 'error');
+        }
       } else if (action === 'cancel-delete') {
         this._snapConfirmDelete = null;
-        el.querySelector('tbody').innerHTML = snaps.map(s => this._renderSnapRow(s)).join('');
+        el.querySelector('tbody').innerHTML = snaps.map((s) => this._renderSnapRow(s)).join('');
       }
     });
 
@@ -729,21 +871,43 @@ class SystemView extends HTMLElement {
     const kb = s.size_bytes > 0 ? (s.size_bytes / 1024).toFixed(1) + ' KB' : '—';
     if (isConfirm) {
       return `<tr class="confirm-row">
-        <td colspan="3"><span style="font-size:0.83rem">Delete snapshot <strong>${_esc(s.snapshot)}</strong>? This cannot be undone.</span></td>
+        <td colspan="3"><span style="font-size:0.83rem">Delete snapshot <strong>${
+        _esc(s.snapshot)
+      }</strong>? This cannot be undone.</span></td>
         <td>
-          <button class="btn btn-danger btn-sm" data-snap-action="confirm-delete" data-snap="${_esc(s.snapshot)}">Delete</button>
-          <button class="btn btn-sm" data-snap-action="cancel-delete" data-snap="${_esc(s.snapshot)}" style="margin-left:4px">Cancel</button>
+          <button class="btn btn-danger btn-sm" data-snap-action="confirm-delete" data-snap="${
+        _esc(s.snapshot)
+      }">Delete</button>
+          <button class="btn btn-sm" data-snap-action="cancel-delete" data-snap="${
+        _esc(s.snapshot)
+      }" style="margin-left:4px">Cancel</button>
         </td>
       </tr>`;
     }
     return `<tr>
       <td class="mono">${_esc(s.snapshot)}</td>
       <td class="muted">${kb}</td>
-      <td class="muted" style="font-size:0.78rem">${(s.files ?? []).map(f => _esc(f)).join(', ') || '—'}</td>
+      <td class="muted" style="font-size:0.78rem">${
+      (s.files ?? []).map((f) => _esc(f)).join(', ') || '—'
+    }</td>
       <td style="display:flex;gap:0.3rem;flex-wrap:wrap;align-items:center">
-        ${hasDb ? `<button class="btn btn-sm" data-snap-action="download-db" data-snap="${_esc(s.snapshot)}">⬇ DB</button>` : ''}
-        ${hasCfg ? `<button class="btn btn-sm" data-snap-action="download-config" data-snap="${_esc(s.snapshot)}">⬇ Config</button>` : ''}
-        <button class="btn btn-sm btn-danger" data-snap-action="delete" data-snap="${_esc(s.snapshot)}">Delete</button>
+        ${
+      hasDb
+        ? `<button class="btn btn-sm" data-snap-action="download-db" data-snap="${
+          _esc(s.snapshot)
+        }">⬇ DB</button>`
+        : ''
+    }
+        ${
+      hasCfg
+        ? `<button class="btn btn-sm" data-snap-action="download-config" data-snap="${
+          _esc(s.snapshot)
+        }">⬇ Config</button>`
+        : ''
+    }
+        <button class="btn btn-sm btn-danger" data-snap-action="delete" data-snap="${
+      _esc(s.snapshot)
+    }">Delete</button>
       </td>
     </tr>`;
   }
@@ -759,7 +923,9 @@ class SystemView extends HTMLElement {
     try {
       const result = await api.post('/system/backup/create');
       statusEl.style.color = 'var(--color-success)';
-      statusEl.textContent = `Snapshot ${result.snapshot} created (${(result.size_bytes / 1024).toFixed(1)} KB)`;
+      statusEl.textContent = `Snapshot ${result.snapshot} created (${
+        (result.size_bytes / 1024).toFixed(1)
+      } KB)`;
       await this._renderBackup(el);
     } catch (e) {
       statusEl.style.color = 'var(--color-danger)';
@@ -784,7 +950,9 @@ class SystemView extends HTMLElement {
       a.download = filename;
       a.click();
       URL.revokeObjectURL(a.href);
-    } catch (e) { toast(`Download failed: ${e.message}`, 'error'); }
+    } catch (e) {
+      toast(`Download failed: ${e.message}`, 'error');
+    }
   }
 
   // ── Plugins ───────────────────────────────────────────────────────────────
@@ -798,21 +966,36 @@ class SystemView extends HTMLElement {
           <a href="https://pypi.org/search/?q=monsterops" target="_blank" rel="noopener" class="btn btn-sm">Search PyPI</a>
         </div>
         <div class="plugin-list">
-          ${plugins.length ? plugins.map(p => `
+          ${
+      plugins.length
+        ? plugins.map((p) => `
             <div class="plugin-row">
               <div>
                 <div style="font-weight:600;font-size:0.83rem">${_esc(p.name)}</div>
                 <div class="muted mono" style="font-size:0.75rem">${_esc(p.value)}</div>
               </div>
               <div style="display:flex;align-items:center;gap:0.75rem">
-                ${p.version ? `<span class="muted" style="font-size:0.78rem">v${_esc(p.version)}</span>` : ''}
-                ${p.home ? `<a href="${_esc(p.home)}" target="_blank" rel="noopener" class="btn btn-sm">↗ Docs</a>` : ''}
+                ${
+          p.version
+            ? `<span class="muted" style="font-size:0.78rem">v${_esc(p.version)}</span>`
+            : ''
+        }
+                ${
+          p.home
+            ? `<a href="${
+              _esc(p.home)
+            }" target="_blank" rel="noopener" class="btn btn-sm">↗ Docs</a>`
+            : ''
+        }
               </div>
             </div>
-          `).join('') : emptyStateHTML({
-            title: 'No plugins installed',
-            message: 'Use “Search PyPI” above to browse MonsterOps plugins, then pip-install to extend the app.',
-          })}
+          `).join('')
+        : emptyStateHTML({
+          title: 'No plugins installed',
+          message:
+            'Use “Search PyPI” above to browse MonsterOps plugins, then pip-install to extend the app.',
+        })
+    }
         </div>
       </div>
     `;

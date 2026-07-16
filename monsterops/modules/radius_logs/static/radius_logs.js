@@ -4,7 +4,10 @@ import { toast } from '/js/components/app-toast.js';
 import { emptyStateHTML, skeletonBlock } from '/js/utils/empty.js';
 
 function escHtml(s) {
-  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(
+    /"/g,
+    '&quot;',
+  );
 }
 
 const STYLE = `
@@ -150,11 +153,11 @@ const STYLE = `
 class RadiusLogsView extends HTMLElement {
   constructor() {
     super();
-    this._logFiles    = [];
+    this._logFiles = [];
     this._currentFile = null;
-    this._allLines    = [];
-    this._autoScroll  = true;
-    this._isLive      = false;
+    this._allLines = [];
+    this._autoScroll = true;
+    this._isLive = false;
     this._streamAbort = null;
   }
 
@@ -192,10 +195,12 @@ class RadiusLogsView extends HTMLElement {
     this._stopStream();
   }
 
-  _$(id) { return this.shadowRoot.getElementById(id); }
+  _$(id) {
+    return this.shadowRoot.getElementById(id);
+  }
 
   _bindEvents() {
-    this._$('log-search').addEventListener('input', e => this._applyFilter(e.target.value));
+    this._$('log-search').addEventListener('input', (e) => this._applyFilter(e.target.value));
     this._$('btn-refresh').addEventListener('click', () => {
       this._pauseStream();
       if (this._currentFile) this._switchTab(this._currentFile);
@@ -228,17 +233,20 @@ class RadiusLogsView extends HTMLElement {
     } else {
       this._$('log-output').innerHTML = emptyStateHTML({
         title: 'No log files configured',
-        message: 'Set MONSTEROPS_RADIUS_LOG_FILES in your environment to stream FreeRADIUS log files here.',
+        message:
+          'Set MONSTEROPS_RADIUS_LOG_FILES in your environment to stream FreeRADIUS log files here.',
       });
     }
   }
 
   _renderTabs() {
     const tabsEl = this._$('log-tabs');
-    tabsEl.innerHTML = this._logFiles.map(f =>
-      `<button class="log-tab-btn${f.name === this._currentFile ? ' active' : ''}" data-file="${escHtml(f.name)}">${escHtml(f.name)}</button>`
+    tabsEl.innerHTML = this._logFiles.map((f) =>
+      `<button class="log-tab-btn${f.name === this._currentFile ? ' active' : ''}" data-file="${
+        escHtml(f.name)
+      }">${escHtml(f.name)}</button>`
     ).join('');
-    tabsEl.querySelectorAll('.log-tab-btn').forEach(btn => {
+    tabsEl.querySelectorAll('.log-tab-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
         this._pauseStream();
         this._switchTab(btn.dataset.file);
@@ -248,13 +256,15 @@ class RadiusLogsView extends HTMLElement {
 
   async _switchTab(filename) {
     this._currentFile = filename;
-    this._allLines    = [];
+    this._allLines = [];
     this._renderTabs();
     const out = this._$('log-output');
     out.innerHTML = skeletonBlock(this.shadowRoot, 8);
     try {
-      const data = await api.get(`/health/logs/tail?file=${encodeURIComponent(filename)}&lines=1000`);
-      this._allLines = (data.lines ?? []).map(t => ({ text: t, cls: this._lineCls(t) }));
+      const data = await api.get(
+        `/health/logs/tail?file=${encodeURIComponent(filename)}&lines=1000`,
+      );
+      this._allLines = (data.lines ?? []).map((t) => ({ text: t, cls: this._lineCls(t) }));
       this._renderAll();
     } catch (e) {
       out.innerHTML = emptyStateHTML({
@@ -267,7 +277,7 @@ class RadiusLogsView extends HTMLElement {
   _renderAll() {
     const search = (this._$('log-search').value || '').toLowerCase();
     const out = this._$('log-output');
-    out.innerHTML = this._allLines.map(l => {
+    out.innerHTML = this._allLines.map((l) => {
       const hide = search && !l.text.toLowerCase().includes(search) ? ' hidden' : '';
       return `<div class="log-line ${l.cls}${hide}">${escHtml(l.text)}</div>`;
     }).join('');
@@ -276,14 +286,16 @@ class RadiusLogsView extends HTMLElement {
   }
 
   _appendLine(text) {
-    const out    = this._$('log-output');
+    const out = this._$('log-output');
     const search = (this._$('log-search').value || '').toLowerCase();
-    const cls    = this._lineCls(text);
+    const cls = this._lineCls(text);
     this._allLines.push({ text, cls });
     if (this._allLines.length > 5000) this._allLines.shift();
 
     const div = document.createElement('div');
-    div.className = `log-line ${cls}${search && !text.toLowerCase().includes(search) ? ' hidden' : ''}`;
+    div.className = `log-line ${cls}${
+      search && !text.toLowerCase().includes(search) ? ' hidden' : ''
+    }`;
     div.textContent = text;
     out.appendChild(div);
     while (out.childElementCount > 5000) out.firstChild?.remove();
@@ -293,22 +305,25 @@ class RadiusLogsView extends HTMLElement {
 
   _applyFilter(search) {
     const lc = search.toLowerCase();
-    this.shadowRoot.querySelectorAll('#log-output .log-line').forEach(div => {
+    this.shadowRoot.querySelectorAll('#log-output .log-line').forEach((div) => {
       div.classList.toggle('hidden', !!lc && !div.textContent.toLowerCase().includes(lc));
     });
     this._updateMatchCount(lc);
   }
 
   _updateMatchCount(search) {
-    if (!search) { this._$('match-count').textContent = ''; return; }
-    const matched = this._allLines.filter(l => l.text.toLowerCase().includes(search)).length;
+    if (!search) {
+      this._$('match-count').textContent = '';
+      return;
+    }
+    const matched = this._allLines.filter((l) => l.text.toLowerCase().includes(search)).length;
     this._$('match-count').textContent = `${matched} / ${this._allLines.length} lines`;
   }
 
   _lineCls(line) {
-    if (/\berror\b/i.test(line))          return 'log-error';
+    if (/\berror\b/i.test(line)) return 'log-error';
     if (/\b(warning|warn)\b/i.test(line)) return 'log-warning';
-    if (/\bdebug\b/i.test(line))          return 'log-debug';
+    if (/\bdebug\b/i.test(line)) return 'log-debug';
     return 'log-info';
   }
 
@@ -344,7 +359,7 @@ class RadiusLogsView extends HTMLElement {
     try {
       const res = await fetch(
         `/api/health/logs/stream?file=${encodeURIComponent(filename)}`,
-        { credentials: 'same-origin', signal: abort.signal }
+        { credentials: 'same-origin', signal: abort.signal },
       );
       if (!res.ok) {
         this._pauseStream();
@@ -352,7 +367,7 @@ class RadiusLogsView extends HTMLElement {
         return;
       }
 
-      const reader  = res.body.getReader();
+      const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buf = '';
 
@@ -385,7 +400,8 @@ customElements.define('radius-logs-view', RadiusLogsView);
 router.register('/radius-logs', () => {
   queueMicrotask(() => router.navigate('/logs?tab=radius'));
   const d = document.createElement('div');
-  d.style.cssText = 'padding:2rem;color:var(--mr-text-muted);font-family:var(--mr-font-data);font-size:0.72rem;letter-spacing:0.08em;';
+  d.style.cssText =
+    'padding:2rem;color:var(--mr-text-muted);font-family:var(--mr-font-data);font-size:0.72rem;letter-spacing:0.08em;';
   d.textContent = 'REDIRECTING…';
   return d;
 });

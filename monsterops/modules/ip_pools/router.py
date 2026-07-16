@@ -63,6 +63,7 @@ def _blank_entry(pool_name: str, ip: str) -> Radippool:
 
 
 
+
 @router.get("", response_model=list[PoolSummary])
 async def list_pools(
     db: AsyncSession = Depends(get_db),
@@ -86,6 +87,7 @@ async def list_pools(
         )
         for row in q.all()
     ]
+
 
 
 
@@ -115,6 +117,7 @@ async def list_pool_entries(
 
 
 
+
 @router.post("", status_code=201)
 async def create_pool(
     body: PoolCreateBody,
@@ -131,6 +134,7 @@ async def create_pool(
     db.add_all([_blank_entry(body.pool_name, ip) for ip in ips])
     await db.commit()
     return {"pool_name": body.pool_name, "ips_added": len(ips)}
+
 
 
 
@@ -163,6 +167,7 @@ async def add_ips(
 
 
 
+
 @router.patch("/{pool_name}")
 async def rename_pool(
     pool_name: str,
@@ -191,6 +196,7 @@ async def rename_pool(
 
 
 
+
 @router.delete("/{pool_name}", status_code=204)
 async def delete_pool(
     pool_name: str,
@@ -201,6 +207,7 @@ async def delete_pool(
     if result.rowcount == 0:
         raise HTTPException(404, f"Pool '{pool_name}' not found")
     await db.commit()
+
 
 
 
@@ -217,6 +224,7 @@ async def remove_ip(
     if result.rowcount == 0:
         raise HTTPException(404, "Entry not found")
     await db.commit()
+
 
 
 

@@ -39,26 +39,32 @@ function replyBadge(reply) {
 }
 
 function escHtml(s) {
-  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(
+    /"/g,
+    '&quot;',
+  );
 }
 
-const ICO_REFRESH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>';
-const ICO_GEAR = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>';
+const ICO_REFRESH =
+  '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>';
+const ICO_GEAR =
+  '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>';
 // "Open detail" chevron — the drill-through affordance on widget headers.
-const ICO_OPEN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>';
+const ICO_OPEN =
+  '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>';
 
 // ── Widget config (localStorage) ───────────────────────────────────────────────
 
 const WIDGET_DEFS = [
-  { id: 'w-nas-status',       label: 'NAS Status' },
-  { id: 'w-firewall',         label: 'Firewall' },
-  { id: 'w-autoblock',        label: 'Auto-Block Activity' },
-  { id: 'w-realms',           label: 'Realms' },
-  { id: 'w-session-types',    label: 'Session Types' },
-  { id: 'w-recent-auth',      label: 'Recent Authentication' },
-  { id: 'w-top-bw',           label: 'Top Bandwidth' },
-  { id: 'w-online-users',     label: 'Online Users' },
-  { id: 'w-integrations',     label: 'Integrations Status' },
+  { id: 'w-nas-status', label: 'NAS Status' },
+  { id: 'w-firewall', label: 'Firewall' },
+  { id: 'w-autoblock', label: 'Auto-Block Activity' },
+  { id: 'w-realms', label: 'Realms' },
+  { id: 'w-session-types', label: 'Session Types' },
+  { id: 'w-recent-auth', label: 'Recent Authentication' },
+  { id: 'w-top-bw', label: 'Top Bandwidth' },
+  { id: 'w-online-users', label: 'Online Users' },
+  { id: 'w-integrations', label: 'Integrations Status' },
 ];
 const WIDGET_STORAGE = 'mr-dashboard-widgets';
 
@@ -71,8 +77,8 @@ function loadWidgetCfg() {
   try {
     const s = localStorage.getItem(_widgetKey());
     if (s) return JSON.parse(s);
-  } catch {}
-  return Object.fromEntries(WIDGET_DEFS.map(w => [w.id, true]));
+  } catch { /* corrupt localStorage → fall back to defaults */ }
+  return Object.fromEntries(WIDGET_DEFS.map((w) => [w.id, true]));
 }
 
 function saveWidgetCfg(cfg) {
@@ -84,19 +90,23 @@ function saveWidgetCfg(cfg) {
 // (tooltip) and clicked (→ auth logs for that window).
 function authBuckets(rows, n = 24) {
   if (!rows || !rows.length) return [];
-  const times = rows.map(r => new Date(r.authdate).getTime()).filter(Number.isFinite);
+  const times = rows.map((r) => new Date(r.authdate).getTime()).filter(Number.isFinite);
   if (!times.length) return [];
   const min = Math.min(...times), max = Math.max(...times);
   const span = Math.max(1, max - min);
   const width = span / n;
   const buckets = Array.from({ length: n }, (_, i) => ({
-    ok: 0, bad: 0, start: min + i * width, end: min + (i + 1) * width,
+    ok: 0,
+    bad: 0,
+    start: min + i * width,
+    end: min + (i + 1) * width,
   }));
   for (const r of rows) {
     const t = new Date(r.authdate).getTime();
     if (!Number.isFinite(t)) continue;
     const i = Math.min(n - 1, Math.floor(((t - min) / span) * n));
-    if (r.reply === 'Access-Reject') buckets[i].bad++; else buckets[i].ok++;
+    if (r.reply === 'Access-Reject') buckets[i].bad++;
+    else buckets[i].ok++;
   }
   return buckets;
 }
@@ -121,10 +131,19 @@ class DashboardView extends HTMLElement {
     this._startAutoRefresh();
   }
 
-  disconnectedCallback() { this._stopAutoRefresh(); }
+  disconnectedCallback() {
+    this._stopAutoRefresh();
+  }
 
-  _startAutoRefresh() { this._stopPoll = startPolling(() => this._load(), 30_000); }
-  _stopAutoRefresh() { if (this._stopPoll) { this._stopPoll(); this._stopPoll = null; } }
+  _startAutoRefresh() {
+    this._stopPoll = startPolling(() => this._load(), 30_000);
+  }
+  _stopAutoRefresh() {
+    if (this._stopPoll) {
+      this._stopPoll();
+      this._stopPoll = null;
+    }
+  }
 
   // A header "open detail" chevron link — the consistent drill-through affordance.
   _goLink(to, label) {
@@ -139,13 +158,16 @@ class DashboardView extends HTMLElement {
           <span class="win-title">${title}${sub ? ` <span class="sub">/ ${sub}</span>` : ''}</span>
           <span class="win-tools">${tools}${go}</span>
         </div>
-        <div class="win-body${flush ? ' flush' : ''}" id="${bodyId}"><div class="skeleton" style="height:88px;"></div></div>
+        <div class="win-body${
+      flush ? ' flush' : ''
+    }" id="${bodyId}"><div class="skeleton" style="height:88px;"></div></div>
       </div>`;
   }
 
   _render() {
     const cfg = loadWidgetCfg();
-    const refreshBtn = `<button class="iconbtn wgt-refresh" title="Refresh">${ICO_REFRESH}</button>`;
+    const refreshBtn =
+      `<button class="iconbtn wgt-refresh" title="Refresh">${ICO_REFRESH}</button>`;
     this.shadowRoot.innerHTML = `
       <style>
         @import '/css/theme.css';
@@ -173,6 +195,13 @@ class DashboardView extends HTMLElement {
         .metric.navm:hover { background: var(--mr-titlebar); }
         .metric.navm:focus-visible { outline: 2px solid var(--mr-action); outline-offset: -2px; }
         .win-go { text-decoration: none; }
+        /* FOUC guard: theme.css arrives via the async @import above, so on a
+           fresh shadow root (e.g. navigating back to the Dashboard) there's a
+           frame before its .iconbtn rules apply. Inline styles are synchronous,
+           so repeating the size/colour here stops the header icons flashing
+           oversized (300x150 default) or link-blue for that frame. */
+        .iconbtn { width: 26px; height: 26px; color: var(--mr-text-muted); }
+        .iconbtn svg { width: 14px; height: 14px; }
 
         .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.9rem; margin-top: 0.9rem; }
         @media (max-width: 900px) { .grid2 { grid-template-columns: 1fr; } }
@@ -245,11 +274,15 @@ class DashboardView extends HTMLElement {
             <button class="iconbtn" id="btn-customize" title="Customize widgets">${ICO_GEAR}</button>
             <div id="customize-panel">
               <div class="cust-title">Widgets</div>
-              ${WIDGET_DEFS.map(w => `
+              ${
+      WIDGET_DEFS.map((w) => `
                 <label class="widget-toggle">
-                  <input type="checkbox" data-widget="${w.id}" ${cfg[w.id] !== false ? 'checked' : ''}>
+                  <input type="checkbox" data-widget="${w.id}" ${
+        cfg[w.id] !== false ? 'checked' : ''
+      }>
                   <span>${w.label}</span>
-                </label>`).join('')}
+                </label>`).join('')
+    }
             </div>
           </div>
           <button class="iconbtn" id="btn-manual-refresh" title="Refresh now">${ICO_REFRESH}</button>
@@ -272,19 +305,44 @@ class DashboardView extends HTMLElement {
       <div class="win stack" id="w-auth-hist">
         <div class="win-head">
           <span class="win-title">Auth Volume <span class="sub">/ recent events</span></span>
-          <span class="win-tools legend"><b><span class="swatch" style="background:var(--mr-accept)"></span>accept</b><b><span class="swatch" style="background:var(--mr-reject)"></span>reject</b>${this._goLink('/logs?tab=auth', 'Auth Logs')}</span>
+          <span class="win-tools legend"><b><span class="swatch" style="background:var(--mr-accept)"></span>accept</b><b><span class="swatch" style="background:var(--mr-reject)"></span>reject</b>${
+      this._goLink('/logs?tab=auth', 'Auth Logs')
+    }</span>
         </div>
         <div class="win-body" id="auth-hist"><div class="skeleton" style="height:44px;"></div></div>
       </div>
 
       <div class="grid2">
-        ${this._win('w-nas-status', 'NAS Status', '', 'nas-status-wrap', { tools: refreshBtn, to: '/nas' })}
-        ${this._win('w-session-types', 'Session Types', '', 'session-types-wrap', { flush: true, tools: refreshBtn, to: '/sessions' })}
+        ${
+      this._win('w-nas-status', 'NAS Status', '', 'nas-status-wrap', {
+        tools: refreshBtn,
+        to: '/nas',
+      })
+    }
+        ${
+      this._win('w-session-types', 'Session Types', '', 'session-types-wrap', {
+        flush: true,
+        tools: refreshBtn,
+        to: '/sessions',
+      })
+    }
       </div>
 
       <div class="grid2">
-        ${this._win('w-recent-auth', 'Recent Authentication', '', 'recent-auth-wrap', { flush: true, tools: refreshBtn, to: '/logs?tab=auth' })}
-        ${this._win('w-top-bw', 'Top Bandwidth', '', 'top-bw-wrap', { flush: true, tools: refreshBtn, to: '/accounting' })}
+        ${
+      this._win('w-recent-auth', 'Recent Authentication', '', 'recent-auth-wrap', {
+        flush: true,
+        tools: refreshBtn,
+        to: '/logs?tab=auth',
+      })
+    }
+        ${
+      this._win('w-top-bw', 'Top Bandwidth', '', 'top-bw-wrap', {
+        flush: true,
+        tools: refreshBtn,
+        to: '/accounting',
+      })
+    }
       </div>
 
       <div class="grid2">
@@ -311,7 +369,9 @@ class DashboardView extends HTMLElement {
         <div class="win full" id="w-autoblock" style="display:none;">
           <div class="win-head">
             <span class="win-title">Auto-Block Activity <span class="sub">/ adaptive access control</span></span>
-            <span class="win-tools">${refreshBtn}${this._goLink('/firewall?tab=sets', 'Firewall Blocklists')}</span>
+            <span class="win-tools">${refreshBtn}${
+      this._goLink('/firewall?tab=sets', 'Firewall Blocklists')
+    }</span>
           </div>
           <div class="win-body flush" id="autoblock-wrap"><div class="skeleton" style="height:50px;"></div></div>
         </div>
@@ -319,23 +379,29 @@ class DashboardView extends HTMLElement {
 
       <div class="grid2">
         <div class="win full" id="w-realms" style="display:none;">
-          <div class="win-head"><span class="win-title">Realms</span><span class="win-tools">${refreshBtn}${this._goLink('/realms', 'Realms')}</span></div>
+          <div class="win-head"><span class="win-title">Realms</span><span class="win-tools">${refreshBtn}${
+      this._goLink('/realms', 'Realms')
+    }</span></div>
           <div class="win-body" id="realms-wrap"></div>
         </div>
       </div>
 
       <div class="grid2">
         <div class="win full" id="w-integrations">
-          <div class="win-head"><span class="win-title">Integrations Status</span><span class="win-tools">${refreshBtn}${this._goLink('/notifications?view=integrations', 'Integrations')}</span></div>
+          <div class="win-head"><span class="win-title">Integrations Status</span><span class="win-tools">${refreshBtn}${
+      this._goLink('/notifications?view=integrations', 'Integrations')
+    }</span></div>
           <div class="win-body" id="integrations-wrap"><div class="skeleton" style="height:50px;"></div></div>
         </div>
       </div>
     `;
 
-    this.shadowRoot.querySelectorAll('.range button[data-range]').forEach(btn => {
+    this.shadowRoot.querySelectorAll('.range button[data-range]').forEach((btn) => {
       btn.addEventListener('click', () => {
         this._range = btn.dataset.range;
-        this.shadowRoot.querySelectorAll('.range button[data-range]').forEach(b => b.classList.remove('active'));
+        this.shadowRoot.querySelectorAll('.range button[data-range]').forEach((b) =>
+          b.classList.remove('active')
+        );
         btn.classList.add('active');
         const tag = this.shadowRoot.getElementById('range-tag');
         if (tag) tag.textContent = `/ ${btn.textContent.toLowerCase()}`;
@@ -343,9 +409,13 @@ class DashboardView extends HTMLElement {
       });
     });
 
-    this.shadowRoot.getElementById('btn-manual-refresh')?.addEventListener('click', () => this._load());
-    this.shadowRoot.querySelectorAll('.wgt-refresh').forEach(b =>
-      b.addEventListener('click', () => this._load()));
+    this.shadowRoot.getElementById('btn-manual-refresh')?.addEventListener(
+      'click',
+      () => this._load(),
+    );
+    this.shadowRoot.querySelectorAll('.wgt-refresh').forEach((b) =>
+      b.addEventListener('click', () => this._load())
+    );
 
     const clock = this.shadowRoot.getElementById('sys-clock');
     if (clock) clock.textContent = new Date().toISOString().slice(11, 19) + 'Z';
@@ -354,7 +424,10 @@ class DashboardView extends HTMLElement {
     // page. Header chevrons are plain hash links handled by the router directly.
     const goNav = (e) => {
       const nav = e.target.closest('[data-nav]');
-      if (nav) { e.preventDefault(); router.navigate(nav.dataset.nav); }
+      if (nav) {
+        e.preventDefault();
+        router.navigate(nav.dataset.nav);
+      }
     };
     this.shadowRoot.addEventListener('click', goNav);
     this.shadowRoot.addEventListener('keydown', (e) => {
@@ -366,9 +439,12 @@ class DashboardView extends HTMLElement {
     const btn = this.shadowRoot.getElementById('btn-customize');
     const panel = this.shadowRoot.getElementById('customize-panel');
 
-    btn?.addEventListener('click', (e) => { e.stopPropagation(); panel.classList.toggle('open'); });
+    btn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      panel.classList.toggle('open');
+    });
 
-    panel?.querySelectorAll('input[type=checkbox]').forEach(cb => {
+    panel?.querySelectorAll('input[type=checkbox]').forEach((cb) => {
       cb.addEventListener('change', () => {
         const wid = cb.dataset.widget;
         const el = this.shadowRoot.getElementById(wid);
@@ -381,13 +457,15 @@ class DashboardView extends HTMLElement {
     });
 
     this.shadowRoot.addEventListener('click', (e) => {
-      if (!e.composedPath().includes(panel) && !e.composedPath().includes(btn)) panel.classList.remove('open');
+      if (!e.composedPath().includes(panel) && !e.composedPath().includes(btn)) {
+        panel.classList.remove('open');
+      }
     });
   }
 
   _applyWidgetConfig() {
     const cfg = loadWidgetCfg();
-    WIDGET_DEFS.forEach(w => {
+    WIDGET_DEFS.forEach((w) => {
       const el = this.shadowRoot.getElementById(w.id);
       if (el) el.style.display = cfg[w.id] === false ? 'none' : '';
     });
@@ -433,8 +511,13 @@ class DashboardView extends HTMLElement {
   // a lone toast — the same widget-scale `.empty-state` the other widgets use.
   _statsError() {
     const cell = (span) =>
-      `<div class="empty-state"${span ? ' style="grid-column:1/-1;"' : ''}>Couldn’t load — try Refresh.</div>`;
-    const set = (id, span) => { const el = this.shadowRoot.getElementById(id); if (el) el.innerHTML = cell(span); };
+      `<div class="empty-state"${
+        span ? ' style="grid-column:1/-1;"' : ''
+      }>Couldn’t load — try Refresh.</div>`;
+    const set = (id, span) => {
+      const el = this.shadowRoot.getElementById(id);
+      if (el) el.innerHTML = cell(span);
+    };
     set('metrics', true);
     set('auth-hist', false);
     set('recent-auth-wrap', false);
@@ -442,38 +525,65 @@ class DashboardView extends HTMLElement {
   }
 
   async _loadOnlineUsers() {
-    try { this._renderOnlineUsers(await api.get('/dashboard/online-users')); }
-    catch { const w = this.shadowRoot.getElementById('online-users-wrap'); if (w) w.innerHTML = `<div class="empty-state">Could not load online users.</div>`; }
+    try {
+      this._renderOnlineUsers(await api.get('/dashboard/online-users'));
+    } catch {
+      const w = this.shadowRoot.getElementById('online-users-wrap');
+      if (w) w.innerHTML = `<div class="empty-state">Could not load online users.</div>`;
+    }
   }
 
   async _loadNasStatus() {
-    try { this._renderNasStatus(await api.get('/dashboard/nas-status')); }
-    catch { const w = this.shadowRoot.getElementById('nas-status-wrap'); if (w) w.innerHTML = `<div class="empty-state">Could not load NAS status.</div>`; }
+    try {
+      this._renderNasStatus(await api.get('/dashboard/nas-status'));
+    } catch {
+      const w = this.shadowRoot.getElementById('nas-status-wrap');
+      if (w) w.innerHTML = `<div class="empty-state">Could not load NAS status.</div>`;
+    }
   }
 
   async _loadSessionTypes() {
-    try { this._renderSessionTypes(await api.get('/dashboard/session-types')); }
-    catch { const w = this.shadowRoot.getElementById('session-types-wrap'); if (w) w.innerHTML = `<div class="empty-state">Could not load session types.</div>`; }
+    try {
+      this._renderSessionTypes(await api.get('/dashboard/session-types'));
+    } catch {
+      const w = this.shadowRoot.getElementById('session-types-wrap');
+      if (w) w.innerHTML = `<div class="empty-state">Could not load session types.</div>`;
+    }
   }
 
   async _loadRealms() {
     const card = this.shadowRoot.getElementById('w-realms');
     if (!card) return;
-    try { this._renderRealms(await api.get('/realms')); }
-    catch { card.style.display = 'none'; }
+    try {
+      this._renderRealms(await api.get('/realms'));
+    } catch {
+      card.style.display = 'none';
+    }
   }
 
   async _loadFirewall() {
     const card = this.shadowRoot.getElementById('w-firewall');
     if (!card) return;
-    if (loadWidgetCfg()['w-firewall'] === false) { card.style.display = 'none'; return; }
+    if (loadWidgetCfg()['w-firewall'] === false) {
+      card.style.display = 'none';
+      return;
+    }
     try {
       const s = await api.get('/firewall/status');
       card.style.display = '';
       const wrap = this.shadowRoot.getElementById('firewall-wrap');
-      const led = (on) => `<span class="led ${on ? 'led-on' : 'led-idle'}" style="margin-right:0.35rem;"></span>`;
-      if (!s.nft_available) { wrap.innerHTML = `<div class="empty-state" style="font-size:0.78rem;">nftables (<code>nft</code>) is not installed on this host.</div>`; return; }
-      if (!s.managed) { wrap.innerHTML = `<div class="empty-state" style="font-size:0.78rem;">Firewall not managed yet. <a href="#/firewall" style="color:var(--mr-action);">Set it up →</a></div>`; return; }
+      const led = (on) =>
+        `<span class="led ${on ? 'led-on' : 'led-idle'}" style="margin-right:0.35rem;"></span>`;
+      if (!s.nft_available) {
+        wrap.innerHTML =
+          `<div class="empty-state" style="font-size:0.78rem;">nftables (<code>nft</code>) is not installed on this host.</div>`;
+        return;
+      }
+      if (!s.managed) {
+        wrap.innerHTML =
+          `<div class="empty-state" style="font-size:0.78rem;">Firewall not managed yet. <a href="#/firewall" style="color:var(--mr-action);">Set it up →</a></div>`;
+        return;
+      }
       const cell = (label, value, extra = '') =>
         `<div class="metric" style="border:1px solid var(--mr-hairline);"><div class="k">${label}</div><div class="v">${extra}${value}</div></div>`;
       wrap.innerHTML = `
@@ -483,8 +593,14 @@ class DashboardView extends HTMLElement {
           ${cell('Active bans', s.ban_count)}
           ${cell('Dropped pkts', (s.total_dropped ?? 0).toLocaleString())}
         </div>
-        ${s.pending && s.pending.length ? `<div style="margin-top:0.6rem;font-size:0.74rem;color:var(--mr-warning);">⏱ An apply is awaiting confirmation.</div>` : ''}`;
-    } catch { card.style.display = 'none'; }
+        ${
+        s.pending && s.pending.length
+          ? `<div style="margin-top:0.6rem;font-size:0.74rem;color:var(--mr-warning);">⏱ An apply is awaiting confirmation.</div>`
+          : ''
+      }`;
+    } catch {
+      card.style.display = 'none';
+    }
   }
 
   // Auto-Block Activity (#16): recent automatic blocks from adaptive access
@@ -493,18 +609,25 @@ class DashboardView extends HTMLElement {
   async _loadAutoblock() {
     const card = this.shadowRoot.getElementById('w-autoblock');
     if (!card) return;
-    if (loadWidgetCfg()['w-autoblock'] === false) { card.style.display = 'none'; return; }
+    if (loadWidgetCfg()['w-autoblock'] === false) {
+      card.style.display = 'none';
+      return;
+    }
     try {
       const rows = await api.get('/firewall/block-events?limit=6');
       card.style.display = '';
       this._renderAutoblock(rows);
-    } catch { card.style.display = 'none'; }
+    } catch {
+      card.style.display = 'none';
+    }
   }
 
   _autoblockStatus(e) {
     if (e.override_at) return { cls: 'badge-ok', text: 'overridden' };
-    if (e.ban_seconds && e.created_at &&
-        new Date(e.created_at).getTime() + e.ban_seconds * 1000 < Date.now()) {
+    if (
+      e.ban_seconds && e.created_at &&
+      new Date(e.created_at).getTime() + e.ban_seconds * 1000 < Date.now()
+    ) {
       return { cls: 'badge-muted', text: 'expired' };
     }
     return { cls: 'badge-danger', text: 'active' };
@@ -514,23 +637,26 @@ class DashboardView extends HTMLElement {
     const wrap = this.shadowRoot.getElementById('autoblock-wrap');
     if (!wrap) return;
     if (!rows.length) {
-      wrap.innerHTML = `<div class="empty-state" style="font-size:0.78rem;">No automatic blocks recorded — brute-force protection lists bans here as they happen. <a href="#/firewall?tab=settings" style="color:var(--mr-action);">Configure →</a></div>`;
+      wrap.innerHTML =
+        `<div class="empty-state" style="font-size:0.78rem;">No automatic blocks recorded — brute-force protection lists bans here as they happen. <a href="#/firewall?tab=settings" style="color:var(--mr-action);">Configure →</a></div>`;
       return;
     }
     wrap.innerHTML = `
       <table>
         <thead><tr><th>Source</th><th>Reason</th><th>When</th><th>Status</th></tr></thead>
         <tbody>
-          ${rows.map(e => {
-            const st = this._autoblockStatus(e);
-            const tip = e.override_by ? ` title="overridden by ${escHtml(e.override_by)}"` : '';
-            return `<tr>
+          ${
+      rows.map((e) => {
+        const st = this._autoblockStatus(e);
+        const tip = e.override_by ? ` title="overridden by ${escHtml(e.override_by)}"` : '';
+        return `<tr>
               <td class="mono" style="font-weight:500;">${escHtml(e.element)}</td>
               <td class="muted">${escHtml(e.reason || e.source)}</td>
               <td class="muted mono" style="white-space:nowrap;">${relTime(e.created_at)}</td>
               <td><span class="badge ${st.cls}"${tip}>${st.text}</span></td>
             </tr>`;
-          }).join('')}
+      }).join('')
+    }
         </tbody>
       </table>`;
   }
@@ -547,7 +673,8 @@ class DashboardView extends HTMLElement {
       const zabbix = zabbixSummary.status === 'fulfilled' ? zabbixSummary.value : null;
 
       if (!integrations.length) {
-        wrap.innerHTML = `<div class="empty-state" style="font-size:0.78rem;">No integrations configured. <a href="#" id="dash-go-integrations" style="color:var(--mr-action);">Set up Graylog / Zabbix</a>.</div>`;
+        wrap.innerHTML =
+          `<div class="empty-state" style="font-size:0.78rem;">No integrations configured. <a href="#" id="dash-go-integrations" style="color:var(--mr-action);">Set up Graylog / Zabbix</a>.</div>`;
         wrap.querySelector('#dash-go-integrations')?.addEventListener('click', (e) => {
           e.preventDefault();
           router.navigate('/notifications?view=integrations');
@@ -555,12 +682,13 @@ class DashboardView extends HTMLElement {
         return;
       }
 
-      const cards = integrations.map(i => {
+      const cards = integrations.map((i) => {
         const logo = (i.type === 'graylog' || i.type === 'zabbix')
           ? `<img src="/modules/integrations/img/${i.type}.svg" alt="" width="16" height="16" style="flex-shrink:0;" />`
           : `<span style="width:16px;text-align:center;">🔌</span>`;
         const statusTag = i.enabled
-          ? `<span class="badge badge-ok">ON</span>` : `<span class="badge badge-muted">OFF</span>`;
+          ? `<span class="badge badge-ok">ON</span>`
+          : `<span class="badge badge-muted">OFF</span>`;
         let extra = '';
         if (i.type === 'zabbix' && zabbix && zabbix.configured) {
           if (zabbix.error) extra = `<span class="badge badge-disaster">ERR</span>`;
@@ -574,14 +702,20 @@ class DashboardView extends HTMLElement {
         return `<div style="display:flex;align-items:center;gap:0.55rem;padding:0.35rem 0;border-bottom:1px solid var(--mr-hairline);">
           ${logo}
           <span style="font-weight:500;font-size:0.8rem;flex:1;">${escHtml(i.name)}</span>
-          <span class="mono" style="font-size:0.64rem;color:var(--mr-text-muted);text-transform:uppercase;">${escHtml(i.type)}</span>
+          <span class="mono" style="font-size:0.64rem;color:var(--mr-text-muted);text-transform:uppercase;">${
+          escHtml(i.type)
+        }</span>
           ${statusTag}${extra}
         </div>`;
       }).join('');
 
-      wrap.innerHTML = cards || `<div class="empty-state" style="font-size:0.78rem;">No integrations.</div>`;
+      wrap.innerHTML = cards ||
+        `<div class="empty-state" style="font-size:0.78rem;">No integrations.</div>`;
     } catch {
-      if (wrap) wrap.innerHTML = `<div class="empty-state" style="font-size:0.78rem;">Integrations unavailable.</div>`;
+      if (wrap) {
+        wrap.innerHTML =
+          `<div class="empty-state" style="font-size:0.78rem;">Integrations unavailable.</div>`;
+      }
     }
   }
 
@@ -597,18 +731,56 @@ class DashboardView extends HTMLElement {
 
     // Each metric drills through to its filtered detail page (empty `to` = not clickable).
     const metric = (k, vHtml, extra = '', to = '') =>
-      `<div class="metric${to ? ' navm' : ''}"${to ? ` data-nav="${to}" role="link" tabindex="0" title="Open ${k}"` : ''}><div class="k">${k}</div><div class="row"><span>${vHtml}</span>${extra}</div></div>`;
+      `<div class="metric${to ? ' navm' : ''}"${
+        to ? ` data-nav="${to}" role="link" tabindex="0" title="Open ${k}"` : ''
+      }><div class="k">${k}</div><div class="row"><span>${vHtml}</span>${extra}</div></div>`;
 
     const grid = this.shadowRoot.getElementById('metrics');
     grid.innerHTML = `
-      ${metric('Active Sessions', `<span class="v action">${d.active_sessions}</span>`,
-        `<span class="sparkline-wrap">${sparkline(this._sessHist, { w: 52, h: 16, tone: 'accept' })}</span>`, '/sessions')}
-      ${metric('Logins', `<span class="v accept">${d.logins}</span>`, '', '/logs?tab=auth&amp;reply=Access-Accept')}
-      ${metric('Failed', `<span class="v ${d.failed_logins > 0 ? 'reject' : ''}">${d.failed_logins}</span>`, '', '/logs?tab=auth&amp;reply=Access-Reject')}
-      ${metric('Reject Rate', `<span class="v ${rejectClass}">${rejectDisplay}</span>`, '', '/logs?tab=auth&amp;reply=Access-Reject')}
+      ${
+      metric(
+        'Active Sessions',
+        `<span class="v action">${d.active_sessions}</span>`,
+        `<span class="sparkline-wrap">${
+          sparkline(this._sessHist, { w: 52, h: 16, tone: 'accept' })
+        }</span>`,
+        '/sessions',
+      )
+    }
+      ${
+      metric(
+        'Logins',
+        `<span class="v accept">${d.logins}</span>`,
+        '',
+        '/logs?tab=auth&amp;reply=Access-Accept',
+      )
+    }
+      ${
+      metric(
+        'Failed',
+        `<span class="v ${d.failed_logins > 0 ? 'reject' : ''}">${d.failed_logins}</span>`,
+        '',
+        '/logs?tab=auth&amp;reply=Access-Reject',
+      )
+    }
+      ${
+      metric(
+        'Reject Rate',
+        `<span class="v ${rejectClass}">${rejectDisplay}</span>`,
+        '',
+        '/logs?tab=auth&amp;reply=Access-Reject',
+      )
+    }
       ${metric('Traffic In', `<span class="v">${fmtBytes(d.bytes_in)}</span>`, '', '/accounting')}
       ${metric('Traffic Out', `<span class="v">${fmtBytes(d.bytes_out)}</span>`, '', '/accounting')}
-      ${metric('Users / NAS', `<span class="v">${d.user_count}<span class="u"> / ${d.nas_count}</span></span>`, '', '/users')}
+      ${
+      metric(
+        'Users / NAS',
+        `<span class="v">${d.user_count}<span class="u"> / ${d.nas_count}</span></span>`,
+        '',
+        '/users',
+      )
+    }
       ${metric('Avg Auth', `<span class="v muted">N/A</span>`)}
     `;
 
@@ -623,11 +795,12 @@ class DashboardView extends HTMLElement {
     const host = this.shadowRoot.getElementById('auth-hist');
     if (!host) return;
     if (!buckets.length) {
-      host.innerHTML = `<div class="empty-state" style="font-size:0.76rem;">No authentication events in range.</div>`;
+      host.innerHTML =
+        `<div class="empty-state" style="font-size:0.76rem;">No authentication events in range.</div>`;
       return;
     }
     this._histBuckets = buckets;
-    const max = Math.max(1, ...buckets.map(b => b.ok + b.bad));
+    const max = Math.max(1, ...buckets.map((b) => b.ok + b.bad));
     const cols = buckets.map((b, i) => {
       const total = b.ok + b.bad;
       return `<button class="hcol" data-i="${i}" aria-label="${total} events">
@@ -638,12 +811,15 @@ class DashboardView extends HTMLElement {
         </span>
       </button>`;
     }).join('');
-    host.innerHTML = `<div class="hist"><div class="hist-bars">${cols}</div><div class="hist-tip" id="hist-tip" hidden></div></div>`;
+    host.innerHTML =
+      `<div class="hist"><div class="hist-bars">${cols}</div><div class="hist-tip" id="hist-tip" hidden></div></div>`;
 
     const tip = host.querySelector('#hist-tip');
-    host.querySelectorAll('.hcol').forEach(col => {
+    host.querySelectorAll('.hcol').forEach((col) => {
       col.addEventListener('mouseenter', () => this._showHistTip(col, tip));
-      col.addEventListener('mouseleave', () => { tip.hidden = true; });
+      col.addEventListener('mouseleave', () => {
+        tip.hidden = true;
+      });
       col.addEventListener('click', () => this._gotoAuthRange(Number(col.dataset.i)));
     });
   }
@@ -656,7 +832,9 @@ class DashboardView extends HTMLElement {
     const total = b.ok + b.bad;
     const sameDay = d(b.start) === d(b.end);
     tip.innerHTML = `
-      <div class="tt-time">${d(b.start)} ${hm(b.start)} – ${sameDay ? '' : d(b.end) + ' '}${hm(b.end)}</div>
+      <div class="tt-time">${d(b.start)} ${hm(b.start)} – ${sameDay ? '' : d(b.end) + ' '}${
+      hm(b.end)
+    }</div>
       <div class="tt-row"><span class="tt-k"><span class="swatch" style="background:var(--mr-accept)"></span>accept</span><span class="tt-v">${b.ok}</span></div>
       <div class="tt-row"><span class="tt-k"><span class="swatch" style="background:var(--mr-reject)"></span>reject</span><span class="tt-v">${b.bad}</span></div>
       <div class="tt-row tt-total"><span class="tt-k">total</span><span class="tt-v">${total}</span></div>
@@ -682,26 +860,37 @@ class DashboardView extends HTMLElement {
   _renderNasStatus(rows) {
     const wrap = this.shadowRoot.getElementById('nas-status-wrap');
     if (!wrap) return;
-    if (!rows.length) { wrap.innerHTML = `<div class="empty-state">No NAS devices configured.</div>`; return; }
-    const active = rows.filter(r => r.online).length;
+    if (!rows.length) {
+      wrap.innerHTML = `<div class="empty-state">No NAS devices configured.</div>`;
+      return;
+    }
+    const active = rows.filter((r) => r.online).length;
     const idle = rows.length - active;
     // "idle" == no RADIUS traffic in the last 15 min, NOT a reachability check —
     // so it's shown muted (grey), never as a red "offline"/down state.
     wrap.innerHTML = `
       <div class="status-summary">
         <span style="color:var(--mr-accept);"><span class="led led-on"></span> ${active} active</span>
-        ${idle > 0 ? `<span style="color:var(--mr-text-muted);" title="No RADIUS traffic in the last 15 minutes — not a reachability check"><span class="led led-idle"></span> ${idle} idle</span>` : ''}
+        ${
+      idle > 0
+        ? `<span style="color:var(--mr-text-muted);" title="No RADIUS traffic in the last 15 minutes — not a reachability check"><span class="led led-idle"></span> ${idle} idle</span>`
+        : ''
+    }
       </div>
       <div class="nas-list">
-        ${rows.map(n => `
+        ${
+      rows.map((n) => `
           <div class="nas-item">
             <span class="led ${n.online ? 'led-on' : 'led-idle'}"></span>
             <span class="nas-name" title="${escHtml(n.nasname)}">${escHtml(n.shortname)}</span>
             <span class="nas-type">${escHtml(n.type)}</span>
-            ${n.online
-              ? `<span class="nas-sessions">${n.session_count} sess</span>`
-              : `<span class="nas-offline-txt" title="No RADIUS traffic in the last 15 minutes">idle</span>`}
-          </div>`).join('')}
+            ${
+        n.online
+          ? `<span class="nas-sessions">${n.session_count} sess</span>`
+          : `<span class="nas-offline-txt" title="No RADIUS traffic in the last 15 minutes">idle</span>`
+      }
+          </div>`).join('')
+    }
       </div>`;
   }
 
@@ -710,38 +899,50 @@ class DashboardView extends HTMLElement {
     const wrap = this.shadowRoot.getElementById('realms-wrap');
     if (!card || !wrap) return;
     const cfg = loadWidgetCfg();
-    if (!rows.length || cfg['w-realms'] === false) { card.style.display = 'none'; return; }
+    if (!rows.length || cfg['w-realms'] === false) {
+      card.style.display = 'none';
+      return;
+    }
     card.style.display = '';
-    const ledOf = s => s === 'up' ? 'led-on' : (s === 'unknown' ? 'led-idle' : 'led-off');
+    const ledOf = (s) => s === 'up' ? 'led-on' : (s === 'unknown' ? 'led-idle' : 'led-off');
     wrap.innerHTML = `
       <div class="nas-list">
-        ${rows.map(r => `
+        ${
+      rows.map((r) => `
           <div class="nas-item">
             <span class="led ${ledOf(r.status)}"></span>
             <span class="nas-name" title="${escHtml(r.name)}">${escHtml(r.name)}</span>
             <span class="nas-type">${escHtml(r.pool_name || 'no pool')}</span>
-            <span class="nas-sessions">${r.status === 'up' && r.last_rtt_ms != null ? `${r.last_rtt_ms} ms` : escHtml(r.status)}</span>
-          </div>`).join('')}
+            <span class="nas-sessions">${
+        r.status === 'up' && r.last_rtt_ms != null ? `${r.last_rtt_ms} ms` : escHtml(r.status)
+      }</span>
+          </div>`).join('')
+    }
       </div>`;
   }
 
   _renderSessionTypes(rows) {
     const wrap = this.shadowRoot.getElementById('session-types-wrap');
     if (!wrap) return;
-    if (!rows.length) { wrap.innerHTML = `<div class="empty-state">No active sessions.</div>`; return; }
+    if (!rows.length) {
+      wrap.innerHTML = `<div class="empty-state">No active sessions.</div>`;
+      return;
+    }
     const total = rows.reduce((s, r) => s + r.count, 0);
     wrap.innerHTML = `
       <table>
         <thead><tr><th>Port Type</th><th>Sessions</th><th style="width:120px;">Share</th></tr></thead>
         <tbody>
-          ${rows.map(r => {
-            const pct = Math.round(r.count / total * 100);
-            return `<tr>
+          ${
+      rows.map((r) => {
+        const pct = Math.round(r.count / total * 100);
+        return `<tr>
                 <td style="font-weight:500;">${escHtml(r.porttype)}</td>
                 <td class="mono" style="color:var(--mr-action);font-weight:600;">${r.count}</td>
                 <td><div class="bw-bar-wrap"><div class="bw-bar"><div class="bw-bar-fill" style="width:${pct}%"></div></div><span class="mono" style="font-size:0.66rem;color:var(--mr-text-muted);white-space:nowrap;">${pct}%</span></div></td>
               </tr>`;
-          }).join('')}
+      }).join('')
+    }
         </tbody>
       </table>`;
   }
@@ -751,58 +952,87 @@ class DashboardView extends HTMLElement {
     const count = this.shadowRoot.getElementById('online-count');
     if (!wrap) return;
     if (count) count.textContent = rows.length ? `/ ${rows.length} online` : '';
-    if (!rows.length) { wrap.innerHTML = `<div class="empty-state">No users currently online.</div>`; return; }
+    if (!rows.length) {
+      wrap.innerHTML = `<div class="empty-state">No users currently online.</div>`;
+      return;
+    }
     wrap.innerHTML = `
       <table>
         <thead><tr><th>User</th><th>NAS</th><th>Client / Location</th><th>Session Start</th></tr></thead>
         <tbody>
-          ${rows.map(r => `
+          ${
+      rows.map((r) => `
             <tr class="sev sev-ok">
               <td style="font-weight:500">${escHtml(r.username)}</td>
-              <td><span class="muted mono">${escHtml(r.nasname || r.nasipaddress || '—')}</span></td>
-              <td><span class="muted mono">${escHtml(r.callingstationid || r.framedipaddress || '—')}</span>
-                ${r.geo_client ? `<div style="font-size:0.7rem;color:var(--mr-text-muted);margin-top:1px">${geoLabelHTML(r.geo_client)}</div>` : ''}</td>
+              <td><span class="muted mono">${
+        escHtml(r.nasname || r.nasipaddress || '—')
+      }</span></td>
+              <td><span class="muted mono">${
+        escHtml(r.callingstationid || r.framedipaddress || '—')
+      }</span>
+                ${
+        r.geo_client
+          ? `<div style="font-size:0.7rem;color:var(--mr-text-muted);margin-top:1px">${
+            geoLabelHTML(r.geo_client)
+          }</div>`
+          : ''
+      }</td>
               <td class="muted mono" style="white-space:nowrap">${fmtDate(r.acctstarttime)}</td>
-            </tr>`).join('')}
+            </tr>`).join('')
+    }
         </tbody>
       </table>`;
   }
 
   _renderRecentAuth(rows) {
     const wrap = this.shadowRoot.getElementById('recent-auth-wrap');
-    if (!rows.length) { wrap.innerHTML = `<div class="empty-state">No authentication events yet.</div>`; return; }
+    if (!rows.length) {
+      wrap.innerHTML = `<div class="empty-state">No authentication events yet.</div>`;
+      return;
+    }
     wrap.innerHTML = `
       <table>
         <thead><tr><th>User</th><th>Result</th><th>Time</th><th>Station</th></tr></thead>
         <tbody>
-          ${rows.map(r => {
-            const sev = r.reply === 'Access-Reject' ? 'sev sev-reject' : 'sev sev-ok';
-            return `<tr class="${sev}">
+          ${
+      rows.map((r) => {
+        const sev = r.reply === 'Access-Reject' ? 'sev sev-reject' : 'sev sev-ok';
+        return `<tr class="${sev}">
               <td style="font-weight:500">${escHtml(r.username)}</td>
               <td>${replyBadge(r.reply)}</td>
               <td class="muted mono" style="white-space:nowrap">${fmtDate(r.authdate)}</td>
               <td class="muted mono">${escHtml(r.callingstationid || '—')}</td>
             </tr>`;
-          }).join('')}
+      }).join('')
+    }
         </tbody>
       </table>`;
   }
 
   _renderTopBandwidth(rows) {
     const wrap = this.shadowRoot.getElementById('top-bw-wrap');
-    if (!rows.length) { wrap.innerHTML = `<div class="empty-state">No accounting data yet.</div>`; return; }
+    if (!rows.length) {
+      wrap.innerHTML = `<div class="empty-state">No accounting data yet.</div>`;
+      return;
+    }
     const max = rows[0]?.total_bytes || 1;
     wrap.innerHTML = `
       <table>
         <thead><tr><th>User</th><th>In</th><th>Out</th><th style="width:90px;">Total</th></tr></thead>
         <tbody>
-          ${rows.map(r => `
+          ${
+      rows.map((r) => `
             <tr>
               <td>${escHtml(r.username)}</td>
               <td class="mono" style="color:var(--mr-text-muted);">${fmtBytes(r.bytes_in)}</td>
               <td class="mono" style="color:var(--mr-text-muted);">${fmtBytes(r.bytes_out)}</td>
-              <td><div class="bw-bar-wrap"><div class="bw-bar"><div class="bw-bar-fill" style="width:${Math.round(r.total_bytes / max * 100)}%"></div></div><span class="mono" style="font-size:0.66rem;color:var(--mr-text-muted);white-space:nowrap;">${fmtBytes(r.total_bytes)}</span></div></td>
-            </tr>`).join('')}
+              <td><div class="bw-bar-wrap"><div class="bw-bar"><div class="bw-bar-fill" style="width:${
+        Math.round(r.total_bytes / max * 100)
+      }%"></div></div><span class="mono" style="font-size:0.66rem;color:var(--mr-text-muted);white-space:nowrap;">${
+        fmtBytes(r.total_bytes)
+      }</span></div></td>
+            </tr>`).join('')
+    }
         </tbody>
       </table>`;
   }

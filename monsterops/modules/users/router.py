@@ -2,29 +2,42 @@ from __future__ import annotations
 
 import csv
 import io
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile
 from fastapi.responses import StreamingResponse
-from sqlalchemy import select, func, delete, and_
+from sqlalchemy import and_, delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from datetime import timedelta
 
 from monsterops.database import get_db
 from monsterops.geo import lookup_calling_station as geo_lookup_cs
-from monsterops.modules.auth.utils import get_current_user, require_roles, audit
 from monsterops.modules.accounting.models import Radacct
+from monsterops.modules.auth.utils import audit, get_current_user, require_roles
 from monsterops.modules.auth_logs.models import Radpostauth
 from monsterops.modules.auth_logs.schemas import GeoInfo
+
 from .models import MrBulkJob, Radcheck, Radreply, Radusergroup
 from .schemas import (
-    AttributeCreate, AttributeUpdate, AuthHistoryOut,
-    BulkGroupAssign, BulkUsernameList,
-    GroupAssign, ImportCommitRequest, ImportCommitResponse,
-    ImportPreviewResponse, ImportPreviewRow, RadcheckRow, RadreplyRow, RadusergroupRow,
-    SessionOut, TimelineEvent, UserCreate, UserDetail, UserListItem,
-    UserListResponse, UserUpdate,
+    AttributeCreate,
+    AttributeUpdate,
+    AuthHistoryOut,
+    BulkGroupAssign,
+    BulkUsernameList,
+    GroupAssign,
+    ImportCommitRequest,
+    ImportCommitResponse,
+    ImportPreviewResponse,
+    ImportPreviewRow,
+    RadcheckRow,
+    RadreplyRow,
+    RadusergroupRow,
+    SessionOut,
+    TimelineEvent,
+    UserCreate,
+    UserDetail,
+    UserListItem,
+    UserListResponse,
+    UserUpdate,
 )
 
 router = APIRouter(prefix="/api/users", tags=["users"])
@@ -32,10 +45,15 @@ router = APIRouter(prefix="/api/users", tags=["users"])
 _DISABLED_ATTR = "Auth-Type"
 _DISABLED_VALUE = "Reject"
 _DISABLED_OP = ":="
-_PWD_ATTRS = frozenset({
-    "Cleartext-Password", "MD5-Password", "NT-Password",
-    "SHA-Password", "Crypt-Password",
-})
+_PWD_ATTRS = frozenset(
+    {
+        "Cleartext-Password",
+        "MD5-Password",
+        "NT-Password",
+        "SHA-Password",
+        "Crypt-Password",
+    }
+)
 _SPECIAL_ATTRS = frozenset({_DISABLED_ATTR, "Expiration", "Simultaneous-Use"})
 
 
@@ -47,6 +65,30 @@ async def _exists_or_404(username: str, db: AsyncSession) -> str:
         if q.scalar_one():
             return username
     raise HTTPException(404, f"User '{username}' not found")
+
+
+async def _purge_ad_provenance(db: AsyncSession, usernames: list[str]) -> None:
+    if not usernames:
+        return
+    from monsterops.modules.realms.models import MrAuthSyncedUser
+
+    await db.execute(delete(MrAuthSyncedUser).where(MrAuthSyncedUser.username.in_(usernames)))
+
+
+async def _ad_sources(db: AsyncSession, usernames: list[str]) -> dict[str, str]:
+    if not usernames:
+        return {}
+    from monsterops.modules.realms.models import MrAuthDomain, MrAuthSyncedUser
+
+    rows = (
+        await db.execute(
+            select(MrAuthSyncedUser.username, MrAuthDomain.name)
+            .join(MrAuthDomain, MrAuthDomain.id == MrAuthSyncedUser.auth_domain_id)
+            .where(MrAuthSyncedUser.username.in_(usernames))
+        )
+    ).all()
+    return {r[0]: r[1] for r in rows}
+
 
 
 
@@ -67,9 +109,7 @@ async def list_users(
     total = total_q.scalar_one() or 0
 
     username_order = Radcheck.username.desc() if order == "desc" else Radcheck.username.asc()
-    rows_q = await db.execute(
-        base.order_by(username_order).limit(size).offset((page - 1) * size)
-    )
+    rows_q = await db.execute(base.order_by(username_order).limit(size).offset((page - 1) * size))
     usernames = [r[0] for r in rows_q.all()]
 
     if not usernames:
@@ -85,29 +125,38 @@ async def list_users(
         groups_map.setdefault(row.username, []).append(row.groupname)
 
     attrs_q = await db.execute(
-        select(Radcheck.username, Radcheck.attribute, Radcheck.value)
-        .where(and_(
-            Radcheck.username.in_(usernames),
-            Radcheck.attribute.in_(_SPECIAL_ATTRS),
-        ))
+        select(Radcheck.username, Radcheck.attribute, Radcheck.value).where(
+            and_(
+                Radcheck.username.in_(usernames),
+                Radcheck.attribute.in_(_SPECIAL_ATTRS),
+            )
+        )
     )
     attrs_map: dict[str, dict[str, str]] = {}
     for row in attrs_q.all():
         attrs_map.setdefault(row.username, {})[row.attribute] = row.value
 
+    ad_map = await _ad_sources(db, usernames)
+
     items = []
     for u in usernames:
         ua = attrs_map.get(u, {})
         sim_raw = ua.get("Simultaneous-Use")
-        items.append(UserListItem(
-            username=u,
-            disabled=ua.get(_DISABLED_ATTR) == _DISABLED_VALUE,
-            groups=groups_map.get(u, []),
-            expiration=ua.get("Expiration"),
-            simultaneous_use=int(sim_raw) if sim_raw else None,
-        ))
+        realm = ad_map.get(u)
+        items.append(
+            UserListItem(
+                username=u,
+                disabled=ua.get(_DISABLED_ATTR) == _DISABLED_VALUE,
+                groups=groups_map.get(u, []),
+                expiration=ua.get("Expiration"),
+                simultaneous_use=int(sim_raw) if sim_raw else None,
+                source="directory" if realm else "local",
+                source_realm=realm,
+            )
+        )
 
     return UserListResponse(total=total, page=page, size=size, items=items)
+
 
 
 
@@ -124,24 +173,41 @@ async def create_user(
     if q.scalar_one():
         raise HTTPException(409, f"User '{body.username}' already exists")
 
-    db.add(Radcheck(username=body.username, attribute=body.password_type, op=":=", value=body.password))
+    db.add(
+        Radcheck(username=body.username, attribute=body.password_type, op=":=", value=body.password)
+    )
 
     if body.expiration:
-        db.add(Radcheck(username=body.username, attribute="Expiration", op=":=", value=body.expiration))
+        db.add(
+            Radcheck(username=body.username, attribute="Expiration", op=":=", value=body.expiration)
+        )
 
     if body.simultaneous_use is not None and body.simultaneous_use > 0:
-        db.add(Radcheck(username=body.username, attribute="Simultaneous-Use", op=":=", value=str(body.simultaneous_use)))
+        db.add(
+            Radcheck(
+                username=body.username,
+                attribute="Simultaneous-Use",
+                op=":=",
+                value=str(body.simultaneous_use),
+            )
+        )
 
     for i, g in enumerate(body.groups):
         if g.strip():
             db.add(Radusergroup(username=body.username, groupname=g.strip(), priority=i))
 
     await db.commit()
-    await audit(db, user_id=current.id, username=current.username,
-                action="user.create", target=body.username,
-                detail={"password_type": body.password_type, "groups": body.groups},
-                request=request)
+    await audit(
+        db,
+        user_id=current.id,
+        username=current.username,
+        action="user.create",
+        target=body.username,
+        detail={"password_type": body.password_type, "groups": body.groups},
+        request=request,
+    )
     return {"username": body.username}
+
 
 
 
@@ -155,16 +221,24 @@ async def bulk_enable(
     if not body.usernames:
         raise HTTPException(400, "No usernames provided")
     await db.execute(
-        delete(Radcheck).where(and_(
-            Radcheck.username.in_(body.usernames),
-            Radcheck.attribute == _DISABLED_ATTR,
-            Radcheck.value == _DISABLED_VALUE,
-        ))
+        delete(Radcheck).where(
+            and_(
+                Radcheck.username.in_(body.usernames),
+                Radcheck.attribute == _DISABLED_ATTR,
+                Radcheck.value == _DISABLED_VALUE,
+            )
+        )
     )
     await db.commit()
-    await audit(db, user_id=current.id, username=current.username,
-                action="user.bulk_enable", target=f"{len(body.usernames)} users",
-                detail={"usernames": body.usernames}, request=request)
+    await audit(
+        db,
+        user_id=current.id,
+        username=current.username,
+        action="user.bulk_enable",
+        target=f"{len(body.usernames)} users",
+        detail={"usernames": body.usernames},
+        request=request,
+    )
     return {"ok": len(body.usernames)}
 
 
@@ -178,17 +252,29 @@ async def bulk_disable(
     if not body.usernames:
         raise HTTPException(400, "No usernames provided")
     await db.execute(
-        delete(Radcheck).where(and_(
-            Radcheck.username.in_(body.usernames),
-            Radcheck.attribute == _DISABLED_ATTR,
-        ))
+        delete(Radcheck).where(
+            and_(
+                Radcheck.username.in_(body.usernames),
+                Radcheck.attribute == _DISABLED_ATTR,
+            )
+        )
     )
     for username in body.usernames:
-        db.add(Radcheck(username=username, attribute=_DISABLED_ATTR, op=_DISABLED_OP, value=_DISABLED_VALUE))
+        db.add(
+            Radcheck(
+                username=username, attribute=_DISABLED_ATTR, op=_DISABLED_OP, value=_DISABLED_VALUE
+            )
+        )
     await db.commit()
-    await audit(db, user_id=current.id, username=current.username,
-                action="user.bulk_disable", target=f"{len(body.usernames)} users",
-                detail={"usernames": body.usernames}, request=request)
+    await audit(
+        db,
+        user_id=current.id,
+        username=current.username,
+        action="user.bulk_disable",
+        target=f"{len(body.usernames)} users",
+        detail={"usernames": body.usernames},
+        request=request,
+    )
     return {"ok": len(body.usernames)}
 
 
@@ -203,10 +289,17 @@ async def bulk_delete(
         raise HTTPException(400, "No usernames provided")
     for table in (Radcheck, Radreply, Radusergroup):
         await db.execute(delete(table).where(table.username.in_(body.usernames)))
+    await _purge_ad_provenance(db, body.usernames)
     await db.commit()
-    await audit(db, user_id=current.id, username=current.username,
-                action="user.bulk_delete", target=f"{len(body.usernames)} users",
-                detail={"usernames": body.usernames}, request=request)
+    await audit(
+        db,
+        user_id=current.id,
+        username=current.username,
+        action="user.bulk_delete",
+        target=f"{len(body.usernames)} users",
+        detail={"usernames": body.usernames},
+        request=request,
+    )
     return {"ok": len(body.usernames)}
 
 
@@ -220,11 +313,12 @@ async def bulk_assign_group(
     if not body.usernames or not body.group:
         raise HTTPException(400, "usernames and group required")
     existing_q = await db.execute(
-        select(Radusergroup.username)
-        .where(and_(
-            Radusergroup.username.in_(body.usernames),
-            Radusergroup.groupname == body.group,
-        ))
+        select(Radusergroup.username).where(
+            and_(
+                Radusergroup.username.in_(body.usernames),
+                Radusergroup.groupname == body.group,
+            )
+        )
     )
     already = {r[0] for r in existing_q.all()}
     added = 0
@@ -233,10 +327,17 @@ async def bulk_assign_group(
             db.add(Radusergroup(username=username, groupname=body.group, priority=0))
             added += 1
     await db.commit()
-    await audit(db, user_id=current.id, username=current.username,
-                action="user.bulk_assign_group", target=body.group,
-                detail={"usernames": body.usernames, "added": added}, request=request)
+    await audit(
+        db,
+        user_id=current.id,
+        username=current.username,
+        action="user.bulk_assign_group",
+        target=body.group,
+        detail={"usernames": body.usernames, "added": added},
+        request=request,
+    )
     return {"ok": added}
+
 
 
 
@@ -266,45 +367,55 @@ async def export_users_csv(
             groups_map.setdefault(row.username, []).append(row.groupname)
 
         attrs_q = await db.execute(
-            select(Radcheck.username, Radcheck.attribute, Radcheck.value)
-            .where(and_(
-                Radcheck.username.in_(usernames),
-                Radcheck.attribute.in_(_SPECIAL_ATTRS | {_DISABLED_ATTR}),
-            ))
+            select(Radcheck.username, Radcheck.attribute, Radcheck.value).where(
+                and_(
+                    Radcheck.username.in_(usernames),
+                    Radcheck.attribute.in_(_SPECIAL_ATTRS | {_DISABLED_ATTR}),
+                )
+            )
         )
         for row in attrs_q.all():
             attrs_map.setdefault(row.username, {})[row.attribute] = row.value
 
         pwd_q = await db.execute(
-            select(Radcheck.username, Radcheck.attribute)
-            .where(and_(
-                Radcheck.username.in_(usernames),
-                Radcheck.attribute.in_(_PWD_ATTRS),
-            ))
+            select(Radcheck.username, Radcheck.attribute).where(
+                and_(
+                    Radcheck.username.in_(usernames),
+                    Radcheck.attribute.in_(_PWD_ATTRS),
+                )
+            )
         )
         for row in pwd_q.all():
             pwd_map[row.username] = row.attribute
 
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(["username", "password_type", "groups", "expiration", "simultaneous_use", "disabled"])
+    writer.writerow(
+        ["username", "password_type", "groups", "expiration", "simultaneous_use", "disabled"]
+    )
     for u in usernames:
         ua = attrs_map.get(u, {})
-        writer.writerow([
-            u,
-            pwd_map.get(u, "Cleartext-Password"),
-            ";".join(groups_map.get(u, [])),
-            ua.get("Expiration", ""),
-            ua.get("Simultaneous-Use", ""),
-            "true" if ua.get(_DISABLED_ATTR) == _DISABLED_VALUE else "false",
-        ])
+        writer.writerow(
+            [
+                u,
+                pwd_map.get(u, "Cleartext-Password"),
+                ";".join(groups_map.get(u, [])),
+                ua.get("Expiration", ""),
+                ua.get("Simultaneous-Use", ""),
+                "true" if ua.get(_DISABLED_ATTR) == _DISABLED_VALUE else "false",
+            ]
+        )
 
     content = output.getvalue()
-    db.add(MrBulkJob(
-        job_type="export", created_by=_current.username,
-        row_total=len(usernames), row_ok=len(usernames),
-        detail={"search": search, "count": len(usernames)},
-    ))
+    db.add(
+        MrBulkJob(
+            job_type="export",
+            created_by=_current.username,
+            row_total=len(usernames),
+            row_ok=len(usernames),
+            detail={"search": search, "count": len(usernames)},
+        )
+    )
     await db.commit()
     return StreamingResponse(
         iter([content]),
@@ -314,9 +425,9 @@ async def export_users_csv(
 
 
 
-_VALID_PWD_TYPES = frozenset({
-    "Cleartext-Password", "MD5-Password", "NT-Password", "SHA-Password", "Crypt-Password"
-})
+_VALID_PWD_TYPES = frozenset(
+    {"Cleartext-Password", "MD5-Password", "NT-Password", "SHA-Password", "Crypt-Password"}
+)
 
 
 @router.post("/import/preview", response_model=ImportPreviewResponse)
@@ -343,18 +454,31 @@ async def import_users_preview(
         password = (row.get("password") or "").strip()
 
         if not username:
-            rows_out.append(ImportPreviewRow(row=i, username="", status="error", error="username is required"))
+            rows_out.append(
+                ImportPreviewRow(row=i, username="", status="error", error="username is required")
+            )
             error_count += 1
             continue
         if not password:
-            rows_out.append(ImportPreviewRow(row=i, username=username, status="error", error="password is required"))
+            rows_out.append(
+                ImportPreviewRow(
+                    row=i, username=username, status="error", error="password is required"
+                )
+            )
             error_count += 1
             continue
 
         pwd_type = (row.get("password_type") or "Cleartext-Password").strip()
         if pwd_type not in _VALID_PWD_TYPES:
-            rows_out.append(ImportPreviewRow(row=i, username=username, password=password,
-                                             status="error", error=f"unknown password_type '{pwd_type}'"))
+            rows_out.append(
+                ImportPreviewRow(
+                    row=i,
+                    username=username,
+                    password=password,
+                    status="error",
+                    error=f"unknown password_type '{pwd_type}'",
+                )
+            )
             error_count += 1
             continue
 
@@ -367,17 +491,30 @@ async def import_users_preview(
             try:
                 simultaneous_use = int(sim_raw)
             except ValueError:
-                rows_out.append(ImportPreviewRow(row=i, username=username, password=password,
-                                                 status="error", error="simultaneous_use must be an integer"))
+                rows_out.append(
+                    ImportPreviewRow(
+                        row=i,
+                        username=username,
+                        password=password,
+                        status="error",
+                        error="simultaneous_use must be an integer",
+                    )
+                )
                 error_count += 1
                 continue
 
-        rows_out.append(ImportPreviewRow(
-            row=i, username=username, password=password,
-            password_type=pwd_type, groups=groups,
-            expiration=expiration, simultaneous_use=simultaneous_use,
-            status="pending",
-        ))
+        rows_out.append(
+            ImportPreviewRow(
+                row=i,
+                username=username,
+                password=password,
+                password_type=pwd_type,
+                groups=groups,
+                expiration=expiration,
+                simultaneous_use=simultaneous_use,
+                status="pending",
+            )
+        )
 
     pending = [r.username for r in rows_out if r.status == "pending"]
     existing: set[str] = set()
@@ -431,12 +568,26 @@ async def import_users_commit(
             errors.append({"username": row.username, "error": "already exists"})
             continue
 
-        db.add(Radcheck(username=row.username, attribute=row.password_type, op=":=", value=row.password))
+        db.add(
+            Radcheck(
+                username=row.username, attribute=row.password_type, op=":=", value=row.password
+            )
+        )
         if row.expiration:
-            db.add(Radcheck(username=row.username, attribute="Expiration", op=":=", value=row.expiration))
+            db.add(
+                Radcheck(
+                    username=row.username, attribute="Expiration", op=":=", value=row.expiration
+                )
+            )
         if row.simultaneous_use:
-            db.add(Radcheck(username=row.username, attribute="Simultaneous-Use",
-                            op=":=", value=str(row.simultaneous_use)))
+            db.add(
+                Radcheck(
+                    username=row.username,
+                    attribute="Simultaneous-Use",
+                    op=":=",
+                    value=str(row.simultaneous_use),
+                )
+            )
         for idx, g in enumerate(row.groups):
             if g.strip():
                 db.add(Radusergroup(username=row.username, groupname=g.strip(), priority=idx))
@@ -447,20 +598,33 @@ async def import_users_commit(
             await db.commit()
         except Exception as exc:
             await db.rollback()
-            return ImportCommitResponse(created=0, skipped=skipped,
-                                        errors=[{"username": "batch", "error": str(exc)}])
-        await audit(db, user_id=current.id, username=current.username,
-                    action="user.import", target=f"{created} users",
-                    detail={"created": created, "skipped": skipped}, request=request)
-        db.add(MrBulkJob(
-            job_type="import", created_by=current.username,
-            row_total=len(body.rows), row_ok=created,
-            row_skipped=skipped, row_error=len(errors),
-            detail={"errors": errors[:50]} if errors else None,
-        ))
+            return ImportCommitResponse(
+                created=0, skipped=skipped, errors=[{"username": "batch", "error": str(exc)}]
+            )
+        await audit(
+            db,
+            user_id=current.id,
+            username=current.username,
+            action="user.import",
+            target=f"{created} users",
+            detail={"created": created, "skipped": skipped},
+            request=request,
+        )
+        db.add(
+            MrBulkJob(
+                job_type="import",
+                created_by=current.username,
+                row_total=len(body.rows),
+                row_ok=created,
+                row_skipped=skipped,
+                row_error=len(errors),
+                detail={"errors": errors[:50]} if errors else None,
+            )
+        )
         await db.commit()
 
     return ImportCommitResponse(created=created, skipped=skipped, errors=errors)
+
 
 
 
@@ -472,23 +636,38 @@ async def list_bulk_jobs(
     _user=Depends(require_roles("admin", "superadmin")),
 ):
     total = await db.scalar(select(func.count()).select_from(MrBulkJob)) or 0
-    rows = (await db.execute(
-        select(MrBulkJob).order_by(MrBulkJob.created_at.desc())
-        .limit(size).offset((page - 1) * size)
-    )).scalars().all()
+    rows = (
+        (
+            await db.execute(
+                select(MrBulkJob)
+                .order_by(MrBulkJob.created_at.desc())
+                .limit(size)
+                .offset((page - 1) * size)
+            )
+        )
+        .scalars()
+        .all()
+    )
     return {
-        "total": total, "page": page, "size": size,
+        "total": total,
+        "page": page,
+        "size": size,
         "items": [
             {
-                "id": r.id, "job_type": r.job_type, "created_by": r.created_by,
+                "id": r.id,
+                "job_type": r.job_type,
+                "created_by": r.created_by,
                 "created_at": r.created_at.isoformat() if r.created_at else None,
-                "row_total": r.row_total, "row_ok": r.row_ok,
-                "row_skipped": r.row_skipped, "row_error": r.row_error,
+                "row_total": r.row_total,
+                "row_ok": r.row_ok,
+                "row_skipped": r.row_skipped,
+                "row_error": r.row_error,
                 "detail": r.detail,
             }
             for r in rows
         ],
     }
+
 
 
 
@@ -511,14 +690,15 @@ async def get_user(
     reply_rows = reply_q.scalars().all()
 
     grp_q = await db.execute(
-        select(Radusergroup).where(Radusergroup.username == username).order_by(Radusergroup.priority)
+        select(Radusergroup)
+        .where(Radusergroup.username == username)
+        .order_by(Radusergroup.priority)
     )
     grp_rows = grp_q.scalars().all()
 
-    disabled = any(
-        r.attribute == _DISABLED_ATTR and r.value == _DISABLED_VALUE
-        for r in check_rows
-    )
+    disabled = any(r.attribute == _DISABLED_ATTR and r.value == _DISABLED_VALUE for r in check_rows)
+
+    realm = (await _ad_sources(db, [username])).get(username)
 
     return UserDetail(
         username=username,
@@ -526,7 +706,10 @@ async def get_user(
         groups=[RadusergroupRow.model_validate(r) for r in grp_rows],
         check_attrs=[RadcheckRow.model_validate(r) for r in check_rows],
         reply_attrs=[RadreplyRow.model_validate(r) for r in reply_rows],
+        source="directory" if realm else "local",
+        source_realm=realm,
     )
+
 
 
 
@@ -544,34 +727,57 @@ async def update_user(
     if body.password is not None:
         pwd_type = body.password_type or "Cleartext-Password"
         await db.execute(
-            delete(Radcheck).where(and_(
-                Radcheck.username == username,
-                Radcheck.attribute.in_(_PWD_ATTRS),
-            ))
+            delete(Radcheck).where(
+                and_(
+                    Radcheck.username == username,
+                    Radcheck.attribute.in_(_PWD_ATTRS),
+                )
+            )
         )
         db.add(Radcheck(username=username, attribute=pwd_type, op=":=", value=body.password))
         changed["password"] = pwd_type
 
     if body.expiration is not None:
-        await db.execute(delete(Radcheck).where(and_(
-            Radcheck.username == username, Radcheck.attribute == "Expiration"
-        )))
+        await db.execute(
+            delete(Radcheck).where(
+                and_(Radcheck.username == username, Radcheck.attribute == "Expiration")
+            )
+        )
         if body.expiration:
-            db.add(Radcheck(username=username, attribute="Expiration", op=":=", value=body.expiration))
+            db.add(
+                Radcheck(username=username, attribute="Expiration", op=":=", value=body.expiration)
+            )
         changed["expiration"] = body.expiration or None
 
     if body.simultaneous_use is not None:
-        await db.execute(delete(Radcheck).where(and_(
-            Radcheck.username == username, Radcheck.attribute == "Simultaneous-Use"
-        )))
+        await db.execute(
+            delete(Radcheck).where(
+                and_(Radcheck.username == username, Radcheck.attribute == "Simultaneous-Use")
+            )
+        )
         if body.simultaneous_use > 0:
-            db.add(Radcheck(username=username, attribute="Simultaneous-Use", op=":=", value=str(body.simultaneous_use)))
+            db.add(
+                Radcheck(
+                    username=username,
+                    attribute="Simultaneous-Use",
+                    op=":=",
+                    value=str(body.simultaneous_use),
+                )
+            )
         changed["simultaneous_use"] = body.simultaneous_use or None
 
     await db.commit()
-    await audit(db, user_id=current.id, username=current.username,
-                action="user.update", target=username, detail=changed, request=request)
+    await audit(
+        db,
+        user_id=current.id,
+        username=current.username,
+        action="user.update",
+        target=username,
+        detail=changed,
+        request=request,
+    )
     return {"ok": True}
+
 
 
 
@@ -586,9 +792,18 @@ async def delete_user(
     await db.execute(delete(Radcheck).where(Radcheck.username == username))
     await db.execute(delete(Radreply).where(Radreply.username == username))
     await db.execute(delete(Radusergroup).where(Radusergroup.username == username))
+    await _purge_ad_provenance(db, [username])
     await db.commit()
-    await audit(db, user_id=current.id, username=current.username,
-                action="user.delete", target=username, detail={}, request=request)
+    await audit(
+        db,
+        user_id=current.id,
+        username=current.username,
+        action="user.delete",
+        target=username,
+        detail={},
+        request=request,
+    )
+
 
 
 
@@ -600,13 +815,26 @@ async def disable_user(
     current=Depends(require_roles("admin", "superadmin")),
 ):
     await _exists_or_404(username, db)
-    await db.execute(delete(Radcheck).where(and_(
-        Radcheck.username == username, Radcheck.attribute == _DISABLED_ATTR
-    )))
-    db.add(Radcheck(username=username, attribute=_DISABLED_ATTR, op=_DISABLED_OP, value=_DISABLED_VALUE))
+    await db.execute(
+        delete(Radcheck).where(
+            and_(Radcheck.username == username, Radcheck.attribute == _DISABLED_ATTR)
+        )
+    )
+    db.add(
+        Radcheck(
+            username=username, attribute=_DISABLED_ATTR, op=_DISABLED_OP, value=_DISABLED_VALUE
+        )
+    )
     await db.commit()
-    await audit(db, user_id=current.id, username=current.username,
-                action="user.disable", target=username, detail={}, request=request)
+    await audit(
+        db,
+        user_id=current.id,
+        username=current.username,
+        action="user.disable",
+        target=username,
+        detail={},
+        request=request,
+    )
     return {"ok": True}
 
 
@@ -618,15 +846,27 @@ async def enable_user(
     current=Depends(require_roles("admin", "superadmin")),
 ):
     await _exists_or_404(username, db)
-    await db.execute(delete(Radcheck).where(and_(
-        Radcheck.username == username,
-        Radcheck.attribute == _DISABLED_ATTR,
-        Radcheck.value == _DISABLED_VALUE,
-    )))
+    await db.execute(
+        delete(Radcheck).where(
+            and_(
+                Radcheck.username == username,
+                Radcheck.attribute == _DISABLED_ATTR,
+                Radcheck.value == _DISABLED_VALUE,
+            )
+        )
+    )
     await db.commit()
-    await audit(db, user_id=current.id, username=current.username,
-                action="user.enable", target=username, detail={}, request=request)
+    await audit(
+        db,
+        user_id=current.id,
+        username=current.username,
+        action="user.enable",
+        target=username,
+        detail={},
+        request=request,
+    )
     return {"ok": True}
+
 
 
 
@@ -687,6 +927,7 @@ async def delete_check_attr(
 
 
 
+
 @router.post("/{username}/reply", status_code=201, response_model=RadreplyRow)
 async def add_reply_attr(
     username: str,
@@ -744,6 +985,7 @@ async def delete_reply_attr(
 
 
 
+
 @router.put("/{username}/groups")
 async def set_groups(
     username: str,
@@ -758,10 +1000,17 @@ async def set_groups(
         if g.strip():
             db.add(Radusergroup(username=username, groupname=g.strip(), priority=i))
     await db.commit()
-    await audit(db, user_id=current.id, username=current.username,
-                action="user.groups.set", target=username,
-                detail={"groups": body.groups}, request=request)
+    await audit(
+        db,
+        user_id=current.id,
+        username=current.username,
+        action="user.groups.set",
+        target=username,
+        detail={"groups": body.groups},
+        request=request,
+    )
     return {"ok": True}
+
 
 
 
@@ -935,20 +1184,22 @@ async def get_user_timeline(
     for ae in auth_rows:
         if not ae.authdate:
             continue
-        events.append(TimelineEvent(
-            type="auth",
-            timestamp=ae.authdate,
-            auth_log_id=ae.id,
-            reply=ae.reply,
-            authmethod=ae.authmethod,
-            failurereason=ae.failurereason,
-            auth_latency_ms=ae.auth_latency_ms,
-            nasipaddress=str(ae.nasipaddress).split("/")[0] if ae.nasipaddress else None,
-            nasidentifier=ae.nasidentifier,
-            callingstationid=ae.callingstationid,
-            calledstationid=ae.calledstationid,
-            geo_client=_geo(ae.callingstationid),
-        ))
+        events.append(
+            TimelineEvent(
+                type="auth",
+                timestamp=ae.authdate,
+                auth_log_id=ae.id,
+                reply=ae.reply,
+                authmethod=ae.authmethod,
+                failurereason=ae.failurereason,
+                auth_latency_ms=ae.auth_latency_ms,
+                nasipaddress=str(ae.nasipaddress).split("/")[0] if ae.nasipaddress else None,
+                nasidentifier=ae.nasidentifier,
+                callingstationid=ae.callingstationid,
+                calledstationid=ae.calledstationid,
+                geo_client=_geo(ae.callingstationid),
+            )
+        )
 
     events.sort(key=lambda e: e.timestamp or datetime.min, reverse=True)
     return events[:limit]

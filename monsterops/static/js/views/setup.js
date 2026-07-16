@@ -101,19 +101,19 @@ export function SetupView() {
   el.style.cssText = 'width:100%;height:100%;';
   el.attachShadow({ mode: 'open' }).innerHTML = TEMPLATE;
 
-  const shadow   = el.shadowRoot;
-  const form     = shadow.getElementById('form');
-  const spinner  = shadow.getElementById('spinner');
-  const btnText  = shadow.getElementById('btn-text');
-  const errorEl  = shadow.getElementById('error');
-  const btn      = shadow.querySelector('.btn');
+  const shadow = el.shadowRoot;
+  const form = shadow.getElementById('form');
+  const spinner = shadow.getElementById('spinner');
+  const btnText = shadow.getElementById('btn-text');
+  const errorEl = shadow.getElementById('error');
+  const btn = shadow.querySelector('.btn');
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const username = shadow.getElementById('username').value.trim();
-    const email    = shadow.getElementById('email').value.trim() || null;
+    const email = shadow.getElementById('email').value.trim() || null;
     const password = shadow.getElementById('password').value;
-    const confirm  = shadow.getElementById('confirm').value;
+    const confirm = shadow.getElementById('confirm').value;
 
     if (password !== confirm) {
       errorEl.textContent = 'Passwords do not match';

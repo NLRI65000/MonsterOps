@@ -3,26 +3,26 @@ from __future__ import annotations
 import asyncio
 from logging.config import fileConfig
 
-from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
+import monsterops.modules.accounting.models  # noqa: F401
+import monsterops.modules.apikeys.models  # noqa: F401
+
+import monsterops.modules.auth.models  # noqa: F401
+import monsterops.modules.auth_logs.models  # noqa: F401
+import monsterops.modules.automation.models  # noqa: F401
+import monsterops.modules.groups.models  # noqa: F401
+import monsterops.modules.integrations.models  # noqa: F401
+import monsterops.modules.ip_pools.models  # noqa: F401
+import monsterops.modules.nas.models  # noqa: F401
+import monsterops.modules.notifications.models  # noqa: F401
+import monsterops.modules.scheduler.models  # noqa: F401
+import monsterops.modules.users.models  # noqa: F401
+import monsterops.modules.webhooks.models  # noqa: F401
+from alembic import context
 from monsterops.config import settings
 from monsterops.database import Base
-
-import monsterops.modules.auth.models          # noqa: F401
-import monsterops.modules.users.models         # noqa: F401
-import monsterops.modules.groups.models        # noqa: F401
-import monsterops.modules.nas.models           # noqa: F401
-import monsterops.modules.accounting.models    # noqa: F401
-import monsterops.modules.auth_logs.models     # noqa: F401
-import monsterops.modules.ip_pools.models      # noqa: F401
-import monsterops.modules.notifications.models # noqa: F401
-import monsterops.modules.integrations.models  # noqa: F401
-import monsterops.modules.apikeys.models       # noqa: F401
-import monsterops.modules.scheduler.models     # noqa: F401
-import monsterops.modules.webhooks.models      # noqa: F401
-import monsterops.modules.automation.models   # noqa: F401
 
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.database_url)

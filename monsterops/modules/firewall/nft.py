@@ -1,3 +1,4 @@
+
 from __future__ import annotations
 
 import asyncio
@@ -18,7 +19,9 @@ def _wrap_priv(argv: list[str]) -> list[str]:
     return ["sudo", "-n", *argv]
 
 
-async def _run(argv: list[str], *, stdin: str | None = None, timeout: float = 15.0) -> tuple[int, str, str]:
+async def _run(
+    argv: list[str], *, stdin: str | None = None, timeout: float = 15.0
+) -> tuple[int, str, str]:
     cmd = _wrap_priv(argv)
     try:
         proc = await asyncio.create_subprocess_exec(
@@ -76,17 +79,18 @@ async def delete_table() -> tuple[bool, str]:
     return True, ""
 
 
-async def add_element(set_name: str, element: str,
-                      timeout_seconds: int | None = None) -> tuple[bool, str]:
+async def add_element(
+    set_name: str, element: str, timeout_seconds: int | None = None
+) -> tuple[bool, str]:
     inner = [element]
     if timeout_seconds:
         inner += ["timeout", f"{int(timeout_seconds)}s"]
-    rc, _out, err = await _run(
-        [_NFT, "add", "element", *TABLE.split(), set_name, "{", *inner, "}"])
+    rc, _out, err = await _run([_NFT, "add", "element", *TABLE.split(), set_name, "{", *inner, "}"])
     return rc == 0, err.strip()
 
 
 async def delete_element(set_name: str, element: str) -> tuple[bool, str]:
     rc, _out, err = await _run(
-        [_NFT, "delete", "element", *TABLE.split(), set_name, "{", element, "}"])
+        [_NFT, "delete", "element", *TABLE.split(), set_name, "{", element, "}"]
+    )
     return rc == 0, err.strip()

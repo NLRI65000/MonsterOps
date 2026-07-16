@@ -17,17 +17,19 @@ from .schemas import ApiKeyCreate, ApiKeyCreated, ApiKeyOut
 
 router = APIRouter(prefix="/api/apikeys", tags=["apikeys"])
 
-_VALID_SCOPES = frozenset({
-    "sessions.read",
-    "users.read",
-    "auth_logs.read",
-    "groups.read",
-    "nas.read",
-    "users.write",
-    "groups.write",
-    "nas.write",
-    "coa.send",
-})
+_VALID_SCOPES = frozenset(
+    {
+        "sessions.read",
+        "users.read",
+        "auth_logs.read",
+        "groups.read",
+        "nas.read",
+        "users.write",
+        "groups.write",
+        "nas.write",
+        "coa.send",
+    }
+)
 
 
 def _hash_key(key: str) -> str:
@@ -39,6 +41,7 @@ def _generate_key() -> tuple[str, str]:
     key = f"mr_{random_part}"
     prefix = key[:11]
     return key, prefix
+
 
 
 
@@ -68,6 +71,7 @@ def _check_scope(key: ApiKey, scope: str) -> None:
 
 
 
+
 @router.get("", response_model=list[ApiKeyOut])
 async def list_api_keys(
     db: AsyncSession = Depends(get_db),
@@ -86,7 +90,9 @@ async def create_api_key(
 ):
     bad = [s for s in body.scopes if s not in _VALID_SCOPES]
     if bad:
-        raise HTTPException(400, f"Invalid scopes: {', '.join(bad)}. Valid: {', '.join(sorted(_VALID_SCOPES))}")
+        raise HTTPException(
+            400, f"Invalid scopes: {', '.join(bad)}. Valid: {', '.join(sorted(_VALID_SCOPES))}"
+        )
 
     plaintext, prefix = _generate_key()
     row = ApiKey(
@@ -101,10 +107,15 @@ async def create_api_key(
     await db.commit()
     await db.refresh(row)
     return ApiKeyCreated(
-        id=row.id, name=row.name, key_prefix=row.key_prefix,
-        scopes=row.scopes or [], created_by=row.created_by,
-        last_used_at=row.last_used_at, expires_at=row.expires_at,
-        revoked=bool(row.revoked), created_at=row.created_at,
+        id=row.id,
+        name=row.name,
+        key_prefix=row.key_prefix,
+        scopes=row.scopes or [],
+        created_by=row.created_by,
+        last_used_at=row.last_used_at,
+        expires_at=row.expires_at,
+        revoked=bool(row.revoked),
+        created_at=row.created_at,
         plaintext_key=plaintext,
     )
 
@@ -134,6 +145,7 @@ async def ext_sessions(
     _check_scope(key, "sessions.read")
     from monsterops.modules.accounting.models import Radacct
     from monsterops.modules.accounting.schemas import RadacctOut
+
     q = await db.execute(
         select(Radacct)
         .where(Radacct.acctstoptime.is_(None))
@@ -157,12 +169,15 @@ async def ext_user(
 ) -> Any:
     _check_scope(key, "users.read")
     from monsterops.modules.users.models import Radcheck, Radusergroup
-    checks = (await db.execute(
-        select(Radcheck).where(Radcheck.username == username)
-    )).scalars().all()
-    groups = (await db.execute(
-        select(Radusergroup).where(Radusergroup.username == username)
-    )).scalars().all()
+
+    checks = (
+        (await db.execute(select(Radcheck).where(Radcheck.username == username))).scalars().all()
+    )
+    groups = (
+        (await db.execute(select(Radusergroup).where(Radusergroup.username == username)))
+        .scalars()
+        .all()
+    )
     return {
         "username": username,
         "attributes": [{"attribute": c.attribute, "op": c.op, "value": c.value} for c in checks],
@@ -180,12 +195,14 @@ async def ext_coa_disconnect(
     acctuniqueid = body.get("acctuniqueid") or ""
     if not acctuniqueid:
         raise HTTPException(400, "acctuniqueid is required")
-    from monsterops.modules.accounting.router import _resolve_session_and_nas
     from monsterops.modules.accounting.coa import send_disconnect
+    from monsterops.modules.accounting.router import _resolve_session_and_nas
+
     session, nas = await _resolve_session_and_nas(acctuniqueid, db)
     nas_ip = str(session.nasipaddress).split("/")[0]
     result = await send_disconnect(
-        nas_ip=nas_ip, secret=nas.secret,
+        nas_ip=nas_ip,
+        secret=nas.secret,
         username=session.username or "",
         session_id=session.acctsessionid,
         calling_station=session.callingstationid or None,

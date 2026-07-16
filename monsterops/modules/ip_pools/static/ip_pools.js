@@ -2,18 +2,23 @@ import { router } from '/js/router.js';
 import { api } from '/js/api.js';
 import { toast } from '/js/components/app-toast.js';
 import { confirmDialog } from '/js/components/app-confirm.js';
-import { emptyStateHTML, skeletonRows, skeletonBlock } from '/js/utils/empty.js';
-import { setFieldError, clearFieldErrors, applyServerErrors } from '/js/utils/form.js';
+import { emptyStateHTML, skeletonBlock, skeletonRows } from '/js/utils/empty.js';
+import { applyServerErrors, clearFieldErrors, setFieldError } from '/js/utils/form.js';
 
 function escHtml(s) {
-  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(
+    /"/g,
+    '&quot;',
+  );
 }
 
 function fmtDate(iso) {
   if (!iso) return '—';
   const d = new Date(iso);
   const now = new Date();
-  if (d < now) return `<span style="color:var(--color-danger)">Expired ${d.toLocaleString()}</span>`;
+  if (d < now) {
+    return `<span style="color:var(--color-danger)">Expired ${d.toLocaleString()}</span>`;
+  }
   return d.toLocaleString();
 }
 
@@ -21,9 +26,9 @@ class IpPoolsView extends HTMLElement {
   constructor() {
     super();
     this._pools = [];
-    this._selected = null;   // pool_name string
+    this._selected = null; // pool_name string
     this._entries = [];
-    this._filter = 'all';    // 'all' | 'assigned' | 'free'
+    this._filter = 'all'; // 'all' | 'assigned' | 'free'
     this._offset = 0;
     this._pageSize = 500;
     this.attachShadow({ mode: 'open' });
@@ -476,13 +481,19 @@ class IpPoolsView extends HTMLElement {
     const sr = this.shadowRoot;
 
     // New pool modal
-    sr.getElementById('btn-new-pool').addEventListener('click', () => this._openModal('modal-create'));
+    sr.getElementById('btn-new-pool').addEventListener(
+      'click',
+      () => this._openModal('modal-create'),
+    );
     sr.getElementById('c-cancel').addEventListener('click', () => this._closeModal('modal-create'));
     sr.getElementById('c-submit').addEventListener('click', () => this._submitCreatePool());
     this._bindModeToggle('c-mode-cidr', 'c-mode-range', 'c-cidr-field', 'c-range-field');
 
     // Add IPs modal
-    sr.getElementById('a-cancel').addEventListener('click', () => this._closeModal('modal-add-ips'));
+    sr.getElementById('a-cancel').addEventListener(
+      'click',
+      () => this._closeModal('modal-add-ips'),
+    );
     sr.getElementById('a-submit').addEventListener('click', () => this._submitAddIPs());
     this._bindModeToggle('a-mode-cidr', 'a-mode-range', 'a-cidr-field', 'a-range-field');
 
@@ -503,30 +514,37 @@ class IpPoolsView extends HTMLElement {
     sr.getElementById('btn-refresh-entries').addEventListener('click', () => this._loadEntries());
 
     // Filter buttons
-    sr.querySelectorAll('.filter-btn[data-f]').forEach(btn => {
+    sr.querySelectorAll('.filter-btn[data-f]').forEach((btn) => {
       btn.addEventListener('click', () => {
         this._filter = btn.dataset.f;
         this._offset = 0;
-        sr.querySelectorAll('.filter-btn[data-f]').forEach(b => b.classList.remove('active'));
+        sr.querySelectorAll('.filter-btn[data-f]').forEach((b) => b.classList.remove('active'));
         btn.classList.add('active');
         this._loadEntries();
       });
     });
 
     // Close modals when clicking overlay
-    ['modal-create', 'modal-add-ips', 'modal-rename'].forEach(id => {
+    ['modal-create', 'modal-add-ips', 'modal-rename'].forEach((id) => {
       sr.getElementById(id).addEventListener('click', (e) => {
         if (e.target.id === id) this._closeModal(id);
       });
     });
 
     // Enter key on inputs submits the active modal
-    sr.getElementById('c-pool-name').addEventListener('keydown', e => { if (e.key === 'Enter') this._submitCreatePool(); });
-    sr.getElementById('r-new-name').addEventListener('keydown', e => { if (e.key === 'Enter') this._submitRename(); });
+    sr.getElementById('c-pool-name').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') this._submitCreatePool();
+    });
+    sr.getElementById('r-new-name').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') this._submitRename();
+    });
 
     // Pagination
     sr.getElementById('btn-prev').addEventListener('click', () => {
-      if (this._offset > 0) { this._offset = Math.max(0, this._offset - this._pageSize); this._loadEntries(); }
+      if (this._offset > 0) {
+        this._offset = Math.max(0, this._offset - this._pageSize);
+        this._loadEntries();
+      }
     });
     sr.getElementById('btn-next').addEventListener('click', () => {
       this._offset += this._pageSize;
@@ -581,7 +599,7 @@ class IpPoolsView extends HTMLElement {
       });
       return;
     }
-    list.innerHTML = this._pools.map(p => {
+    list.innerHTML = this._pools.map((p) => {
       const pct = p.total > 0 ? Math.round(p.assigned / p.total * 100) : 0;
       const active = p.pool_name === this._selected ? 'active' : '';
       return `
@@ -593,7 +611,7 @@ class IpPoolsView extends HTMLElement {
       `;
     }).join('');
 
-    list.querySelectorAll('.pool-item').forEach(el => {
+    list.querySelectorAll('.pool-item').forEach((el) => {
       el.addEventListener('click', () => this._selectPool(el.dataset.pool));
     });
   }
@@ -604,12 +622,12 @@ class IpPoolsView extends HTMLElement {
     this._filter = 'all';
 
     // Update active state in list
-    this.shadowRoot.querySelectorAll('.pool-item').forEach(el => {
+    this.shadowRoot.querySelectorAll('.pool-item').forEach((el) => {
       el.classList.toggle('active', el.dataset.pool === name);
     });
 
     // Reset filter UI
-    this.shadowRoot.querySelectorAll('.filter-btn[data-f]').forEach(b => {
+    this.shadowRoot.querySelectorAll('.filter-btn[data-f]').forEach((b) => {
       b.classList.toggle('active', b.dataset.f === 'all');
     });
 
@@ -637,7 +655,9 @@ class IpPoolsView extends HTMLElement {
         limit: this._pageSize,
         offset: this._offset,
       });
-      this._entries = await api.get(`/ip-pools/${encodeURIComponent(this._selected)}/entries?${params}`);
+      this._entries = await api.get(
+        `/ip-pools/${encodeURIComponent(this._selected)}/entries?${params}`,
+      );
       this._renderEntries();
     } catch {
       body.innerHTML = emptyStateHTML({
@@ -695,18 +715,23 @@ class IpPoolsView extends HTMLElement {
           </tr>
         </thead>
         <tbody>
-          ${this._entries.map(e => {
-            const nas = (e.nasipaddress && e.nasipaddress !== '0.0.0.0') ? escHtml(e.nasipaddress) : '—';
-            const statusBadge = e.assigned
-              ? `<span class="badge badge-assigned">In Use</span>`
-              : `<span class="badge badge-free">Free</span>`;
-            const actions = e.assigned
-              ? `<button class="btn btn-sm btn-warn" data-action="release" data-id="${e.id}">Release</button>
+          ${
+      this._entries.map((e) => {
+        const nas = (e.nasipaddress && e.nasipaddress !== '0.0.0.0')
+          ? escHtml(e.nasipaddress)
+          : '—';
+        const statusBadge = e.assigned
+          ? `<span class="badge badge-assigned">In Use</span>`
+          : `<span class="badge badge-free">Free</span>`;
+        const actions = e.assigned
+          ? `<button class="btn btn-sm btn-warn" data-action="release" data-id="${e.id}">Release</button>
                  <button class="btn btn-sm btn-danger" data-action="remove" data-id="${e.id}" style="margin-left:4px;">✕</button>`
-              : `<button class="btn btn-sm btn-danger" data-action="remove" data-id="${e.id}">✕</button>`;
-            return `
+          : `<button class="btn btn-sm btn-danger" data-action="remove" data-id="${e.id}">✕</button>`;
+        return `
               <tr>
-                <td style="font-weight:500;font-family:monospace;">${escHtml(e.framedipaddress)}</td>
+                <td style="font-weight:500;font-family:monospace;">${
+          escHtml(e.framedipaddress)
+        }</td>
                 <td>${statusBadge}</td>
                 <td style="color:var(--color-muted);">${escHtml(e.username) || '—'}</td>
                 <td style="color:var(--color-muted);font-family:monospace;font-size:0.8rem;">${nas}</td>
@@ -714,16 +739,17 @@ class IpPoolsView extends HTMLElement {
                 <td>${actions}</td>
               </tr>
             `;
-          }).join('')}
+      }).join('')
+    }
         </tbody>
       </table>
     `;
 
-    body.querySelectorAll('[data-action]').forEach(btn => {
+    body.querySelectorAll('[data-action]').forEach((btn) => {
       btn.addEventListener('click', () => {
         const id = parseInt(btn.dataset.id, 10);
         if (btn.dataset.action === 'release') this._releaseIP(id);
-        if (btn.dataset.action === 'remove')  this._removeIP(id);
+        if (btn.dataset.action === 'remove') this._removeIP(id);
       });
     });
   }
@@ -736,21 +762,33 @@ class IpPoolsView extends HTMLElement {
     const nameInput = sr.getElementById('c-pool-name');
     const name = nameInput.value.trim();
     let ok = true;
-    if (!name) { setFieldError(nameInput, 'Pool name is required'); ok = false; }
+    if (!name) {
+      setFieldError(nameInput, 'Pool name is required');
+      ok = false;
+    }
 
     const isCidr = sr.getElementById('c-mode-cidr').classList.contains('active');
     const body = { pool_name: name };
     if (isCidr) {
       const cidrInput = sr.getElementById('c-cidr');
       body.cidr = cidrInput.value.trim();
-      if (!body.cidr) { setFieldError(cidrInput, 'Enter a CIDR range'); ok = false; }
+      if (!body.cidr) {
+        setFieldError(cidrInput, 'Enter a CIDR range');
+        ok = false;
+      }
     } else {
       const startInput = sr.getElementById('c-start-ip');
       const endInput = sr.getElementById('c-end-ip');
       body.start_ip = startInput.value.trim();
-      body.end_ip   = endInput.value.trim();
-      if (!body.start_ip) { setFieldError(startInput, 'Enter a start IP'); ok = false; }
-      if (!body.end_ip)   { setFieldError(endInput, 'Enter an end IP'); ok = false; }
+      body.end_ip = endInput.value.trim();
+      if (!body.start_ip) {
+        setFieldError(startInput, 'Enter a start IP');
+        ok = false;
+      }
+      if (!body.end_ip) {
+        setFieldError(endInput, 'Enter an end IP');
+        ok = false;
+      }
     }
     if (!ok) return;
 
@@ -763,9 +801,15 @@ class IpPoolsView extends HTMLElement {
       await this._loadPools();
       await this._selectPool(name);
     } catch (e) {
-      const resolve = (f) => sr.getElementById({
-        pool_name: 'c-pool-name', cidr: 'c-cidr', start_ip: 'c-start-ip', end_ip: 'c-end-ip',
-      }[f]);
+      const resolve = (f) =>
+        sr.getElementById(
+          {
+            pool_name: 'c-pool-name',
+            cidr: 'c-cidr',
+            start_ip: 'c-start-ip',
+            end_ip: 'c-end-ip',
+          }[f],
+        );
       // Prefer FastAPI 422 field errors; the endpoint otherwise raises string-detail
       // HTTPExceptions ("… already exists", "Invalid CIDR: …") — map those to a field too.
       if (applyServerErrors(sr, e, resolve)) return;
@@ -782,11 +826,17 @@ class IpPoolsView extends HTMLElement {
     const body = {};
     if (isCidr) {
       body.cidr = sr.getElementById('a-cidr').value.trim();
-      if (!body.cidr) { toast('Enter a CIDR', 'error'); return; }
+      if (!body.cidr) {
+        toast('Enter a CIDR', 'error');
+        return;
+      }
     } else {
       body.start_ip = sr.getElementById('a-start-ip').value.trim();
-      body.end_ip   = sr.getElementById('a-end-ip').value.trim();
-      if (!body.start_ip || !body.end_ip) { toast('Enter start and end IP', 'error'); return; }
+      body.end_ip = sr.getElementById('a-end-ip').value.trim();
+      if (!body.start_ip || !body.end_ip) {
+        toast('Enter start and end IP', 'error');
+        return;
+      }
     }
 
     try {
@@ -806,19 +856,24 @@ class IpPoolsView extends HTMLElement {
 
   async _submitRename() {
     const newName = this.shadowRoot.getElementById('r-new-name').value.trim();
-    if (!newName) { toast('Pool name is required', 'error'); return; }
-    if (newName === this._selected) { this._closeModal('modal-rename'); return; }
+    if (!newName) {
+      toast('Pool name is required', 'error');
+      return;
+    }
+    if (newName === this._selected) {
+      this._closeModal('modal-rename');
+      return;
+    }
 
     try {
       await api.patch(`/ip-pools/${encodeURIComponent(this._selected)}`, { new_name: newName });
       toast(`Renamed to "${newName}"`, 'success');
       this._closeModal('modal-rename');
-      const old = this._selected;
       this._selected = newName;
       await this._loadPools();
       this.shadowRoot.getElementById('detail-title').textContent = newName;
       // Re-select to highlight correct row
-      this.shadowRoot.querySelectorAll('.pool-item').forEach(el => {
+      this.shadowRoot.querySelectorAll('.pool-item').forEach((el) => {
         el.classList.toggle('active', el.dataset.pool === newName);
       });
     } catch (e) {
@@ -828,7 +883,14 @@ class IpPoolsView extends HTMLElement {
 
   async _confirmDeletePool() {
     const name = this._selected;
-    if (!(await confirmDialog(`Delete pool "${name}" and all its ${this._pools.find(p => p.pool_name === name)?.total ?? '?'} IPs?\n\nThis cannot be undone.`, { title: 'Delete pool', danger: true }))) return;
+    if (
+      !(await confirmDialog(
+        `Delete pool "${name}" and all its ${
+          this._pools.find((p) => p.pool_name === name)?.total ?? '?'
+        } IPs?\n\nThis cannot be undone.`,
+        { title: 'Delete pool', danger: true },
+      ))
+    ) return;
 
     try {
       await api.delete(`/ip-pools/${encodeURIComponent(name)}`);
@@ -845,7 +907,7 @@ class IpPoolsView extends HTMLElement {
   async _releaseIP(id) {
     try {
       await api.post(`/ip-pools/${encodeURIComponent(this._selected)}/entries/${id}/release`, {});
-      const entry = this._entries.find(e => e.id === id);
+      const entry = this._entries.find((e) => e.id === id);
       toast(`Released ${entry?.framedipaddress ?? 'IP'}`, 'success');
       await this._loadPools();
       await this._loadEntries();
@@ -855,9 +917,15 @@ class IpPoolsView extends HTMLElement {
   }
 
   async _removeIP(id) {
-    const entry = this._entries.find(e => e.id === id);
+    const entry = this._entries.find((e) => e.id === id);
     const ip = entry?.framedipaddress ?? 'this IP';
-    if (entry?.assigned && !(await confirmDialog(`${ip} is currently assigned to "${entry.username}". Remove it from the pool anyway?`, { title: 'Remove IP', danger: true }))) return;
+    if (
+      entry?.assigned &&
+      !(await confirmDialog(
+        `${ip} is currently assigned to "${entry.username}". Remove it from the pool anyway?`,
+        { title: 'Remove IP', danger: true },
+      ))
+    ) return;
 
     try {
       await api.delete(`/ip-pools/${encodeURIComponent(this._selected)}/entries/${id}`);

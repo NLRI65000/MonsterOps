@@ -74,14 +74,15 @@ export function applyServerErrors(root, err, resolve) {
   let placed = false;
   for (const [name, message] of Object.entries(fields)) {
     const dash = name.replace(/_/g, '-'); // forms often id fields with hyphens
-    const input = resolve
-      ? resolve(name)
-      : (root.querySelector(`#${CSS.escape(name)}`)
-        || root.querySelector(`[name="${CSS.escape(name)}"]`)
-        || root.querySelector(`#m-${CSS.escape(name)}`)
-        || root.querySelector(`#m-${CSS.escape(dash)}`)
-        || root.querySelector(`#${CSS.escape(dash)}`));
-    if (input) { setFieldError(input, message); placed = true; }
+    const input = resolve ? resolve(name) : (root.querySelector(`#${CSS.escape(name)}`) ||
+      root.querySelector(`[name="${CSS.escape(name)}"]`) ||
+      root.querySelector(`#m-${CSS.escape(name)}`) ||
+      root.querySelector(`#m-${CSS.escape(dash)}`) ||
+      root.querySelector(`#${CSS.escape(dash)}`));
+    if (input) {
+      setFieldError(input, message);
+      placed = true;
+    }
   }
   return placed;
 }

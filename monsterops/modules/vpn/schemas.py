@@ -1,3 +1,4 @@
+
 from __future__ import annotations
 
 import base64
@@ -71,6 +72,7 @@ def _valid_ips(values: list[str], what: str) -> str:
         except ValueError:
             raise ValueError(f"invalid {what}: {raw!r}")
     return ",".join(out)
+
 
 
 
@@ -151,8 +153,11 @@ class TunnelBase(BaseModel):
     @model_validator(mode="after")
     def _require_per_type(self) -> "TunnelBase":
         if self.type == "wireguard":
-            missing = [f for f in ("wg_address", "wg_peer_public_key", "wg_peer_host")
-                       if not getattr(self, f)]
+            missing = [
+                f
+                for f in ("wg_address", "wg_peer_public_key", "wg_peer_host")
+                if not getattr(self, f)
+            ]
             if missing:
                 raise ValueError(f"WireGuard tunnel requires: {', '.join(missing)}")
         elif self.type == "l2tp-ipsec":
@@ -182,6 +187,7 @@ class TunnelUpdate(TunnelBase):
     wg_private_key: str | None = None
     l2tp_psk: str | None = Field(None, max_length=128)
     l2tp_password: str | None = Field(None, max_length=128)
+
 
 
 
@@ -225,18 +231,31 @@ class TunnelOut(BaseModel):
     @classmethod
     def from_model(cls, t) -> "TunnelOut":
         return cls(
-            id=t.id, name=t.name, type=t.type, enabled=t.enabled,
-            description=t.description, routes=cls._split(t.routes),
-            wg_public_key=t.wg_public_key, wg_address=t.wg_address,
-            wg_listen_port=t.wg_listen_port, wg_peer_public_key=t.wg_peer_public_key,
-            wg_peer_host=t.wg_peer_host, wg_peer_port=t.wg_peer_port,
-            wg_persistent_keepalive=t.wg_persistent_keepalive, wg_mtu=t.wg_mtu,
+            id=t.id,
+            name=t.name,
+            type=t.type,
+            enabled=t.enabled,
+            description=t.description,
+            routes=cls._split(t.routes),
+            wg_public_key=t.wg_public_key,
+            wg_address=t.wg_address,
+            wg_listen_port=t.wg_listen_port,
+            wg_peer_public_key=t.wg_peer_public_key,
+            wg_peer_host=t.wg_peer_host,
+            wg_peer_port=t.wg_peer_port,
+            wg_persistent_keepalive=t.wg_persistent_keepalive,
+            wg_mtu=t.wg_mtu,
             wg_dns=cls._split(t.wg_dns),
-            l2tp_gateway=t.l2tp_gateway, l2tp_username=t.l2tp_username,
+            l2tp_gateway=t.l2tp_gateway,
+            l2tp_username=t.l2tp_username,
             l2tp_has_secrets=bool(t.l2tp_psk and t.l2tp_password),
-            oper_state=t.oper_state, iface=t.iface, rx_bytes=t.rx_bytes,
-            tx_bytes=t.tx_bytes, last_handshake_at=t.last_handshake_at,
-            last_error=t.last_error, last_status_at=t.last_status_at,
+            oper_state=t.oper_state,
+            iface=t.iface,
+            rx_bytes=t.rx_bytes,
+            tx_bytes=t.tx_bytes,
+            last_handshake_at=t.last_handshake_at,
+            last_error=t.last_error,
+            last_status_at=t.last_status_at,
             created_at=t.created_at,
         )
 

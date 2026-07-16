@@ -7,16 +7,28 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from monsterops.database import get_db
 from monsterops.modules.accounting.models import Radacct
 from monsterops.modules.auth.utils import audit, get_current_user, require_roles
-from monsterops.radius_reload import restart_freeradius
 from monsterops.modules.nas.radius_attr_hints import get_hints
+from monsterops.radius_reload import restart_freeradius
+
 from .models import Nas, NasGroup, NasGroupMember, RadiusGroupNasGroup
 from .schemas import (
-    NasCreate, NasListItem, NasListResponse, NasOut, NasSessionOut, NasUpdate,
-    NasGroupCreate, NasGroupOut, NasGroupListItem, NasGroupListResponse, NasGroupUpdate,
-    NasGroupMemberOut, RadiusGroupLink,
+    NasCreate,
+    NasGroupCreate,
+    NasGroupListItem,
+    NasGroupListResponse,
+    NasGroupMemberOut,
+    NasGroupOut,
+    NasGroupUpdate,
+    NasListItem,
+    NasListResponse,
+    NasOut,
+    NasSessionOut,
+    NasUpdate,
+    RadiusGroupLink,
 )
 
 router = APIRouter(prefix="/api/nas", tags=["nas"])
+
 
 
 
@@ -35,6 +47,7 @@ async def _ng_or_404(ng_id: int, db: AsyncSession) -> NasGroup:
 
 
 
+
 @router.get("", response_model=NasListResponse)
 async def list_nas(
     page: int = Query(1, ge=1),
@@ -49,9 +62,15 @@ async def list_nas(
         base = base.where(Nas.nasname.ilike(term) | Nas.shortname.ilike(term))
 
     total = await db.scalar(select(func.count()).select_from(base.subquery())) or 0
-    rows = (await db.execute(
-        base.order_by(Nas.shortname, Nas.nasname).limit(size).offset((page - 1) * size)
-    )).scalars().all()
+    rows = (
+        (
+            await db.execute(
+                base.order_by(Nas.shortname, Nas.nasname).limit(size).offset((page - 1) * size)
+            )
+        )
+        .scalars()
+        .all()
+    )
 
     if not rows:
         return NasListResponse(total=total, page=page, size=size, items=[])
@@ -66,7 +85,8 @@ async def list_nas(
 
     items = [
         NasListItem(
-            id=r.id, nasname=r.nasname,
+            id=r.id,
+            nasname=r.nasname,
             shortname=r.shortname or r.nasname,
             type=r.type or "other",
             description=r.description,
@@ -88,15 +108,28 @@ async def create_nas(
     if await db.scalar(select(func.count()).select_from(Nas).where(Nas.nasname == body.nasname)):
         raise HTTPException(409, f"NAS '{body.nasname}' already exists")
 
-    row = Nas(nasname=body.nasname, shortname=body.shortname, type=body.type,
-              ports=body.ports, secret=body.secret, server=body.server,
-              community=body.community, description=body.description)
+    row = Nas(
+        nasname=body.nasname,
+        shortname=body.shortname,
+        type=body.type,
+        ports=body.ports,
+        secret=body.secret,
+        server=body.server,
+        community=body.community,
+        description=body.description,
+    )
     db.add(row)
     await db.commit()
     await db.refresh(row)
-    await audit(db, user_id=current.id, username=current.username,
-                action="nas.create", target=body.nasname,
-                detail={"shortname": body.shortname}, request=request)
+    await audit(
+        db,
+        user_id=current.id,
+        username=current.username,
+        action="nas.create",
+        target=body.nasname,
+        detail={"shortname": body.shortname},
+        request=request,
+    )
     background_tasks.add_task(restart_freeradius)
     return NasOut.model_validate(row)
 
@@ -108,7 +141,9 @@ async def get_nas(nas_id: int, db: AsyncSession = Depends(get_db), _user=Depends
 
 @router.put("/{nas_id}", response_model=NasOut)
 async def update_nas(
-    nas_id: int, body: NasUpdate, request: Request,
+    nas_id: int,
+    body: NasUpdate,
+    request: Request,
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     current=Depends(require_roles("admin", "superadmin")),
@@ -117,8 +152,11 @@ async def update_nas(
     changed: list[str] = []
 
     if body.nasname is not None and body.nasname != row.nasname:
-        if await db.scalar(select(func.count()).select_from(Nas)
-                           .where(Nas.nasname == body.nasname, Nas.id != nas_id)):
+        if await db.scalar(
+            select(func.count())
+            .select_from(Nas)
+            .where(Nas.nasname == body.nasname, Nas.id != nas_id)
+        ):
             raise HTTPException(409, f"NAS '{body.nasname}' already exists")
         row.nasname = body.nasname
         changed.append("nasname")
@@ -131,16 +169,24 @@ async def update_nas(
     if changed:
         await db.commit()
         await db.refresh(row)
-        await audit(db, user_id=current.id, username=current.username,
-                    action="nas.update", target=row.nasname,
-                    detail={"changed": changed}, request=request)
+        await audit(
+            db,
+            user_id=current.id,
+            username=current.username,
+            action="nas.update",
+            target=row.nasname,
+            detail={"changed": changed},
+            request=request,
+        )
         background_tasks.add_task(restart_freeradius)
     return NasOut.model_validate(row)
 
 
 @router.delete("/{nas_id}", status_code=204)
 async def delete_nas(
-    nas_id: int, request: Request, background_tasks: BackgroundTasks,
+    nas_id: int,
+    request: Request,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     current=Depends(require_roles("admin", "superadmin")),
 ):
@@ -148,8 +194,15 @@ async def delete_nas(
     nasname = row.nasname
     await db.delete(row)
     await db.commit()
-    await audit(db, user_id=current.id, username=current.username,
-                action="nas.delete", target=nasname, detail={}, request=request)
+    await audit(
+        db,
+        user_id=current.id,
+        username=current.username,
+        action="nas.delete",
+        target=nasname,
+        detail={},
+        request=request,
+    )
     background_tasks.add_task(restart_freeradius)
 
 
@@ -167,29 +220,42 @@ async def get_nas_device_groups(
         .order_by(NasGroup.name)
     )
     return [
-        {"member_id": m.id, "group_id": ng.id, "group_name": ng.name, "group_description": ng.description}
+        {
+            "member_id": m.id,
+            "group_id": ng.id,
+            "group_name": ng.name,
+            "group_description": ng.description,
+        }
         for m, ng in q.all()
     ]
 
 
 @router.get("/{nas_id}/sessions", response_model=list[NasSessionOut])
-async def get_nas_sessions(nas_id: int, db: AsyncSession = Depends(get_db), _user=Depends(get_current_user)):
+async def get_nas_sessions(
+    nas_id: int, db: AsyncSession = Depends(get_db), _user=Depends(get_current_user)
+):
     row = await _nas_or_404(nas_id, db)
     q = await db.execute(
         select(Radacct)
         .where(func.host(Radacct.nasipaddress) == row.nasname, Radacct.acctstoptime.is_(None))
-        .order_by(Radacct.acctstarttime.desc()).limit(200)
+        .order_by(Radacct.acctstarttime.desc())
+        .limit(200)
     )
     return [
         NasSessionOut(
-            radacctid=s.radacctid, username=s.username, nasportid=s.nasportid,
+            radacctid=s.radacctid,
+            username=s.username,
+            nasportid=s.nasportid,
             framedipaddress=str(s.framedipaddress) if s.framedipaddress else None,
-            callingstationid=s.callingstationid, acctstarttime=s.acctstarttime,
+            callingstationid=s.callingstationid,
+            acctstarttime=s.acctstarttime,
             acctsessiontime=s.acctsessiontime,
-            acctinputoctets=s.acctinputoctets, acctoutputoctets=s.acctoutputoctets,
+            acctinputoctets=s.acctinputoctets,
+            acctoutputoctets=s.acctoutputoctets,
         )
         for s in q.scalars().all()
     ]
+
 
 
 
@@ -206,9 +272,11 @@ async def list_nas_groups(
         base = base.where(NasGroup.name.ilike(f"%{search}%"))
 
     total = await db.scalar(select(func.count()).select_from(base.subquery())) or 0
-    rows = (await db.execute(
-        base.order_by(NasGroup.name).limit(size).offset((page - 1) * size)
-    )).scalars().all()
+    rows = (
+        (await db.execute(base.order_by(NasGroup.name).limit(size).offset((page - 1) * size)))
+        .scalars()
+        .all()
+    )
 
     if not rows:
         return NasGroupListResponse(total=total, page=page, size=size, items=[])
@@ -229,9 +297,13 @@ async def list_nas_groups(
     rg_map = {r.nas_group_id: r.cnt for r in rg_q.all()}
 
     items = [
-        NasGroupListItem(id=r.id, name=r.name, description=r.description,
-                         device_count=dev_map.get(r.id, 0),
-                         radius_group_count=rg_map.get(r.id, 0))
+        NasGroupListItem(
+            id=r.id,
+            name=r.name,
+            description=r.description,
+            device_count=dev_map.get(r.id, 0),
+            radius_group_count=rg_map.get(r.id, 0),
+        )
         for r in rows
     ]
     return NasGroupListResponse(total=total, page=page, size=size, items=items)
@@ -239,37 +311,54 @@ async def list_nas_groups(
 
 @router.post("/groups/list", response_model=NasGroupOut, status_code=201)
 async def create_nas_group(
-    body: NasGroupCreate, request: Request,
+    body: NasGroupCreate,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     current=Depends(require_roles("admin", "superadmin")),
 ):
-    if await db.scalar(select(func.count()).select_from(NasGroup).where(NasGroup.name == body.name)):
+    if await db.scalar(
+        select(func.count()).select_from(NasGroup).where(NasGroup.name == body.name)
+    ):
         raise HTTPException(409, f"NAS group '{body.name}' already exists")
     row = NasGroup(name=body.name, description=body.description)
     db.add(row)
     await db.commit()
     await db.refresh(row)
-    await audit(db, user_id=current.id, username=current.username,
-                action="nas_group.create", target=body.name, detail={}, request=request)
+    await audit(
+        db,
+        user_id=current.id,
+        username=current.username,
+        action="nas_group.create",
+        target=body.name,
+        detail={},
+        request=request,
+    )
     return NasGroupOut.model_validate(row)
 
 
 @router.get("/groups/{ng_id}", response_model=NasGroupOut)
-async def get_nas_group(ng_id: int, db: AsyncSession = Depends(get_db), _user=Depends(get_current_user)):
+async def get_nas_group(
+    ng_id: int, db: AsyncSession = Depends(get_db), _user=Depends(get_current_user)
+):
     return NasGroupOut.model_validate(await _ng_or_404(ng_id, db))
 
 
 @router.put("/groups/{ng_id}", response_model=NasGroupOut)
 async def update_nas_group(
-    ng_id: int, body: NasGroupUpdate, request: Request,
+    ng_id: int,
+    body: NasGroupUpdate,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     current=Depends(require_roles("admin", "superadmin")),
 ):
     row = await _ng_or_404(ng_id, db)
     changed: list[str] = []
     if body.name is not None and body.name != row.name:
-        if await db.scalar(select(func.count()).select_from(NasGroup)
-                           .where(NasGroup.name == body.name, NasGroup.id != ng_id)):
+        if await db.scalar(
+            select(func.count())
+            .select_from(NasGroup)
+            .where(NasGroup.name == body.name, NasGroup.id != ng_id)
+        ):
             raise HTTPException(409, f"NAS group '{body.name}' already exists")
         row.name = body.name
         changed.append("name")
@@ -279,15 +368,22 @@ async def update_nas_group(
     if changed:
         await db.commit()
         await db.refresh(row)
-        await audit(db, user_id=current.id, username=current.username,
-                    action="nas_group.update", target=row.name,
-                    detail={"changed": changed}, request=request)
+        await audit(
+            db,
+            user_id=current.id,
+            username=current.username,
+            action="nas_group.update",
+            target=row.name,
+            detail={"changed": changed},
+            request=request,
+        )
     return NasGroupOut.model_validate(row)
 
 
 @router.delete("/groups/{ng_id}", status_code=204)
 async def delete_nas_group(
-    ng_id: int, request: Request,
+    ng_id: int,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     current=Depends(require_roles("admin", "superadmin")),
 ):
@@ -295,13 +391,23 @@ async def delete_nas_group(
     name = row.name
     await db.delete(row)
     await db.commit()
-    await audit(db, user_id=current.id, username=current.username,
-                action="nas_group.delete", target=name, detail={}, request=request)
+    await audit(
+        db,
+        user_id=current.id,
+        username=current.username,
+        action="nas_group.delete",
+        target=name,
+        detail={},
+        request=request,
+    )
+
 
 
 
 @router.get("/groups/{ng_id}/members", response_model=list[NasGroupMemberOut])
-async def list_ng_members(ng_id: int, db: AsyncSession = Depends(get_db), _user=Depends(get_current_user)):
+async def list_ng_members(
+    ng_id: int, db: AsyncSession = Depends(get_db), _user=Depends(get_current_user)
+):
     await _ng_or_404(ng_id, db)
     q = await db.execute(
         select(NasGroupMember, Nas)
@@ -310,23 +416,32 @@ async def list_ng_members(ng_id: int, db: AsyncSession = Depends(get_db), _user=
         .order_by(Nas.shortname, Nas.nasname)
     )
     return [
-        NasGroupMemberOut(id=m.id, nas_id=n.id, nasname=n.nasname,
-                          shortname=n.shortname or n.nasname, type=n.type or "other")
+        NasGroupMemberOut(
+            id=m.id,
+            nas_id=n.id,
+            nasname=n.nasname,
+            shortname=n.shortname or n.nasname,
+            type=n.type or "other",
+        )
         for m, n in q.all()
     ]
 
 
 @router.post("/groups/{ng_id}/members", status_code=201)
 async def add_ng_member(
-    ng_id: int, nas_id: int = Query(..., description="NAS device ID to add"),
+    ng_id: int,
+    nas_id: int = Query(..., description="NAS device ID to add"),
     request: Request = None,
     db: AsyncSession = Depends(get_db),
     current=Depends(require_roles("admin", "superadmin")),
 ):
     await _ng_or_404(ng_id, db)
     await _nas_or_404(nas_id, db)
-    if await db.scalar(select(func.count()).select_from(NasGroupMember)
-                       .where(NasGroupMember.nas_group_id == ng_id, NasGroupMember.nas_id == nas_id)):
+    if await db.scalar(
+        select(func.count())
+        .select_from(NasGroupMember)
+        .where(NasGroupMember.nas_group_id == ng_id, NasGroupMember.nas_id == nas_id)
+    ):
         raise HTTPException(409, "NAS device already in this group")
     db.add(NasGroupMember(nas_group_id=ng_id, nas_id=nas_id))
     await db.commit()
@@ -335,12 +450,15 @@ async def add_ng_member(
 
 @router.delete("/groups/{ng_id}/members/{member_id}", status_code=204)
 async def remove_ng_member(
-    ng_id: int, member_id: int,
+    ng_id: int,
+    member_id: int,
     db: AsyncSession = Depends(get_db),
     current=Depends(require_roles("admin", "superadmin")),
 ):
     row = await db.scalar(
-        select(NasGroupMember).where(NasGroupMember.id == member_id, NasGroupMember.nas_group_id == ng_id)
+        select(NasGroupMember).where(
+            NasGroupMember.id == member_id, NasGroupMember.nas_group_id == ng_id
+        )
     )
     if not row:
         raise HTTPException(404, "Member not found")
@@ -349,14 +467,20 @@ async def remove_ng_member(
 
 
 
+
 @router.get("/groups/{ng_id}/radius-groups", response_model=list[RadiusGroupLink])
-async def list_ng_radius_groups(ng_id: int, db: AsyncSession = Depends(get_db), _user=Depends(get_current_user)):
+async def list_ng_radius_groups(
+    ng_id: int, db: AsyncSession = Depends(get_db), _user=Depends(get_current_user)
+):
     await _ng_or_404(ng_id, db)
     q = await db.execute(
-        select(RadiusGroupNasGroup).where(RadiusGroupNasGroup.nas_group_id == ng_id)
+        select(RadiusGroupNasGroup)
+        .where(RadiusGroupNasGroup.nas_group_id == ng_id)
         .order_by(RadiusGroupNasGroup.radius_groupname)
     )
-    return [RadiusGroupLink(id=r.id, radius_groupname=r.radius_groupname) for r in q.scalars().all()]
+    return [
+        RadiusGroupLink(id=r.id, radius_groupname=r.radius_groupname) for r in q.scalars().all()
+    ]
 
 
 @router.post("/groups/{ng_id}/radius-groups", status_code=201)
@@ -367,9 +491,14 @@ async def link_radius_group(
     current=Depends(require_roles("admin", "superadmin")),
 ):
     await _ng_or_404(ng_id, db)
-    if await db.scalar(select(func.count()).select_from(RadiusGroupNasGroup)
-                       .where(RadiusGroupNasGroup.nas_group_id == ng_id,
-                              RadiusGroupNasGroup.radius_groupname == body.radius_groupname)):
+    if await db.scalar(
+        select(func.count())
+        .select_from(RadiusGroupNasGroup)
+        .where(
+            RadiusGroupNasGroup.nas_group_id == ng_id,
+            RadiusGroupNasGroup.radius_groupname == body.radius_groupname,
+        )
+    ):
         raise HTTPException(409, "Group already linked")
     db.add(RadiusGroupNasGroup(nas_group_id=ng_id, radius_groupname=body.radius_groupname))
     await db.commit()
@@ -378,18 +507,21 @@ async def link_radius_group(
 
 @router.delete("/groups/{ng_id}/radius-groups/{link_id}", status_code=204)
 async def unlink_radius_group(
-    ng_id: int, link_id: int,
+    ng_id: int,
+    link_id: int,
     db: AsyncSession = Depends(get_db),
     current=Depends(require_roles("admin", "superadmin")),
 ):
     row = await db.scalar(
-        select(RadiusGroupNasGroup)
-        .where(RadiusGroupNasGroup.id == link_id, RadiusGroupNasGroup.nas_group_id == ng_id)
+        select(RadiusGroupNasGroup).where(
+            RadiusGroupNasGroup.id == link_id, RadiusGroupNasGroup.nas_group_id == ng_id
+        )
     )
     if not row:
         raise HTTPException(404, "Link not found")
     await db.delete(row)
     await db.commit()
+
 
 
 
@@ -418,23 +550,23 @@ async def get_attribute_hints(
     _user=Depends(get_current_user),
 ):
     ng_ids_q = await db.execute(
-        select(RadiusGroupNasGroup.nas_group_id)
-        .where(RadiusGroupNasGroup.radius_groupname == radius_groupname)
+        select(RadiusGroupNasGroup.nas_group_id).where(
+            RadiusGroupNasGroup.radius_groupname == radius_groupname
+        )
     )
     ng_ids = [r[0] for r in ng_ids_q.all()]
     if not ng_ids:
         return {"hints": [], "vendors": [], "nas_groups": []}
 
     types_q = await db.execute(
-        select(Nas.type).distinct()
+        select(Nas.type)
+        .distinct()
         .join(NasGroupMember, NasGroupMember.nas_id == Nas.id)
         .where(NasGroupMember.nas_group_id.in_(ng_ids))
     )
     nas_types = [r[0] for r in types_q.all() if r[0]]
 
-    ng_names_q = await db.execute(
-        select(NasGroup.name).where(NasGroup.id.in_(ng_ids))
-    )
+    ng_names_q = await db.execute(select(NasGroup.name).where(NasGroup.id.in_(ng_ids)))
     ng_names = [r[0] for r in ng_names_q.all()]
 
     result = get_hints(nas_types)

@@ -1,3 +1,4 @@
+
 from __future__ import annotations
 
 import base64
@@ -26,4 +27,4 @@ def decrypt(ciphertext: str, secret: str) -> str:
 
 
 def reencrypt(ciphertext: str, old_secret: str, new_secret: str) -> str:
-        return encrypt(decrypt(ciphertext, old_secret), new_secret)
+    return encrypt(decrypt(ciphertext, old_secret), new_secret)

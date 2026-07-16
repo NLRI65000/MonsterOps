@@ -5,8 +5,8 @@ from datetime import datetime
 from typing import Optional
 
 from pydantic import BaseModel, field_validator
-from monsterops.modules.nas_manager.models import MrNasManager
 
+from monsterops.modules.nas_manager.models import MrNasManager
 
 _HOST_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9.:_-]{0,252}$")
 _USER_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._@-]{0,63}$")
@@ -111,7 +111,9 @@ class NasManagerOut(BaseModel):
             config_pulled_at=m.config_pulled_at,
             config_pushed_at=m.config_pushed_at,
             history_enabled=bool(m.history_enabled),
-            fetch_interval_hours=m.fetch_interval_hours if m.fetch_interval_hours is not None else 24,
+            fetch_interval_hours=m.fetch_interval_hours
+            if m.fetch_interval_hours is not None
+            else 24,
             retention_days=m.retention_days,
             last_fetch_at=m.last_fetch_at,
             nas_name=m.nas.shortname if m.nas else None,
@@ -141,6 +143,7 @@ class HistorySettingsIn(BaseModel):
 
 
 class ConfigVersionOut(BaseModel):
+
     id: int
     created_at: datetime
     source: str

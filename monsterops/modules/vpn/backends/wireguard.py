@@ -1,3 +1,4 @@
+
 from __future__ import annotations
 
 import os
@@ -52,8 +53,13 @@ class WireGuardBackend(VpnBackend):
         if dns:
             lines.append(f"DNS = {', '.join(dns)}")
 
-        lines += ["", "[Peer]", f"PublicKey = {peer_pub}",
-                  f"Endpoint = {endpoint}", f"AllowedIPs = {self._allowed_ips(t)}"]
+        lines += [
+            "",
+            "[Peer]",
+            f"PublicKey = {peer_pub}",
+            f"Endpoint = {endpoint}",
+            f"AllowedIPs = {self._allowed_ips(t)}",
+        ]
         if t.wg_persistent_keepalive:
             lines.append(f"PersistentKeepalive = {int(t.wg_persistent_keepalive)}")
         return "\n".join(lines) + "\n"
@@ -117,5 +123,6 @@ class WireGuardBackend(VpnBackend):
             if hs:
                 ts = datetime.fromtimestamp(hs, tz=timezone.utc)
                 last_hs = ts if last_hs is None or ts > last_hs else last_hs
-        return TunnelStatus(oper_state="up", iface=name, rx_bytes=rx, tx_bytes=tx,
-                            last_handshake_at=last_hs)
+        return TunnelStatus(
+            oper_state="up", iface=name, rx_bytes=rx, tx_bytes=tx, last_handshake_at=last_hs
+        )

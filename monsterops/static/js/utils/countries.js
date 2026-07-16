@@ -61,7 +61,7 @@ export const COUNTRIES = [
   { code: 'CW', name: 'Curaçao' },
   { code: 'CY', name: 'Cyprus' },
   { code: 'CZ', name: 'Czechia' },
-  { code: 'CI', name: 'Côte d\'Ivoire' },
+  { code: 'CI', name: "Côte d'Ivoire" },
   { code: 'DK', name: 'Denmark' },
   { code: 'DJ', name: 'Djibouti' },
   { code: 'DM', name: 'Dominica' },
@@ -120,11 +120,11 @@ export const COUNTRIES = [
   { code: 'KZ', name: 'Kazakhstan' },
   { code: 'KE', name: 'Kenya' },
   { code: 'KI', name: 'Kiribati' },
-  { code: 'KP', name: 'Korea, Democratic People\'s Republic of' },
+  { code: 'KP', name: "Korea, Democratic People's Republic of" },
   { code: 'KR', name: 'Korea, Republic of' },
   { code: 'KW', name: 'Kuwait' },
   { code: 'KG', name: 'Kyrgyzstan' },
-  { code: 'LA', name: 'Lao People\'s Democratic Republic' },
+  { code: 'LA', name: "Lao People's Democratic Republic" },
   { code: 'LV', name: 'Latvia' },
   { code: 'LB', name: 'Lebanon' },
   { code: 'LS', name: 'Lesotho' },
@@ -257,5 +257,7 @@ export const COUNTRIES = [
 // Two ISO letters -> regional-indicator flag emoji (no image assets needed).
 export function flagEmoji(code) {
   if (!code || code.length !== 2) return '';
-  return String.fromCodePoint(...[...code.toUpperCase()].map((c) => 0x1f1e6 + c.charCodeAt(0) - 65));
+  return String.fromCodePoint(
+    ...[...code.toUpperCase()].map((c) => 0x1f1e6 + c.charCodeAt(0) - 65),
+  );
 }

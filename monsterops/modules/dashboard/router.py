@@ -1,21 +1,22 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Literal
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import select, func, and_, or_
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from monsterops.database import get_db
 from monsterops.geo import lookup_calling_station as geo_lookup_cs
-from monsterops.modules.auth.utils import get_current_user
 from monsterops.modules.accounting.models import Radacct
+from monsterops.modules.auth.utils import get_current_user
 from monsterops.modules.auth_logs.models import Radpostauth
 from monsterops.modules.auth_logs.schemas import GeoInfo
 from monsterops.modules.nas.models import Nas
 from monsterops.modules.users.models import Radcheck
-from .schemas import DashboardStats, RecentAuth, TopUser, OnlineUser, NasStatus, SessionType
+
+from .schemas import DashboardStats, NasStatus, OnlineUser, RecentAuth, SessionType, TopUser
 
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
 
@@ -47,16 +48,16 @@ async def get_stats(
     auth_since = Radpostauth.authdate >= since
 
     logins_q = await db.execute(
-        select(func.count()).select_from(Radpostauth).where(
-            and_(auth_since, Radpostauth.reply == "Access-Accept")
-        )
+        select(func.count())
+        .select_from(Radpostauth)
+        .where(and_(auth_since, Radpostauth.reply == "Access-Accept"))
     )
     logins = logins_q.scalar_one() or 0
 
     failed_q = await db.execute(
-        select(func.count()).select_from(Radpostauth).where(
-            and_(auth_since, Radpostauth.reply == "Access-Reject")
-        )
+        select(func.count())
+        .select_from(Radpostauth)
+        .where(and_(auth_since, Radpostauth.reply == "Access-Reject"))
     )
     failed_logins = failed_q.scalar_one() or 0
 
@@ -70,19 +71,13 @@ async def get_stats(
     bytes_in = int(bw_row[0])
     bytes_out = int(bw_row[1])
 
-    user_q = await db.execute(
-        select(func.count(func.distinct(Radcheck.username)))
-    )
+    user_q = await db.execute(select(func.count(func.distinct(Radcheck.username))))
     user_count = user_q.scalar_one() or 0
 
     nas_q = await db.execute(select(func.count()).select_from(Nas))
     nas_count = nas_q.scalar_one() or 0
 
-    recent_q = await db.execute(
-        select(Radpostauth)
-        .order_by(Radpostauth.authdate.desc())
-        .limit(20)
-    )
+    recent_q = await db.execute(select(Radpostauth).order_by(Radpostauth.authdate.desc()).limit(20))
     recent_rows = recent_q.scalars().all()
     recent_auth = [
         RecentAuth(
@@ -104,8 +99,10 @@ async def get_stats(
         .where(Radacct.acctstarttime >= since)
         .group_by(Radacct.username)
         .order_by(
-            (func.coalesce(func.sum(Radacct.acctinputoctets), 0) +
-             func.coalesce(func.sum(Radacct.acctoutputoctets), 0)).desc()
+            (
+                func.coalesce(func.sum(Radacct.acctinputoctets), 0)
+                + func.coalesce(func.sum(Radacct.acctoutputoctets), 0)
+            ).desc()
         )
         .limit(5)
     )
@@ -154,17 +151,19 @@ async def get_online_users(
     )
     result = []
     for r in q.all():
-        nas_ip = str(r.nasipaddress).split('/')[0] if r.nasipaddress else None
+        nas_ip = str(r.nasipaddress).split("/")[0] if r.nasipaddress else None
         raw_geo = geo_lookup_cs(r.callingstationid)
-        result.append(OnlineUser(
-            username=r.username or "",
-            nasipaddress=nas_ip,
-            nasname=r.nasname,
-            acctstarttime=r.acctstarttime,
-            framedipaddress=str(r.framedipaddress).split('/')[0] if r.framedipaddress else None,
-            callingstationid=r.callingstationid,
-            geo_client=GeoInfo(**raw_geo) if raw_geo else None,
-        ))
+        result.append(
+            OnlineUser(
+                username=r.username or "",
+                nasipaddress=nas_ip,
+                nasname=r.nasname,
+                acctstarttime=r.acctstarttime,
+                framedipaddress=str(r.framedipaddress).split("/")[0] if r.framedipaddress else None,
+                callingstationid=r.callingstationid,
+                geo_client=GeoInfo(**raw_geo) if raw_geo else None,
+            )
+        )
     return result
 
 
@@ -204,14 +203,16 @@ async def get_nas_status(
     for n in all_nas:
         session_count = active_counts.get(n.nasname, 0)
         online = session_count > 0 or n.nasname in recent_ips
-        result.append(NasStatus(
-            id=n.id,
-            shortname=n.shortname or n.nasname,
-            nasname=n.nasname,
-            type=n.type or "other",
-            online=online,
-            session_count=session_count,
-        ))
+        result.append(
+            NasStatus(
+                id=n.id,
+                shortname=n.shortname or n.nasname,
+                nasname=n.nasname,
+                type=n.type or "other",
+                online=online,
+                session_count=session_count,
+            )
+        )
     return result
 
 

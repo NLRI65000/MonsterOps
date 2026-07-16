@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, Column, Integer, Text, TIMESTAMP
+from sqlalchemy import TIMESTAMP, Boolean, Column, Integer, Text
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 
 from monsterops.database import Base

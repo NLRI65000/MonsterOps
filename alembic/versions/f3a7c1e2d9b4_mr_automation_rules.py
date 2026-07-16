@@ -1,8 +1,10 @@
+
 from __future__ import annotations
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
+
+from alembic import op
 
 revision = "f3a7c1e2d9b4"
 down_revision = "e1f4a9c2b6d8"

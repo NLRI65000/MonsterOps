@@ -2,38 +2,52 @@ import { router } from '/js/router.js';
 import { api } from '/js/api.js';
 import { toast } from '/js/components/app-toast.js';
 import { confirmDialog } from '/js/components/app-confirm.js';
-import { densityBarHTML, wireDensityBar, applyDensity, makeSortable } from '/js/utils/table.js';
+import { applyDensity, densityBarHTML, makeSortable, wireDensityBar } from '/js/utils/table.js';
 import { emptyRowHTML } from '/js/utils/empty.js';
-import { setFieldError, clearFieldErrors, applyServerErrors } from '/js/utils/form.js';
+import { applyServerErrors, clearFieldErrors, setFieldError } from '/js/utils/form.js';
 
 // Server schema field name → this form's (abbreviated) input id, so a 422 /
 // duplicate-name error lands on the right input.
 const VPN_FIELD_MAP = {
-  name: 'f-name', description: 'f-desc', routes: 'f-routes',
-  wg_address: 'f-wg-addr', wg_listen_port: 'f-wg-listen', wg_peer_public_key: 'f-wg-peerkey',
-  wg_peer_host: 'f-wg-peerhost', wg_peer_port: 'f-wg-peerport',
-  wg_persistent_keepalive: 'f-wg-keepalive', wg_mtu: 'f-wg-mtu', wg_dns: 'f-wg-dns',
-  l2tp_gateway: 'f-l2-gw', l2tp_username: 'f-l2-user', l2tp_psk: 'f-l2-psk', l2tp_password: 'f-l2-pass',
+  name: 'f-name',
+  description: 'f-desc',
+  routes: 'f-routes',
+  wg_address: 'f-wg-addr',
+  wg_listen_port: 'f-wg-listen',
+  wg_peer_public_key: 'f-wg-peerkey',
+  wg_peer_host: 'f-wg-peerhost',
+  wg_peer_port: 'f-wg-peerport',
+  wg_persistent_keepalive: 'f-wg-keepalive',
+  wg_mtu: 'f-wg-mtu',
+  wg_dns: 'f-wg-dns',
+  l2tp_gateway: 'f-l2-gw',
+  l2tp_username: 'f-l2-user',
+  l2tp_psk: 'f-l2-psk',
+  l2tp_password: 'f-l2-pass',
 };
 
 function esc(s) {
-  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(
+    /"/g,
+    '&quot;',
+  );
 }
-
-function fmtDate(iso) { return iso ? new Date(iso).toLocaleString() : '—'; }
 
 function fmtBytes(n) {
   if (n == null) return '—';
   const u = ['B', 'KB', 'MB', 'GB', 'TB'];
   let i = 0;
-  while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; }
+  while (n >= 1024 && i < u.length - 1) {
+    n /= 1024;
+    i++;
+  }
   return `${n.toFixed(i ? 1 : 0)} ${u[i]}`;
 }
 
 const STATUS_BADGE = {
-  up:      ['UP', 'badge-up'],
-  down:    ['DOWN', 'badge-muted'],
-  error:   ['ERROR', 'badge-down'],
+  up: ['UP', 'badge-up'],
+  down: ['DOWN', 'badge-muted'],
+  error: ['ERROR', 'badge-down'],
   unknown: ['UNKNOWN', 'badge-muted'],
 };
 
@@ -142,10 +156,19 @@ class VpnView extends HTMLElement {
         </div>
       </div>
     `;
-    this.shadowRoot.getElementById('btn-add').addEventListener('click', () => this._openModal(null));
-    this.shadowRoot.getElementById('modal-close').addEventListener('click', () => this._closeModal());
-    this.shadowRoot.getElementById('modal-cancel').addEventListener('click', () => this._closeModal());
-    this.shadowRoot.getElementById('modal-overlay').addEventListener('click', e => {
+    this.shadowRoot.getElementById('btn-add').addEventListener(
+      'click',
+      () => this._openModal(null),
+    );
+    this.shadowRoot.getElementById('modal-close').addEventListener(
+      'click',
+      () => this._closeModal(),
+    );
+    this.shadowRoot.getElementById('modal-cancel').addEventListener(
+      'click',
+      () => this._closeModal(),
+    );
+    this.shadowRoot.getElementById('modal-overlay').addEventListener('click', (e) => {
       if (e.target === this.shadowRoot.getElementById('modal-overlay')) this._closeModal();
     });
     wireDensityBar(this.shadowRoot, () => this.shadowRoot.querySelector('#body table'));
@@ -163,33 +186,49 @@ class VpnView extends HTMLElement {
   }
 
   _render() {
-    const missing = this._tunnels.filter(t => !t.tooling_ok);
+    const missing = this._tunnels.filter((t) => !t.tooling_ok);
     const banner = this.shadowRoot.getElementById('banner');
     if (missing.length) {
-      const hints = [...new Set(missing.map(t => t.tooling_hint).filter(Boolean))];
-      banner.innerHTML = `<div class="warn-banner">⚠ Some tunnels can be defined but not activated on this host:<br>${hints.map(esc).join('<br>')}</div>`;
+      const hints = [...new Set(missing.map((t) => t.tooling_hint).filter(Boolean))];
+      banner.innerHTML =
+        `<div class="warn-banner">⚠ Some tunnels can be defined but not activated on this host:<br>${
+          hints.map(esc).join('<br>')
+        }</div>`;
     } else {
       banner.innerHTML = '';
     }
 
-    const rows = this._tunnels.map(t => {
+    const rows = this._tunnels.map((t) => {
       const peer = t.type === 'wireguard'
         ? (t.wg_peer_host ? `${esc(t.wg_peer_host)}:${t.wg_peer_port ?? 51820}` : '—')
         : (t.l2tp_gateway ? esc(t.l2tp_gateway) : '—');
       const transfer = (t.rx_bytes != null || t.tx_bytes != null)
-        ? `↓ ${fmtBytes(t.rx_bytes)} / ↑ ${fmtBytes(t.tx_bytes)}` : '—';
+        ? `↓ ${fmtBytes(t.rx_bytes)} / ↑ ${fmtBytes(t.tx_bytes)}`
+        : '—';
       return `
       <tr data-id="${t.id}">
-        <td><strong>${esc(t.name)}</strong>${t.description ? `<div class="hint">${esc(t.description)}</div>` : ''}</td>
+        <td><strong>${esc(t.name)}</strong>${
+        t.description ? `<div class="hint">${esc(t.description)}</div>` : ''
+      }</td>
         <td><span class="badge badge-type">${esc(TYPE_LABEL[t.type] || t.type)}</span></td>
-        <td>${statusBadge(t.oper_state)}${t.oper_state === 'error' && t.last_error ? `<div class="err-line">${esc(t.last_error)}</div>` : ''}</td>
+        <td>${statusBadge(t.oper_state)}${
+        t.oper_state === 'error' && t.last_error
+          ? `<div class="err-line">${esc(t.last_error)}</div>`
+          : ''
+      }</td>
         <td class="mono">${t.iface ? esc(t.iface) : '—'}</td>
         <td class="mono muted">${peer}</td>
-        <td class="mono muted" data-sort="${(Number(t.rx_bytes) || 0) + (Number(t.tx_bytes) || 0)}">${transfer}</td>
+        <td class="mono muted" data-sort="${
+        (Number(t.rx_bytes) || 0) + (Number(t.tx_bytes) || 0)
+      }">${transfer}</td>
         <td style="text-align:right;white-space:nowrap">
-          ${t.oper_state === 'up'
-            ? '<button class="btn btn-sm" data-act="down">Bring Down</button>'
-            : `<button class="btn btn-sm btn-primary" data-act="up" ${t.tooling_ok ? '' : 'disabled title="tooling not installed"'}>Bring Up</button>`}
+          ${
+        t.oper_state === 'up'
+          ? '<button class="btn btn-sm" data-act="down">Bring Down</button>'
+          : `<button class="btn btn-sm btn-primary" data-act="up" ${
+            t.tooling_ok ? '' : 'disabled title="tooling not installed"'
+          }>Bring Up</button>`
+      }
           <button class="btn btn-sm" data-act="config">Config</button>
           <button class="btn btn-sm" data-act="edit">Edit</button>
           <button class="btn btn-sm btn-danger" data-act="del">Delete</button>
@@ -200,11 +239,17 @@ class VpnView extends HTMLElement {
     this.shadowRoot.getElementById('body').innerHTML = `
       <div class="card"><table>
         <thead><tr><th>Name</th><th>Type</th><th>Status</th><th>Interface</th><th>Peer / Gateway</th><th>Transfer</th><th></th></tr></thead>
-        <tbody>${rows || emptyRowHTML(7, { title: 'No VPN tunnels yet', message: 'Add a tunnel to reach a remote site’s NAS over WireGuard or L2TP/IPsec.' })}</tbody>
+        <tbody>${
+      rows ||
+      emptyRowHTML(7, {
+        title: 'No VPN tunnels yet',
+        message: 'Add a tunnel to reach a remote site’s NAS over WireGuard or L2TP/IPsec.',
+      })
+    }</tbody>
       </table></div>
     `;
-    this.shadowRoot.querySelectorAll('tr[data-id]').forEach(tr => {
-      const t = this._tunnels.find(x => x.id === Number(tr.dataset.id));
+    this.shadowRoot.querySelectorAll('tr[data-id]').forEach((tr) => {
+      const t = this._tunnels.find((x) => x.id === Number(tr.dataset.id));
       tr.querySelector('[data-act=up]')?.addEventListener('click', () => this._action(t, 'up'));
       tr.querySelector('[data-act=down]')?.addEventListener('click', () => this._action(t, 'down'));
       tr.querySelector('[data-act=config]').addEventListener('click', () => this._preview(t));
@@ -218,21 +263,27 @@ class VpnView extends HTMLElement {
 
   // ── Modal ─────────────────────────────────────────────────────────────────
 
-  _mval(id) { return this.shadowRoot.getElementById(id)?.value?.trim() ?? ''; }
+  _mval(id) {
+    return this.shadowRoot.getElementById(id)?.value?.trim() ?? '';
+  }
 
   _openModal(t) {
     this._editing = t;
     this._formType = t?.type || 'wireguard';
     const overlay = this.shadowRoot.getElementById('modal-overlay');
-    this.shadowRoot.getElementById('modal-title').textContent = t ? `Edit Tunnel ${t.name}` : 'Add VPN Tunnel';
+    this.shadowRoot.getElementById('modal-title').textContent = t
+      ? `Edit Tunnel ${t.name}`
+      : 'Add VPN Tunnel';
     this.shadowRoot.getElementById('modal-body').innerHTML = this._formHtml(t);
     this.shadowRoot.getElementById('modal-submit').onclick = () => this._save();
     // type toggle
     const typeSel = this.shadowRoot.getElementById('f-type');
-    if (typeSel) typeSel.addEventListener('change', () => {
-      this._formType = typeSel.value;
-      this._toggleTypeFields();
-    });
+    if (typeSel) {
+      typeSel.addEventListener('change', () => {
+        this._formType = typeSel.value;
+        this._toggleTypeFields();
+      });
+    }
     this._toggleTypeFields();
     const regen = this.shadowRoot.getElementById('f-regen');
     if (regen) regen.addEventListener('click', () => this._regen(t));
@@ -255,12 +306,15 @@ class VpnView extends HTMLElement {
     const routes = (t?.routes || []).join(', ');
     const dns = (t?.wg_dns || []).join(', ');
     const typeOpts = Object.entries(TYPE_LABEL).map(([v, l]) =>
-      `<option value="${v}" ${this._formType === v ? 'selected' : ''}>${l}</option>`).join('');
+      `<option value="${v}" ${this._formType === v ? 'selected' : ''}>${l}</option>`
+    ).join('');
     return `
       <div class="field-row">
         <div class="field">
           <label>Name (interface)</label>
-          <input class="input" id="f-name" maxlength="15" placeholder="wg-site-a" value="${esc(t?.name)}" />
+          <input class="input" id="f-name" maxlength="15" placeholder="wg-site-a" value="${
+      esc(t?.name)
+    }" />
         </div>
         <div class="field">
           <label>Type</label>
@@ -269,17 +323,23 @@ class VpnView extends HTMLElement {
       </div>
       <div class="field">
         <label>Description (optional)</label>
-        <input class="input" id="f-desc" maxlength="120" placeholder="Site A management link" value="${esc(t?.description)}" />
+        <input class="input" id="f-desc" maxlength="120" placeholder="Site A management link" value="${
+      esc(t?.description)
+    }" />
       </div>
       <div class="field">
         <label>Routes to reach through the tunnel (CIDRs, comma-separated)</label>
-        <input class="input" id="f-routes" placeholder="10.20.0.0/24, 10.20.1.5/32" value="${esc(routes)}" />
+        <input class="input" id="f-routes" placeholder="10.20.0.0/24, 10.20.1.5/32" value="${
+      esc(routes)
+    }" />
         <span class="hint">The remote NAS network(s). For WireGuard these become AllowedIPs.</span>
       </div>
 
       <div id="grp-wg">
         <div class="section-title">WireGuard</div>
-        ${t?.wg_public_key ? `
+        ${
+      t?.wg_public_key
+        ? `
         <div class="field">
           <label>Your public key — configure this as the peer on the remote side</label>
           <div class="keybox">
@@ -287,39 +347,55 @@ class VpnView extends HTMLElement {
             <button type="button" class="btn btn-sm" id="f-copy">Copy</button>
             <button type="button" class="btn btn-sm" id="f-regen">Regenerate</button>
           </div>
-        </div>` : `<div class="hint" style="margin-bottom:0.85rem">A keypair is generated automatically; your public key appears here after saving.</div>`}
+        </div>`
+        : `<div class="hint" style="margin-bottom:0.85rem">A keypair is generated automatically; your public key appears here after saving.</div>`
+    }
         <div class="field-row">
           <div class="field">
             <label>Tunnel address (local)</label>
-            <input class="input" id="f-wg-addr" placeholder="10.99.0.2/32" value="${esc(t?.wg_address)}" />
+            <input class="input" id="f-wg-addr" placeholder="10.99.0.2/32" value="${
+      esc(t?.wg_address)
+    }" />
           </div>
           <div class="field">
             <label>Listen port (optional)</label>
-            <input class="input" id="f-wg-listen" type="number" min="1" max="65535" value="${t?.wg_listen_port ?? ''}" />
+            <input class="input" id="f-wg-listen" type="number" min="1" max="65535" value="${
+      t?.wg_listen_port ?? ''
+    }" />
           </div>
         </div>
         <div class="field">
           <label>Peer public key</label>
-          <input class="input mono" id="f-wg-peerkey" placeholder="base64 key from the remote side" value="${esc(t?.wg_peer_public_key)}" />
+          <input class="input mono" id="f-wg-peerkey" placeholder="base64 key from the remote side" value="${
+      esc(t?.wg_peer_public_key)
+    }" />
         </div>
         <div class="field-row">
           <div class="field">
             <label>Peer endpoint host</label>
-            <input class="input" id="f-wg-peerhost" placeholder="vpn.site-a.example" value="${esc(t?.wg_peer_host)}" />
+            <input class="input" id="f-wg-peerhost" placeholder="vpn.site-a.example" value="${
+      esc(t?.wg_peer_host)
+    }" />
           </div>
           <div class="field">
             <label>Peer endpoint port</label>
-            <input class="input" id="f-wg-peerport" type="number" min="1" max="65535" value="${t?.wg_peer_port ?? 51820}" />
+            <input class="input" id="f-wg-peerport" type="number" min="1" max="65535" value="${
+      t?.wg_peer_port ?? 51820
+    }" />
           </div>
         </div>
         <div class="field-row">
           <div class="field">
             <label>Persistent keepalive (s, optional)</label>
-            <input class="input" id="f-wg-keepalive" type="number" min="0" max="65535" placeholder="25" value="${t?.wg_persistent_keepalive ?? ''}" />
+            <input class="input" id="f-wg-keepalive" type="number" min="0" max="65535" placeholder="25" value="${
+      t?.wg_persistent_keepalive ?? ''
+    }" />
           </div>
           <div class="field">
             <label>MTU (optional)</label>
-            <input class="input" id="f-wg-mtu" type="number" min="1280" max="9000" value="${t?.wg_mtu ?? ''}" />
+            <input class="input" id="f-wg-mtu" type="number" min="1280" max="9000" value="${
+      t?.wg_mtu ?? ''
+    }" />
           </div>
         </div>
         <div class="field">
@@ -332,7 +408,9 @@ class VpnView extends HTMLElement {
         <div class="section-title">L2TP / IPsec</div>
         <div class="field">
           <label>Remote gateway (LNS)</label>
-          <input class="input" id="f-l2-gw" placeholder="vpn.site-a.example" value="${esc(t?.l2tp_gateway)}" />
+          <input class="input" id="f-l2-gw" placeholder="vpn.site-a.example" value="${
+      esc(t?.l2tp_gateway)
+    }" />
         </div>
         <div class="field">
           <label>IPsec pre-shared key ${t ? '(leave blank to keep current)' : ''}</label>
@@ -358,7 +436,7 @@ class VpnView extends HTMLElement {
   }
 
   _parseList(id) {
-    return this._mval(id).split(',').map(s => s.trim()).filter(Boolean);
+    return this._mval(id).split(',').map((s) => s.trim()).filter(Boolean);
   }
 
   async _save() {
@@ -377,15 +455,24 @@ class VpnView extends HTMLElement {
         ['f-wg-peerhost', 'The remote peer host is required'],
       );
     } else {
-      need.push(['f-l2-gw', 'A remote gateway is required'], ['f-l2-user', 'A PPP username is required']);
+      need.push(['f-l2-gw', 'A remote gateway is required'], [
+        'f-l2-user',
+        'A PPP username is required',
+      ]);
       if (!this._editing) {
-        need.push(['f-l2-psk', 'The IPsec pre-shared key is required'], ['f-l2-pass', 'A PPP password is required']);
+        need.push(['f-l2-psk', 'The IPsec pre-shared key is required'], [
+          'f-l2-pass',
+          'A PPP password is required',
+        ]);
       }
     }
     let ok = true;
     for (const [id, msg] of need) {
       const input = sr.getElementById(id);
-      if (input && !input.value.trim()) { setFieldError(input, msg); ok = false; }
+      if (input && !input.value.trim()) {
+        setFieldError(input, msg);
+        ok = false;
+      }
     }
     if (!ok) return;
 
@@ -403,7 +490,9 @@ class VpnView extends HTMLElement {
         wg_peer_public_key: this._mval('f-wg-peerkey') || null,
         wg_peer_host: this._mval('f-wg-peerhost') || null,
         wg_peer_port: this._mval('f-wg-peerport') ? Number(this._mval('f-wg-peerport')) : 51820,
-        wg_persistent_keepalive: this._mval('f-wg-keepalive') ? Number(this._mval('f-wg-keepalive')) : null,
+        wg_persistent_keepalive: this._mval('f-wg-keepalive')
+          ? Number(this._mval('f-wg-keepalive'))
+          : null,
         wg_mtu: this._mval('f-wg-mtu') ? Number(this._mval('f-wg-mtu')) : null,
         wg_dns: this._parseList('f-wg-dns'),
       });
@@ -435,7 +524,12 @@ class VpnView extends HTMLElement {
   }
 
   async _regen(t) {
-    if (!await confirmDialog(`Regenerate WireGuard keys for "${t.name}"? The remote peer must be updated with the new public key.`, { danger: true })) return;
+    if (
+      !await confirmDialog(
+        `Regenerate WireGuard keys for "${t.name}"? The remote peer must be updated with the new public key.`,
+        { danger: true },
+      )
+    ) return;
     try {
       const updated = await api.post(`/vpn/${t.id}/regenerate-keys`, {});
       toast('New keypair generated', 'success');
@@ -443,25 +537,36 @@ class VpnView extends HTMLElement {
       this._load();
       // reopen so the operator can copy the fresh public key
       setTimeout(() => this._openModal(updated), 50);
-    } catch (e) { toast(e.message || 'Regeneration failed', 'error'); }
+    } catch (e) {
+      toast(e.message || 'Regeneration failed', 'error');
+    }
   }
 
   async _action(t, dir) {
     try {
       const res = await api.post(`/vpn/${t.id}/${dir}`, {});
-      if (res.ok) toast(`Tunnel ${t.name} ${dir === 'up' ? 'brought up' : 'brought down'}`, 'success');
-      else toast(res.detail || `Tunnel did not come ${dir}`, 'error');
+      if (res.ok) {
+        toast(`Tunnel ${t.name} ${dir === 'up' ? 'brought up' : 'brought down'}`, 'success');
+      } else toast(res.detail || `Tunnel did not come ${dir}`, 'error');
       this._load();
-    } catch (e) { toast(e.message || 'Action failed', 'error'); }
+    } catch (e) {
+      toast(e.message || 'Action failed', 'error');
+    }
   }
 
   async _preview(t) {
     try {
       const res = await api.get(`/vpn/${t.id}/config-preview`);
       const files = res.files.map(esc).join('\n');
-      this._openInfo(`Config for ${t.name}`,
-        `<div class="hint" style="margin-bottom:0.6rem">Secrets are redacted. Target files:</div><pre class="conf">${files}</pre><pre class="conf">${esc(res.content)}</pre>`);
-    } catch (e) { toast(e.message || 'Preview failed', 'error'); }
+      this._openInfo(
+        `Config for ${t.name}`,
+        `<div class="hint" style="margin-bottom:0.6rem">Secrets are redacted. Target files:</div><pre class="conf">${files}</pre><pre class="conf">${
+          esc(res.content)
+        }</pre>`,
+      );
+    } catch (e) {
+      toast(e.message || 'Preview failed', 'error');
+    }
   }
 
   _openInfo(title, html) {
@@ -470,18 +575,30 @@ class VpnView extends HTMLElement {
     this.shadowRoot.getElementById('modal-submit').style.display = 'none';
     this.shadowRoot.getElementById('modal-overlay').classList.add('open');
     // restore submit button when this info modal is dismissed
-    const restore = () => { this.shadowRoot.getElementById('modal-submit').style.display = ''; };
-    this.shadowRoot.getElementById('modal-cancel').addEventListener('click', restore, { once: true });
-    this.shadowRoot.getElementById('modal-close').addEventListener('click', restore, { once: true });
+    const restore = () => {
+      this.shadowRoot.getElementById('modal-submit').style.display = '';
+    };
+    this.shadowRoot.getElementById('modal-cancel').addEventListener('click', restore, {
+      once: true,
+    });
+    this.shadowRoot.getElementById('modal-close').addEventListener('click', restore, {
+      once: true,
+    });
   }
 
   async _delete(t) {
-    if (!await confirmDialog(`Delete VPN tunnel "${t.name}"? It will be brought down first.`, { danger: true })) return;
+    if (
+      !await confirmDialog(`Delete VPN tunnel "${t.name}"? It will be brought down first.`, {
+        danger: true,
+      })
+    ) return;
     try {
       await api.delete(`/vpn/${t.id}`);
       toast(`Tunnel ${t.name} deleted`, 'success');
       this._load();
-    } catch (e) { toast(e.message || 'Delete failed', 'error'); }
+    } catch (e) {
+      toast(e.message || 'Delete failed', 'error');
+    }
   }
 }
 
@@ -489,10 +606,13 @@ customElements.define('vpn-view', VpnView);
 router.register('/vpn', () => document.createElement('vpn-view'));
 
 // wire the copy button lazily (delegated) since it lives inside the modal
-document.addEventListener('click', e => {
+document.addEventListener('click', (e) => {
   const path = e.composedPath();
-  const btn = path.find(el => el.id === 'f-copy');
+  const btn = path.find((el) => el.id === 'f-copy');
   if (!btn) return;
   const input = path[0].getRootNode().getElementById('f-pub');
-  if (input) { navigator.clipboard?.writeText(input.value); toast('Public key copied', 'success'); }
+  if (input) {
+    navigator.clipboard?.writeText(input.value);
+    toast('Public key copied', 'success');
+  }
 });

@@ -1,3 +1,4 @@
+
 from __future__ import annotations
 
 import asyncio
@@ -33,13 +34,19 @@ async def _run_due_fetches() -> None:
     now = datetime.now(timezone.utc)
 
     async with SessionLocal() as db:
-        rows = (await db.execute(
-            select(MrNasManager).where(
-                MrNasManager.enabled == True,          # noqa: E712
-                MrNasManager.history_enabled == True,  # noqa: E712
-                MrNasManager.fetch_interval_hours > 0,
+        rows = (
+            (
+                await db.execute(
+                    select(MrNasManager).where(
+                        MrNasManager.enabled == True,  # noqa: E712
+                        MrNasManager.history_enabled == True,  # noqa: E712
+                        MrNasManager.fetch_interval_hours > 0,
+                    )
+                )
             )
-        )).scalars().all()
+            .scalars()
+            .all()
+        )
 
     due = []
     for nm in rows:
@@ -58,7 +65,9 @@ async def _run_due_fetches() -> None:
 
                 nm.last_fetch_at = datetime.now(timezone.utc)
                 if err:
-                    logger.warning("NAS Manager scheduled fetch failed for nas_id=%s: %s", nm.nas_id, err)
+                    logger.warning(
+                        "NAS Manager scheduled fetch failed for nas_id=%s: %s", nm.nas_id, err
+                    )
                     nm.test_status = "failed"
                     nm.test_error = err
                     await db.commit()
@@ -73,7 +82,8 @@ async def _run_due_fetches() -> None:
                 await db.commit()
                 logger.info(
                     "NAS Manager scheduled fetch nas_id=%s: %s",
-                    nm.nas_id, "new version stored" if version else "unchanged",
+                    nm.nas_id,
+                    "new version stored" if version else "unchanged",
                 )
         except Exception:
             logger.exception("NAS Manager scheduled fetch error for manager_id=%s", nm_id)

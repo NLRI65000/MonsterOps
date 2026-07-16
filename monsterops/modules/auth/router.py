@@ -82,14 +82,19 @@ def _clear_session(response: Response) -> None:
 
 
 
+
 @router.get("/status", response_model=StatusResponse, summary="Check if first-run setup is needed")
 async def auth_status(db: AsyncSession = Depends(get_db)):
     count = await db.scalar(select(func.count()).select_from(AdminUser))
     return StatusResponse(first_run=(count == 0))
 
 
-@router.post("/setup", response_model=SessionResponse, status_code=201, summary="Create the first superadmin")
-async def setup(body: SetupRequest, request: Request, response: Response, db: AsyncSession = Depends(get_db)):
+@router.post(
+    "/setup", response_model=SessionResponse, status_code=201, summary="Create the first superadmin"
+)
+async def setup(
+    body: SetupRequest, request: Request, response: Response, db: AsyncSession = Depends(get_db)
+):
     count = await db.scalar(select(func.count()).select_from(AdminUser))
     if (count or 0) > 0:
         raise HTTPException(status_code=409, detail="Setup already completed")
@@ -104,16 +109,19 @@ async def setup(body: SetupRequest, request: Request, response: Response, db: As
     db.add(user)
     await db.flush()
 
-    db.add(AuditLog(
-        admin_id=user.id,
-        admin_username=user.username,
-        action="admin.setup",
-        target=f"admin:{user.id}",
-    ))
+    db.add(
+        AuditLog(
+            admin_id=user.id,
+            admin_username=user.username,
+            action="admin.setup",
+            target=f"admin:{user.id}",
+        )
+    )
     await db.commit()
 
     _issue_session(response, user, request)
     return SessionResponse(role=user.role, username=user.username)
+
 
 
 
@@ -155,6 +163,7 @@ async def logout(response: Response):
 
 
 
+
 @router.get("/me", response_model=AdminUserOut, summary="Get current admin profile")
 async def me(user: AdminUser = Depends(get_current_user)):
     return user
@@ -177,14 +186,19 @@ async def update_me(
 
     if changed:
         await audit(
-            db, user_id=user.id, username=user.username,
-            action="admin.self_update", target=f"admin:{user.id}",
-            detail={"changed": changed}, request=request,
+            db,
+            user_id=user.id,
+            username=user.username,
+            action="admin.self_update",
+            target=f"admin:{user.id}",
+            detail={"changed": changed},
+            request=request,
         )
         await db.commit()
         await db.refresh(user)
 
     return user
+
 
 
 
@@ -197,7 +211,9 @@ async def list_admins(
     return result.scalars().all()
 
 
-@router.post("/admins", response_model=AdminUserOut, status_code=201, summary="Create an admin account")
+@router.post(
+    "/admins", response_model=AdminUserOut, status_code=201, summary="Create an admin account"
+)
 async def create_admin(
     body: AdminUserCreate,
     request: Request,
@@ -219,9 +235,13 @@ async def create_admin(
     await db.flush()
 
     await audit(
-        db, user_id=actor.id, username=actor.username,
-        action="admin.create", target=f"admin:{user.id}",
-        detail={"username": user.username, "role": user.role}, request=request,
+        db,
+        user_id=actor.id,
+        username=actor.username,
+        action="admin.create",
+        target=f"admin:{user.id}",
+        detail={"username": user.username, "role": user.role},
+        request=request,
     )
     await db.commit()
     await db.refresh(user)
@@ -257,9 +277,13 @@ async def update_admin(
 
     if changed:
         await audit(
-            db, user_id=actor.id, username=actor.username,
-            action="admin.update", target=f"admin:{user.id}",
-            detail={"changed": changed}, request=request,
+            db,
+            user_id=actor.id,
+            username=actor.username,
+            action="admin.update",
+            target=f"admin:{user.id}",
+            detail={"changed": changed},
+            request=request,
         )
         await db.commit()
         await db.refresh(user)
@@ -282,12 +306,17 @@ async def delete_admin(
         raise HTTPException(status_code=400, detail="Cannot delete your own account")
 
     await audit(
-        db, user_id=actor.id, username=actor.username,
-        action="admin.delete", target=f"admin:{user.id}",
-        detail={"username": user.username}, request=request,
+        db,
+        user_id=actor.id,
+        username=actor.username,
+        action="admin.delete",
+        target=f"admin:{user.id}",
+        detail={"username": user.username},
+        request=request,
     )
     await db.delete(user)
     await db.commit()
+
 
 
 

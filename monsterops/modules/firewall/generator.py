@@ -5,6 +5,7 @@ Only ever emits our own table; operator tables are never referenced. Every value
 is re-validated here (defence in depth) before being written into the text, and
 the result is applied atomically with `nft -f` (add/delete/recreate idiom).
 """
+
 from __future__ import annotations
 
 import ipaddress
@@ -41,6 +42,9 @@ def _render_rule(r: MrFirewallRule, set_family: dict[str, str]) -> str:
     V.validate_choice(proto, V.PROTOCOLS, "protocol")
     has_port = bool((r.sport or r.dport) and proto in ("tcp", "udp"))
     if proto in ("tcp", "udp"):
+        # `tcp dport ...` / `udp sport ...` already implies the l4proto — only add
+        # an explicit match when there is no port clause, so the rule matches what
+        # nft stores (otherwise the diff would always show a redundant change).
         if not has_port:
             frags.append(f"meta l4proto {proto}")
     elif proto == "icmp":
@@ -83,6 +87,11 @@ def _render_set(s: MrFirewallSet, now: datetime) -> str:
     V.validate_name(s.name)
     fam = V.validate_choice(s.family, V.FAMILIES, "family")
 
+    # Timed entries (bans with expires_at) get a native nftables per-element
+    # timeout of their *remaining* life, so the kernel expires them on its own.
+    # Remaining is recomputed from expires_at on every render, so the atomic
+    # add/delete/recreate apply never resets a ban's countdown. Already-expired
+    # entries are omitted (the reaper deletes the DB row).
     rendered: list[str] = []
     has_timed = False
     for e in s.entries:
@@ -93,12 +102,14 @@ def _render_set(s: MrFirewallSet, now: datetime) -> str:
                 exp = exp.replace(tzinfo=timezone.utc)
             remaining = math.ceil((exp - now).total_seconds())
             if remaining <= 0:
-                continue
+                continue  # expired — drop it from the ruleset
             rendered.append(f"{addr} timeout {remaining}s")
             has_timed = True
         else:
             rendered.append(addr)
 
+    # An auto-ban set always declares the timeout flag so live timed inserts
+    # (add_ban) are accepted even before the next full apply.
     flags = "interval, timeout" if (has_timed or getattr(s, "auto_ban", False)) else "interval"
     lines = [f"    set {s.name} {{", f"        type {fam}", f"        flags {flags}"]
     if rendered:
@@ -117,11 +128,11 @@ def _guard_lines(cfg: MrFirewallConfig, guard_ips: list[str]) -> list[str]:
     if cfg.allow_ping:
         out.append("ip protocol icmp accept")
         out.append("ip6 nexthdr ipv6-icmp accept")
-    out.append(f"tcp dport {int(cfg.ssh_guard_port)} counter accept comment \"guard: ssh\"")
-    out.append(f"tcp dport {int(cfg.web_guard_port)} counter accept comment \"guard: monsterops ui\"")
+    out.append(f'tcp dport {int(cfg.ssh_guard_port)} counter accept comment "guard: ssh"')
+    out.append(f'tcp dport {int(cfg.web_guard_port)} counter accept comment "guard: monsterops ui"')
     for ip in guard_ips:
         V.validate_addr(ip)
-        out.append(f"{_fam_prefix(ip)} saddr {ip} counter accept comment \"guard: admin session\"")
+        out.append(f'{_fam_prefix(ip)} saddr {ip} counter accept comment "guard: admin session"')
     return out
 
 
@@ -140,26 +151,32 @@ def generate_ruleset(
 
     body: list[str] = []
 
+    # named sets
     for s in sets:
         body.append(_render_set(s, now))
 
+    # ── input chain ──
     body.append("    chain input {")
     body.append(f"        type filter hook input priority 0; policy {in_policy};")
     if in_policy == "drop":
         for line in _guard_lines(cfg, guard_ips):
             body.append("        " + line)
+    # block/allow sets auto-rules
     for s in sets:
         if s.kind == "block":
             fam = "ip6" if s.family == "ipv6_addr" else "ip"
-            body.append(f"        {fam} saddr @{s.name} counter drop comment \"blocklist: {s.name}\"")
+            body.append(f'        {fam} saddr @{s.name} counter drop comment "blocklist: {s.name}"')
         elif s.kind == "allow":
             fam = "ip6" if s.family == "ipv6_addr" else "ip"
-            body.append(f"        {fam} saddr @{s.name} counter accept comment \"allowlist: {s.name}\"")
+            body.append(
+                f'        {fam} saddr @{s.name} counter accept comment "allowlist: {s.name}"'
+            )
     for r in rules:
         if r.enabled and r.chain == "input":
             body.append("        " + _render_rule(r, set_family))
     body.append("    }")
 
+    # ── forward chain ──
     body.append("    chain forward {")
     body.append(f"        type filter hook forward priority 0; policy {fwd_policy};")
     if fwd_policy == "drop":
@@ -169,6 +186,7 @@ def generate_ruleset(
             body.append("        " + _render_rule(r, set_family))
     body.append("    }")
 
+    # ── output chain (accept by default; user rules still allowed) ──
     body.append("    chain output {")
     body.append("        type filter hook output priority 0; policy accept;")
     for r in rules:
@@ -177,6 +195,7 @@ def generate_ruleset(
     body.append("    }")
 
     inner = "\n".join(body)
+    # add/delete/recreate = atomic replace of just our table
     return (
         f"add table inet {TABLE_NAME}\n"
         f"delete table inet {TABLE_NAME}\n"

@@ -22,6 +22,7 @@ WORKER_INTERVAL = 60
 
 
 
+
 async def _eval_auth_failure(rule: NotificationRule, db: AsyncSession) -> tuple[bool, str]:
     from monsterops.modules.auth_logs.models import Radpostauth
 
@@ -75,18 +76,17 @@ async def _eval_nas_offline(rule: NotificationRule, db: AsyncSession) -> tuple[b
     offline: list[str] = []
     for nas in all_nas:
         last_q = await db.execute(
-            select(func.max(Radacct.acctupdatetime)).where(
-                Radacct.nasipaddress == nas.nasname
-            )
+            select(func.max(Radacct.acctupdatetime)).where(Radacct.nasipaddress == nas.nasname)
         )
         last_seen = last_q.scalar()
         label = str(nas.shortname or nas.nasname)
-        if last_seen is None or (
-            last_seen.tzinfo is None
-            and datetime.now() - last_seen > timedelta(minutes=idle_minutes)
-        ) or (
-            last_seen.tzinfo is not None
-            and last_seen < since
+        if (
+            last_seen is None
+            or (
+                last_seen.tzinfo is None
+                and datetime.now() - last_seen > timedelta(minutes=idle_minutes)
+            )
+            or (last_seen.tzinfo is not None and last_seen < since)
         ):
             offline.append(label)
 
@@ -120,6 +120,7 @@ _EVALUATORS = {
     "nas_offline": _eval_nas_offline,
     "system_health": _eval_system_health,
 }
+
 
 
 
@@ -178,6 +179,7 @@ async def _run_rule(rule: NotificationRule, db: AsyncSession) -> None:
     )
     rule.last_triggered = now  # type: ignore[assignment]
     await db.commit()
+
 
 
 

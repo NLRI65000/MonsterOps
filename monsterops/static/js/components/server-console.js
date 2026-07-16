@@ -17,12 +17,12 @@ function _esc(s) {
 }
 
 const LEVEL_COLORS = {
-  ERROR:    '#ef5350',
+  ERROR: '#ef5350',
   CRITICAL: '#ef5350',
-  WARNING:  '#ffa726',
-  WARN:     '#ffa726',
-  INFO:     '#42a5f5',
-  DEBUG:    '#78909c',
+  WARNING: '#ffa726',
+  WARN: '#ffa726',
+  INFO: '#42a5f5',
+  DEBUG: '#78909c',
 };
 
 function _colorLine(line) {
@@ -38,8 +38,8 @@ const MAX_LINES = 1000;
 
 let _panel = null;
 let _activeTab = 'applog';
-let _streams = {}; // keyed by tab name
-let _logLines = { applog: [], radius: [] };
+const _streams = {}; // keyed by tab name
+const _logLines = { applog: [], radius: [] };
 
 // ── SSE stream manager ───────────────────────────────────────────────────────
 
@@ -59,7 +59,7 @@ function _startStream(name, url) {
     try {
       const d = JSON.parse(e.data);
       _pushLine(name, d.line);
-    } catch {}
+    } catch { /* skip unparseable stream line */ }
   };
   es.onerror = () => {
     // Don't remove — EventSource auto-reconnects on transient errors
@@ -80,7 +80,7 @@ function _getLogArea() {
   return _panel?.querySelector('#console-log-area');
 }
 
-function _appendLogLine(tab, line) {
+function _appendLogLine(_tab, line) {
   const area = _getLogArea();
   if (!area) return;
   const atBottom = area.scrollHeight - area.scrollTop - area.clientHeight < 32;
@@ -236,7 +236,7 @@ function _buildPanel() {
   `;
 
   // Tab switching
-  el.querySelectorAll('.console-tab').forEach(t => {
+  el.querySelectorAll('.console-tab').forEach((t) => {
     t.addEventListener('click', () => _switchTab(t.dataset.tab));
   });
 
@@ -255,7 +255,10 @@ function _buildPanel() {
     const startY = e.clientY;
     const startH = el.offsetHeight;
     const onMove = (ev) => {
-      const newH = Math.max(120, Math.min(window.innerHeight * 0.85, startH - (ev.clientY - startY)));
+      const newH = Math.max(
+        120,
+        Math.min(window.innerHeight * 0.85, startH - (ev.clientY - startY)),
+      );
       el.style.height = newH + 'px';
     };
     const onUp = () => {
@@ -275,7 +278,7 @@ function _switchTab(name) {
   _activeTab = name;
   if (!_panel) return;
 
-  _panel.querySelectorAll('.console-tab').forEach(t => {
+  _panel.querySelectorAll('.console-tab').forEach((t) => {
     t.classList.toggle('active', t.dataset.tab === name);
   });
 
@@ -306,7 +309,9 @@ async function _loadCommands() {
       item.className = 'cmd-item';
       const result = document.createElement('div');
       result.className = 'cmd-result';
-      item.innerHTML = `<span class="cmd-label">${_esc(cmd.label)}</span><span style="color:#8b949e;font-size:0.75rem;">▶ Run</span>`;
+      item.innerHTML = `<span class="cmd-label">${
+        _esc(cmd.label)
+      }</span><span style="color:#8b949e;font-size:0.75rem;">▶ Run</span>`;
       item.appendChild(result);
       item.addEventListener('click', async () => {
         result.textContent = 'Running…';
@@ -349,7 +354,10 @@ function _closePanel() {
 }
 
 function _togglePanel() {
-  if (!_panel) { _openPanel(); return; }
+  if (!_panel) {
+    _openPanel();
+    return;
+  }
   if (_panel.classList.contains('open')) _closePanel();
   else _openPanel();
 }
@@ -359,9 +367,10 @@ function _togglePanel() {
 function _buildTrigger() {
   const btn = document.createElement('button');
   btn.id = 'mr-console-trigger';
-  btn.title = 'Server Console (` or \')';
+  btn.title = "Server Console (` or ')";
   btn.setAttribute('aria-label', 'Open Server Console');
-  btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>`;
+  btn.innerHTML =
+    `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>`;
   btn.style.cssText = [
     'position:fixed',
     // sit just above the persistent status strip so they never overlap

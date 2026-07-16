@@ -180,6 +180,7 @@ class CountryBlockIn(BaseModel):
 
 
 class BlockEventOut(BaseModel):
+
     id: int
     element: str
     source: str

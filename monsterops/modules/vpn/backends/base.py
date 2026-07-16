@@ -1,3 +1,4 @@
+
 from __future__ import annotations
 
 import asyncio
@@ -92,8 +93,9 @@ def _wrap_priv(argv: list[str]) -> list[str]:
     return ["sudo", "-n", *argv]
 
 
-async def run(argv: list[str], *, input_text: str | None = None, timeout: float = 30.0,
-              priv: bool = True) -> tuple[int, str, str]:
+async def run(
+    argv: list[str], *, input_text: str | None = None, timeout: float = 30.0, priv: bool = True
+) -> tuple[int, str, str]:
     cmd = _wrap_priv(argv) if priv else argv
     try:
         proc = await asyncio.create_subprocess_exec(

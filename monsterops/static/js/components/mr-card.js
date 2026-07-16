@@ -11,15 +11,21 @@
  *   action     — placed top-right, next to the subtitle
  */
 class MrCard extends HTMLElement {
-  static get observedAttributes() { return ['title', 'subtitle', 'padding']; }
+  static get observedAttributes() {
+    return ['title', 'subtitle', 'padding'];
+  }
 
-  connectedCallback() { this._render(); }
-  attributeChangedCallback() { this._render(); }
+  connectedCallback() {
+    this._render();
+  }
+  attributeChangedCallback() {
+    this._render();
+  }
 
   _render() {
-    const title    = this.getAttribute('title') ?? '';
+    const title = this.getAttribute('title') ?? '';
     const subtitle = this.getAttribute('subtitle') ?? '';
-    const noPad    = this.getAttribute('padding') === 'none';
+    const noPad = this.getAttribute('padding') === 'none';
 
     const hasHeader = title || subtitle || this.querySelector('[slot="action"]');
 

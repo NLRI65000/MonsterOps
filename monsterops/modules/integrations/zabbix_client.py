@@ -84,18 +84,26 @@ class ZabbixClient:
         version_str = str(await self._rpc(client, "apiinfo.version", {}))
         use_header = self._parse_use_header(version_str)
         try:
-            token = await self._rpc(client, "user.login", {"username": self.username, "password": self.password})
+            token = await self._rpc(
+                client, "user.login", {"username": self.username, "password": self.password}
+            )
         except RuntimeError:
-            token = await self._rpc(client, "user.login", {"user": self.username, "password": self.password})
+            token = await self._rpc(
+                client, "user.login", {"user": self.username, "password": self.password}
+            )
         return str(token), use_header
 
     async def test_connection(self) -> dict[str, Any]:
         async with httpx.AsyncClient(verify=self.verify, timeout=self.timeout) as c:
             version_str = str(await self._rpc(c, "apiinfo.version", {}))
             try:
-                token = await self._rpc(c, "user.login", {"username": self.username, "password": self.password})
+                token = await self._rpc(
+                    c, "user.login", {"username": self.username, "password": self.password}
+                )
             except RuntimeError:
-                token = await self._rpc(c, "user.login", {"user": self.username, "password": self.password})
+                token = await self._rpc(
+                    c, "user.login", {"user": self.username, "password": self.password}
+                )
             return {"version": version_str, "authenticated": bool(token)}
 
     async def get_host_problems(self, nas_ip: str) -> list[dict[str, Any]]:
@@ -120,7 +128,9 @@ class ZabbixClient:
                 auth_token=token,
                 use_header=use_header,
             )
-            host_map: dict[str, str] = {h["hostid"]: (h.get("name") or h.get("host", "")) for h in hosts}
+            host_map: dict[str, str] = {
+                h["hostid"]: (h.get("name") or h.get("host", "")) for h in hosts
+            }
 
             problems = await self._rpc(
                 c,

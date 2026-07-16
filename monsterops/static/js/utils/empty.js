@@ -13,7 +13,7 @@
 // injects a tiny <style> into the target root once (deduped, reduced-motion
 // aware).
 
-const TEXT  = 'var(--mr-text, #EDEDED)';
+const TEXT = 'var(--mr-text, #EDEDED)';
 const MUTED = 'var(--mr-text-muted, #9B9B9B)';
 const ACCENT = 'var(--mr-action, #F6821F)';
 
@@ -23,8 +23,7 @@ function esc(s) {
   ));
 }
 
-const EMPTY_WRAP =
-  'display:flex;flex-direction:column;align-items:center;justify-content:center;' +
+const EMPTY_WRAP = 'display:flex;flex-direction:column;align-items:center;justify-content:center;' +
   'gap:0.4rem;padding:2.75rem 1.5rem;text-align:center;';
 
 /**
@@ -39,10 +38,14 @@ export function emptyStateHTML({ icon = '', title = '', message = '' } = {}) {
     ? `<div class="mr-empty-icon" style="opacity:0.45;line-height:0;margin-bottom:0.15rem;" aria-hidden="true">${icon}</div>`
     : '';
   const titleHTML = title
-    ? `<div class="mr-empty-title" style="color:${TEXT};font-size:0.9rem;font-weight:600;">${esc(title)}</div>`
+    ? `<div class="mr-empty-title" style="color:${TEXT};font-size:0.9rem;font-weight:600;">${
+      esc(title)
+    }</div>`
     : '';
   const msgHTML = message
-    ? `<div class="mr-empty-msg" style="color:${MUTED};font-size:0.82rem;line-height:1.5;max-width:40ch;">${esc(message)}</div>`
+    ? `<div class="mr-empty-msg" style="color:${MUTED};font-size:0.82rem;line-height:1.5;max-width:40ch;">${
+      esc(message)
+    }</div>`
     : '';
   return `<div class="mr-empty" style="${EMPTY_WRAP}">${iconHTML}${titleHTML}${msgHTML}</div>`;
 }
@@ -52,7 +55,9 @@ export function emptyStateHTML({ icon = '', title = '', message = '' } = {}) {
  * a query returns no rows:  body.innerHTML = emptyRowHTML(cols, { title, … })
  */
 export function emptyRowHTML(cols, opts = {}) {
-  return `<tr class="mr-empty-row"><td colspan="${cols}" style="border:none;padding:0;">${emptyStateHTML(opts)}</td></tr>`;
+  return `<tr class="mr-empty-row"><td colspan="${cols}" style="border:none;padding:0;">${
+    emptyStateHTML(opts)
+  }</td></tr>`;
 }
 
 /**
@@ -69,9 +74,11 @@ export function emptyState({ icon, title, message, action } = {}) {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.textContent = action.label;
-    btn.setAttribute('style',
+    btn.setAttribute(
+      'style',
       `margin-top:0.6rem;padding:0.45rem 0.9rem;border:none;border-radius:6px;` +
-      `background:${ACCENT};color:#111;font-size:0.82rem;font-weight:600;cursor:pointer;`);
+        `background:${ACCENT};color:#111;font-size:0.82rem;font-weight:600;cursor:pointer;`,
+    );
     if (action.onClick) btn.addEventListener('click', action.onClick);
     el.appendChild(btn);
   }
@@ -80,8 +87,7 @@ export function emptyState({ icon, title, message, action } = {}) {
 
 // ── loading skeletons ───────────────────────────────────────────────────────
 
-const SKEL_CSS =
-  '.mr-skel{display:block;height:0.72em;border-radius:4px;' +
+const SKEL_CSS = '.mr-skel{display:block;height:0.72em;border-radius:4px;' +
   'background:linear-gradient(90deg,' +
   'var(--mr-surface-raised,#1F1F1F) 25%,var(--mr-frame,#2D2D2D) 37%,' +
   'var(--mr-surface-raised,#1F1F1F) 63%);' +
@@ -135,7 +141,8 @@ export function skeletonRows(root, cols, rows = 6) {
  */
 export function skeletonBlock(root, lines = 4) {
   ensureShimmer(root);
-  let html = '<div class="mr-skel-block" aria-hidden="true" style="display:flex;flex-direction:column;gap:0.7rem;padding:1.2rem 0;">';
+  let html =
+    '<div class="mr-skel-block" aria-hidden="true" style="display:flex;flex-direction:column;gap:0.7rem;padding:1.2rem 0;">';
   for (let i = 0; i < lines; i++) {
     const w = _WIDTHS[i % _WIDTHS.length];
     html += `<span class="mr-skel" style="width:${w}%;height:0.85em;"></span>`;

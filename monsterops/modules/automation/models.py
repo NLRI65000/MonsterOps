@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sqlalchemy import Boolean, Column, Integer, Text, TIMESTAMP
+from sqlalchemy import TIMESTAMP, Boolean, Column, Integer, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import func
 

@@ -31,6 +31,7 @@ _ANY = Depends(get_current_user)
 
 
 
+
 @router.get("/channels", response_model=list[ChannelOut])
 async def list_channels(db: AsyncSession = Depends(get_db), _u=_ANY):
     q = await db.execute(select(NotificationChannel).order_by(NotificationChannel.name))
@@ -109,7 +110,9 @@ async def list_rules(db: AsyncSession = Depends(get_db), _u=_ANY):
 @router.post("/rules", response_model=RuleOut, status_code=201)
 async def create_rule(body: RuleCreate, db: AsyncSession = Depends(get_db), _u=_ADMIN):
     if body.event_type not in _VALID_EVENT_TYPES:
-        raise HTTPException(400, f"event_type must be one of: {', '.join(sorted(_VALID_EVENT_TYPES))}")
+        raise HTTPException(
+            400, f"event_type must be one of: {', '.join(sorted(_VALID_EVENT_TYPES))}"
+        )
     rule = NotificationRule(**body.model_dump())
     db.add(rule)
     await db.commit()
@@ -134,7 +137,9 @@ async def update_rule(
         raise HTTPException(404, "Rule not found")
     data = body.model_dump(exclude_none=True)
     if "event_type" in data and data["event_type"] not in _VALID_EVENT_TYPES:
-        raise HTTPException(400, f"event_type must be one of: {', '.join(sorted(_VALID_EVENT_TYPES))}")
+        raise HTTPException(
+            400, f"event_type must be one of: {', '.join(sorted(_VALID_EVENT_TYPES))}"
+        )
     for field, value in data.items():
         setattr(rule, field, value)
     rule.updated_at = datetime.now(tz=timezone.utc)
@@ -150,6 +155,7 @@ async def delete_rule(rule_id: int, db: AsyncSession = Depends(get_db), _u=_ADMI
         raise HTTPException(404, "Rule not found")
     await db.delete(rule)
     await db.commit()
+
 
 
 

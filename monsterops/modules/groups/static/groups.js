@@ -2,16 +2,15 @@ import { router } from '/js/router.js';
 import { api } from '/js/api.js';
 import { toast } from '/js/components/app-toast.js';
 import { confirmDialog } from '/js/components/app-confirm.js';
-import { setFieldError, clearFieldErrors, applyServerErrors } from '/js/utils/form.js';
-import { densityBarHTML, wireDensityBar, applyDensity, makeSortable } from '/js/utils/table.js';
+import { applyServerErrors, clearFieldErrors, setFieldError } from '/js/utils/form.js';
+import { applyDensity, densityBarHTML, makeSortable, wireDensityBar } from '/js/utils/table.js';
 import { emptyStateHTML } from '/js/utils/empty.js';
 
 function escHtml(s) {
-  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
-
-function badge(text, type) {
-  return `<span class="badge badge-${type}">${text}</span>`;
+  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(
+    /"/g,
+    '&quot;',
+  );
 }
 
 const CSS = `
@@ -169,7 +168,7 @@ class GroupsView extends HTMLElement {
     this._page = 1;
     this._size = 20;
     this._search = '';
-    this._order = 'asc';   // server-side group-name sort direction
+    this._order = 'asc'; // server-side group-name sort direction
     this._selected = null;
     this._detail = null;
     this._members = null;
@@ -227,7 +226,12 @@ class GroupsView extends HTMLElement {
 
   async _loadGroups() {
     try {
-      const params = new URLSearchParams({ page: this._page, size: this._size, search: this._search, order: this._order });
+      const params = new URLSearchParams({
+        page: this._page,
+        size: this._size,
+        search: this._search,
+        order: this._order,
+      });
       const data = await api.get(`/groups?${params}`);
       this._groups = data.items;
       this._total = data.total;
@@ -256,14 +260,18 @@ class GroupsView extends HTMLElement {
       <table>
         <thead><tr><th data-sort-key="groupname">Group Name</th><th data-no-sort>Members</th><th data-no-sort>Check</th><th data-no-sort>Reply</th></tr></thead>
         <tbody>
-          ${this._groups.map(g => `
-            <tr class="clickable${this._selected === g.name ? ' selected' : ''}" data-name="${escHtml(g.name)}">
+          ${
+      this._groups.map((g) => `
+            <tr class="clickable${this._selected === g.name ? ' selected' : ''}" data-name="${
+        escHtml(g.name)
+      }">
               <td><strong>${escHtml(g.name)}</strong></td>
               <td><span class="count-pill"><strong>${g.member_count}</strong> users</span></td>
               <td><span class="count-pill"><strong>${g.check_count}</strong> attrs</span></td>
               <td><span class="count-pill"><strong>${g.reply_count}</strong> attrs</span></td>
             </tr>
-          `).join('')}
+          `).join('')
+    }
         </tbody>
       </table>
     `;
@@ -275,10 +283,14 @@ class GroupsView extends HTMLElement {
     // aggregates and stay unsorted.
     makeSortable(table, {
       active: { key: 'groupname', dir: this._order },
-      onSort: (_key, dir) => { this._order = dir; this._page = 1; this._loadGroups(); },
+      onSort: (_key, dir) => {
+        this._order = dir;
+        this._page = 1;
+        this._loadGroups();
+      },
     });
 
-    body.querySelectorAll('tr[data-name]').forEach(row => {
+    body.querySelectorAll('tr[data-name]').forEach((row) => {
       row.addEventListener('click', () => this._selectGroup(row.dataset.name));
     });
   }
@@ -289,13 +301,23 @@ class GroupsView extends HTMLElement {
     pg.innerHTML = `
       <span>${this._total} group${this._total !== 1 ? 's' : ''}</span>
       <div class="pagination-btns">
-        <button class="btn btn-ghost" id="pg-prev" ${this._page <= 1 ? 'disabled' : ''}>‹ Prev</button>
+        <button class="btn btn-ghost" id="pg-prev" ${
+      this._page <= 1 ? 'disabled' : ''
+    }>‹ Prev</button>
         <span style="align-self:center;font-size:0.78rem">${this._page} / ${pages}</span>
-        <button class="btn btn-ghost" id="pg-next" ${this._page >= pages ? 'disabled' : ''}>Next ›</button>
+        <button class="btn btn-ghost" id="pg-next" ${
+      this._page >= pages ? 'disabled' : ''
+    }>Next ›</button>
       </div>
     `;
-    pg.querySelector('#pg-prev')?.addEventListener('click', () => { this._page--; this._loadGroups(); });
-    pg.querySelector('#pg-next')?.addEventListener('click', () => { this._page++; this._loadGroups(); });
+    pg.querySelector('#pg-prev')?.addEventListener('click', () => {
+      this._page--;
+      this._loadGroups();
+    });
+    pg.querySelector('#pg-next')?.addEventListener('click', () => {
+      this._page++;
+      this._loadGroups();
+    });
   }
 
   // ── Detail ─────────────────────────────────────────────────────────────────
@@ -308,7 +330,8 @@ class GroupsView extends HTMLElement {
     this._renderList();
     const dp = this.shadowRoot.getElementById('detail-panel');
     dp.classList.add('open');
-    dp.innerHTML = `<div class="detail-inner"><div style="padding:2rem;color:var(--color-muted);">Loading…</div></div>`;
+    dp.innerHTML =
+      `<div class="detail-inner"><div style="padding:2rem;color:var(--color-muted);">Loading…</div></div>`;
     try {
       this._detail = await api.get(`/groups/${encodeURIComponent(name)}`);
       this._renderDetail();
@@ -326,21 +349,35 @@ class GroupsView extends HTMLElement {
     dp.innerHTML = `
       <div class="detail-inner">
         <div class="detail-header">
-          ${this._renaming
-            ? `<input class="input detail-name-input" id="rename-input" value="${escHtml(d.name)}" />`
-            : `<div class="detail-name">${escHtml(d.name)}</div>`}
-          ${this._renaming
-            ? `<button class="btn btn-primary" id="btn-rename-save">Save</button>
+          ${
+      this._renaming
+        ? `<input class="input detail-name-input" id="rename-input" value="${escHtml(d.name)}" />`
+        : `<div class="detail-name">${escHtml(d.name)}</div>`
+    }
+          ${
+      this._renaming
+        ? `<button class="btn btn-primary" id="btn-rename-save">Save</button>
                <button class="btn btn-ghost" id="btn-rename-cancel">Cancel</button>`
-            : `<button class="btn btn-ghost" id="btn-rename-start" title="Rename">✏️ Rename</button>`}
+        : `<button class="btn btn-ghost" id="btn-rename-start" title="Rename">✏️ Rename</button>`
+    }
           <button class="icon-btn danger" id="btn-close-detail" title="Close">✕</button>
         </div>
         <div class="detail-tabs">
-          ${['check','reply','members','nas-access','login-type'].map(t => `
+          ${
+      ['check', 'reply', 'members', 'nas-access', 'login-type'].map((t) => `
             <button class="tab-btn${this._tab === t ? ' active' : ''}" data-tab="${t}">
-              ${{ check:'Check Attrs', reply:'Reply Attrs', members:`Members (${d.member_count})`, 'nas-access':'NAS Access', 'login-type':'Login Type' }[t]}
+              ${
+        {
+          check: 'Check Attrs',
+          reply: 'Reply Attrs',
+          members: `Members (${d.member_count})`,
+          'nas-access': 'NAS Access',
+          'login-type': 'Login Type',
+        }[t]
+      }
             </button>
-          `).join('')}
+          `).join('')
+    }
         </div>
         <div class="detail-body" id="detail-body"></div>
       </div>
@@ -357,7 +394,10 @@ class GroupsView extends HTMLElement {
       dp.querySelector('#rename-input').focus();
       dp.querySelector('#rename-input').addEventListener('keydown', (e) => {
         if (e.key === 'Enter') this._saveRename();
-        if (e.key === 'Escape') { this._renaming = false; this._renderDetail(); }
+        if (e.key === 'Escape') {
+          this._renaming = false;
+          this._renderDetail();
+        }
       });
     } else {
       dp.querySelector('#btn-rename-start').addEventListener('click', () => {
@@ -366,10 +406,10 @@ class GroupsView extends HTMLElement {
       });
     }
 
-    dp.querySelectorAll('.tab-btn').forEach(btn => {
+    dp.querySelectorAll('.tab-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
         this._tab = btn.dataset.tab;
-        dp.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b === btn));
+        dp.querySelectorAll('.tab-btn').forEach((b) => b.classList.toggle('active', b === btn));
         this._renderTab();
       });
     });
@@ -381,11 +421,21 @@ class GroupsView extends HTMLElement {
     const body = this.shadowRoot.getElementById('detail-body');
     if (!body) return;
     switch (this._tab) {
-      case 'check':      this._renderAttrsTab(body, 'check'); break;
-      case 'reply':      this._renderAttrsTab(body, 'reply'); break;
-      case 'members':    this._renderMembersTab(body); break;
-      case 'nas-access': this._renderNasAccessTab(body); break;
-      case 'login-type': this._renderLoginTypeTab(body); break;
+      case 'check':
+        this._renderAttrsTab(body, 'check');
+        break;
+      case 'reply':
+        this._renderAttrsTab(body, 'reply');
+        break;
+      case 'members':
+        this._renderMembersTab(body);
+        break;
+      case 'nas-access':
+        this._renderNasAccessTab(body);
+        break;
+      case 'login-type':
+        this._renderLoginTypeTab(body);
+        break;
     }
   }
 
@@ -399,17 +449,23 @@ class GroupsView extends HTMLElement {
       <table class="attr-table">
         <thead><tr><th>Attribute</th><th class="op-col">Op</th><th>Value</th><th class="actions-col"></th></tr></thead>
         <tbody>
-          ${rows.map(r => `
+          ${
+      rows.map((r) => `
             <tr data-id="${r.id}">
               <td>${escHtml(r.attribute)}</td>
-              <td class="op-col"><input class="input attr-op" value="${escHtml(r.op)}" style="width:55px;padding:0.25rem;" /></td>
-              <td><input class="input attr-val" value="${escHtml(r.value)}" style="padding:0.25rem;" /></td>
+              <td class="op-col"><input class="input attr-op" value="${
+        escHtml(r.op)
+      }" style="width:55px;padding:0.25rem;" /></td>
+              <td><input class="input attr-val" value="${
+        escHtml(r.value)
+      }" style="padding:0.25rem;" /></td>
               <td class="actions-col">
                 <button class="icon-btn btn-save-attr" title="Save">💾</button>
                 <button class="icon-btn danger btn-del-attr" title="Delete">🗑</button>
               </td>
             </tr>
-          `).join('')}
+          `).join('')
+    }
         </tbody>
       </table>
       <div class="add-row">
@@ -419,7 +475,11 @@ class GroupsView extends HTMLElement {
         <button class="btn btn-primary" id="btn-add-attr">Add</button>
       </div>
 
-      ${type === 'reply' ? `<div id="attr-hints-placeholder" style="margin-top:1.5rem;font-size:0.78rem;color:var(--color-muted);">Loading attribute suggestions…</div>` : ''}
+      ${
+      type === 'reply'
+        ? `<div id="attr-hints-placeholder" style="margin-top:1.5rem;font-size:0.78rem;color:var(--color-muted);">Loading attribute suggestions…</div>`
+        : ''
+    }
 
       <div class="danger-zone" style="margin-top:2rem;">
         <p>Permanently deletes this group and all its attributes and memberships.</p>
@@ -427,55 +487,83 @@ class GroupsView extends HTMLElement {
       </div>
     `;
 
-    body.querySelectorAll('.btn-save-attr').forEach(btn => {
+    body.querySelectorAll('.btn-save-attr').forEach((btn) => {
       btn.addEventListener('click', async () => {
         const row = btn.closest('tr');
         const id = parseInt(row.dataset.id);
         const op = row.querySelector('.attr-op').value;
         const value = row.querySelector('.attr-val').value;
         try {
-          await api.put(`/groups/${encodeURIComponent(this._selected)}/${type}/${id}`, { op, value });
+          await api.put(`/groups/${encodeURIComponent(this._selected)}/${type}/${id}`, {
+            op,
+            value,
+          });
           toast('Attribute updated', 'success');
           await this._refreshDetail();
-        } catch (e) { toast(e.message || 'Update failed', 'error'); }
+        } catch (e) {
+          toast(e.message || 'Update failed', 'error');
+        }
       });
     });
 
-    body.querySelectorAll('.btn-del-attr').forEach(btn => {
+    body.querySelectorAll('.btn-del-attr').forEach((btn) => {
       btn.addEventListener('click', async () => {
         const row = btn.closest('tr');
         const id = parseInt(row.dataset.id);
-        if (!(await confirmDialog('Delete this attribute?', { title: 'Delete attribute', danger: true }))) return;
+        if (
+          !(await confirmDialog('Delete this attribute?', {
+            title: 'Delete attribute',
+            danger: true,
+          }))
+        ) return;
         try {
           await api.delete(`/groups/${encodeURIComponent(this._selected)}/${type}/${id}`);
           toast('Attribute deleted', 'success');
           await this._refreshDetail();
-        } catch (e) { toast(e.message || 'Delete failed', 'error'); }
+        } catch (e) {
+          toast(e.message || 'Delete failed', 'error');
+        }
       });
     });
 
     body.querySelector('#btn-add-attr').addEventListener('click', async () => {
       const attr = body.querySelector('#new-attr-name').value.trim();
-      const op   = body.querySelector('#new-attr-op').value.trim() || defaultOp;
-      const val  = body.querySelector('#new-attr-val').value.trim();
-      if (!attr || !val) { toast('Attribute and value required', 'warning'); return; }
+      const op = body.querySelector('#new-attr-op').value.trim() || defaultOp;
+      const val = body.querySelector('#new-attr-val').value.trim();
+      if (!attr || !val) {
+        toast('Attribute and value required', 'warning');
+        return;
+      }
       try {
-        await api.post(`/groups/${encodeURIComponent(this._selected)}/${type}`, { attribute: attr, op, value: val });
+        await api.post(`/groups/${encodeURIComponent(this._selected)}/${type}`, {
+          attribute: attr,
+          op,
+          value: val,
+        });
         toast('Attribute added', 'success');
         body.querySelector('#new-attr-name').value = '';
         body.querySelector('#new-attr-val').value = '';
         await this._refreshDetail();
-      } catch (e) { toast(e.message || 'Add failed', 'error'); }
+      } catch (e) {
+        toast(e.message || 'Add failed', 'error');
+      }
     });
 
     body.querySelector('#btn-delete-group').addEventListener('click', async () => {
-      if (!(await confirmDialog(`Delete group "${this._selected}"? This removes all members and attributes.`, { title: 'Delete group', danger: true }))) return;
+      if (
+        !(await confirmDialog(
+          `Delete group "${this._selected}"? This removes all members and attributes.`,
+          { title: 'Delete group', danger: true },
+        ))
+      ) return;
       try {
         await api.delete(`/groups/${encodeURIComponent(this._selected)}`);
         toast(`Group ${this._selected} deleted`, 'success');
         this._closeDetail();
         this._loadGroups();
-      } catch (e) { toast(e.message || 'Delete failed', 'error'); }
+      } catch (e) {
+        toast(e.message || 'Delete failed', 'error');
+      }
     });
 
     if (type === 'reply') this._loadAttrHints(body);
@@ -484,12 +572,14 @@ class GroupsView extends HTMLElement {
   // ── Members tab ───────────────────────────────────────────────────────────
 
   async _renderMembersTab(body) {
-    body.innerHTML = `<div style="color:var(--color-muted);font-size:0.85rem;padding:1rem 0;">Loading…</div>`;
+    body.innerHTML =
+      `<div style="color:var(--color-muted);font-size:0.85rem;padding:1rem 0;">Loading…</div>`;
     if (!this._members) {
       try {
         this._members = await api.get(`/groups/${encodeURIComponent(this._selected)}/members`);
       } catch {
-        body.innerHTML = `<div style="color:var(--color-danger);padding:1rem;">Failed to load members.</div>`;
+        body.innerHTML =
+          `<div style="color:var(--color-danger);padding:1rem;">Failed to load members.</div>`;
         return;
       }
     }
@@ -499,7 +589,9 @@ class GroupsView extends HTMLElement {
       <table class="attr-table">
         <thead><tr><th>Username</th><th class="priority-col">Priority</th><th class="actions-col"></th></tr></thead>
         <tbody>
-          ${rows.length ? rows.map(m => `
+          ${
+      rows.length
+        ? rows.map((m) => `
             <tr data-username="${escHtml(m.username)}">
               <td>${escHtml(m.username)}</td>
               <td class="priority-col">
@@ -511,7 +603,9 @@ class GroupsView extends HTMLElement {
                 <button class="icon-btn danger btn-remove-member" title="Remove">🗑</button>
               </td>
             </tr>
-          `).join('') : `<tr><td colspan="3" style="color:var(--color-muted);text-align:center;padding:1rem;">No members</td></tr>`}
+          `).join('')
+        : `<tr><td colspan="3" style="color:var(--color-muted);text-align:center;padding:1rem;">No members</td></tr>`
+    }
         </tbody>
       </table>
       <div class="add-row" style="margin-top:0.75rem;">
@@ -521,108 +615,149 @@ class GroupsView extends HTMLElement {
       </div>
     `;
 
-    body.querySelectorAll('.btn-save-priority').forEach(btn => {
+    body.querySelectorAll('.btn-save-priority').forEach((btn) => {
       btn.addEventListener('click', async () => {
         const row = btn.closest('tr');
         const username = row.dataset.username;
         const priority = parseInt(row.querySelector('.priority-val').value) || 0;
         try {
           await api.put(
-            `/groups/${encodeURIComponent(this._selected)}/members/${encodeURIComponent(username)}/priority?priority=${priority}`
+            `/groups/${encodeURIComponent(this._selected)}/members/${
+              encodeURIComponent(username)
+            }/priority?priority=${priority}`,
           );
           toast('Priority updated', 'success');
           this._members = null;
           await this._refreshDetail();
-        } catch (e) { toast(e.message || 'Update failed', 'error'); }
+        } catch (e) {
+          toast(e.message || 'Update failed', 'error');
+        }
       });
     });
 
-    body.querySelectorAll('.btn-remove-member').forEach(btn => {
+    body.querySelectorAll('.btn-remove-member').forEach((btn) => {
       btn.addEventListener('click', async () => {
         const row = btn.closest('tr');
         const username = row.dataset.username;
-        if (!(await confirmDialog(`Remove ${username} from ${this._selected}?`, { title: 'Remove member', danger: true }))) return;
+        if (
+          !(await confirmDialog(`Remove ${username} from ${this._selected}?`, {
+            title: 'Remove member',
+            danger: true,
+          }))
+        ) return;
         try {
-          await api.delete(`/groups/${encodeURIComponent(this._selected)}/members/${encodeURIComponent(username)}`);
+          await api.delete(
+            `/groups/${encodeURIComponent(this._selected)}/members/${encodeURIComponent(username)}`,
+          );
           toast('Member removed', 'success');
           this._members = null;
           await this._refreshDetail();
-        } catch (e) { toast(e.message || 'Remove failed', 'error'); }
+        } catch (e) {
+          toast(e.message || 'Remove failed', 'error');
+        }
       });
     });
 
     body.querySelector('#btn-add-member').addEventListener('click', async () => {
       const username = body.querySelector('#new-member-name').value.trim();
       const priority = parseInt(body.querySelector('#new-member-priority').value) || 0;
-      if (!username) { toast('Username required', 'warning'); return; }
+      if (!username) {
+        toast('Username required', 'warning');
+        return;
+      }
       try {
-        await api.post(`/groups/${encodeURIComponent(this._selected)}/members`, { username, priority });
+        await api.post(`/groups/${encodeURIComponent(this._selected)}/members`, {
+          username,
+          priority,
+        });
         toast(`${username} added to group`, 'success');
         body.querySelector('#new-member-name').value = '';
         this._members = null;
         await this._refreshDetail();
-      } catch (e) { toast(e.message || 'Add failed', 'error'); }
+      } catch (e) {
+        toast(e.message || 'Add failed', 'error');
+      }
     });
   }
 
   // ── NAS Access tab ────────────────────────────────────────────────────────
 
   async _renderNasAccessTab(body) {
-    body.innerHTML = `<div style="color:var(--color-muted);font-size:0.85rem;padding:1rem 0;">Loading…</div>`;
+    body.innerHTML =
+      `<div style="color:var(--color-muted);font-size:0.85rem;padding:1rem 0;">Loading…</div>`;
     try {
       const [links, allNgData] = await Promise.all([
         api.get(`/nas/groups/links/${encodeURIComponent(this._selected)}`),
         api.get('/nas/groups/list?size=100'),
       ]);
-      const linkedIds = new Set(links.map(l => l.nas_group_id));
-      const available = (allNgData.items || []).filter(g => !linkedIds.has(g.id));
+      const linkedIds = new Set(links.map((l) => l.nas_group_id));
+      const available = (allNgData.items || []).filter((g) => !linkedIds.has(g.id));
 
       body.innerHTML = `
         <div class="section-header">Linked NAS Groups</div>
-        ${links.length
+        ${
+        links.length
           ? `<table class="attr-table">
                <thead><tr><th>NAS Group</th><th class="actions-col"></th></tr></thead>
                <tbody>
-                 ${links.map(l => `
+                 ${
+            links.map((l) => `
                    <tr data-link-id="${l.link_id}" data-ng-id="${l.nas_group_id}">
                      <td>${escHtml(l.nas_group_name)}</td>
                      <td class="actions-col">
                        <button class="icon-btn danger btn-unlink-ng" title="Unlink">🗑</button>
                      </td>
                    </tr>
-                 `).join('')}
+                 `).join('')
+          }
                </tbody>
              </table>`
           : `<p style="color:var(--color-muted);font-size:0.82rem;padding:0.5rem 0 1rem;">
                No NAS groups linked. Link a NAS group below, then this RADIUS group's reply attributes
                will receive suggestions based on the NAS vendors in that group.
              </p>`
-        }
-        <div class="section-header" style="margin-top:${links.length ? '1.5' : '0'}rem;">Link a NAS Group</div>
-        ${available.length
+      }
+        <div class="section-header" style="margin-top:${
+        links.length ? '1.5' : '0'
+      }rem;">Link a NAS Group</div>
+        ${
+        available.length
           ? `<div class="add-row">
                <select class="input" id="ng-link-select" style="flex:1;">
                  <option value="">— select NAS group —</option>
-                 ${available.map(g => `<option value="${g.id}">${escHtml(g.name)}${g.description ? ' — ' + escHtml(g.description) : ''}</option>`).join('')}
+                 ${
+            available.map((g) =>
+              `<option value="${g.id}">${escHtml(g.name)}${
+                g.description ? ' — ' + escHtml(g.description) : ''
+              }</option>`
+            ).join('')
+          }
                </select>
                <button class="btn btn-primary" id="btn-do-link-ng">Link</button>
              </div>`
           : `<p style="color:var(--color-muted);font-size:0.82rem;padding:0.5rem 0;">All NAS groups are already linked.</p>`
-        }
+      }
       `;
 
-      body.querySelectorAll('.btn-unlink-ng').forEach(btn => {
+      body.querySelectorAll('.btn-unlink-ng').forEach((btn) => {
         btn.addEventListener('click', async () => {
           const row = btn.closest('tr');
           const linkId = parseInt(row.dataset.linkId);
           const ngId = parseInt(row.dataset.ngId);
-          const link = links.find(l => l.link_id === linkId);
-          if (!(await confirmDialog(`Unlink this RADIUS group from NAS group "${link?.nas_group_name}"?`, { title: 'Unlink group', danger: true }))) return;
+          const link = links.find((l) => l.link_id === linkId);
+          if (
+            !(await confirmDialog(
+              `Unlink this RADIUS group from NAS group "${link?.nas_group_name}"?`,
+              { title: 'Unlink group', danger: true },
+            ))
+          ) return;
           try {
             await api.delete(`/nas/groups/${ngId}/radius-groups/${linkId}`);
             toast('NAS group unlinked', 'success');
             this._renderNasAccessTab(body);
-          } catch (e) { toast(e.message || 'Unlink failed', 'error'); }
+          } catch (e) {
+            toast(e.message || 'Unlink failed', 'error');
+          }
         });
       });
 
@@ -630,23 +765,32 @@ class GroupsView extends HTMLElement {
       if (linkBtn) {
         linkBtn.addEventListener('click', async () => {
           const ngId = body.querySelector('#ng-link-select')?.value;
-          if (!ngId) { toast('Select a NAS group', 'warning'); return; }
+          if (!ngId) {
+            toast('Select a NAS group', 'warning');
+            return;
+          }
           try {
-            await api.post(`/nas/groups/${ngId}/radius-groups`, { radius_groupname: this._selected });
+            await api.post(`/nas/groups/${ngId}/radius-groups`, {
+              radius_groupname: this._selected,
+            });
             toast('NAS group linked', 'success');
             this._renderNasAccessTab(body);
-          } catch (e) { toast(e.message || 'Link failed', 'error'); }
+          } catch (e) {
+            toast(e.message || 'Link failed', 'error');
+          }
         });
       }
     } catch {
-      body.innerHTML = `<div style="color:var(--color-danger);padding:1rem;">Failed to load NAS group links.</div>`;
+      body.innerHTML =
+        `<div style="color:var(--color-danger);padding:1rem;">Failed to load NAS group links.</div>`;
     }
   }
 
   // ── Login-type tab ────────────────────────────────────────────────────────
 
   async _renderLoginTypeTab(body) {
-    body.innerHTML = `<div style="color:var(--color-muted);font-size:0.85rem;padding:1rem 0;">Loading…</div>`;
+    body.innerHTML =
+      `<div style="color:var(--color-muted);font-size:0.85rem;padding:1rem 0;">Loading…</div>`;
     try {
       if (!this._loginTypes) {
         this._loginTypes = await api.get('/groups/login-types');
@@ -655,7 +799,8 @@ class GroupsView extends HTMLElement {
       // restriction is active when the group has at least one type configured
       this._renderLoginTypeBody(body, currentTypes, currentTypes.size > 0);
     } catch {
-      body.innerHTML = `<div style="color:var(--color-danger);padding:1rem;">Failed to load login types.</div>`;
+      body.innerHTML =
+        `<div style="color:var(--color-danger);padding:1rem;">Failed to load login types.</div>`;
     }
   }
 
@@ -675,16 +820,19 @@ class GroupsView extends HTMLElement {
         <label style="display:flex;align-items:center;gap:0.5rem;font-size:0.85rem;cursor:pointer;">
           <input type="checkbox" id="lt-enabled-toggle" ${enabled ? 'checked' : ''}
             style="accent-color:var(--color-primary);width:16px;height:16px;" />
-          <span id="lt-enabled-label" style="font-weight:600;color:${enabled ? 'var(--color-primary)' : 'var(--color-muted)'};">
+          <span id="lt-enabled-label" style="font-weight:600;color:${
+      enabled ? 'var(--color-primary)' : 'var(--color-muted)'
+    };">
             ${enabled ? 'Restriction enabled' : 'Restriction disabled'}
           </span>
         </label>
       </div>
 
       <div id="lt-types-wrap" style="${enabled ? '' : 'opacity:0.4;pointer-events:none;'}">
-        ${types.map(t => {
-          const sel = selected.has(t.key);
-          return `
+        ${
+      types.map((t) => {
+        const sel = selected.has(t.key);
+        return `
             <label class="lt-card${sel ? ' selected' : ''}" data-key="${t.key}">
               <input type="checkbox" ${sel ? 'checked' : ''} data-key="${t.key}" />
               <div class="lt-body">
@@ -692,11 +840,12 @@ class GroupsView extends HTMLElement {
                 <div class="lt-desc">${escHtml(t.description)}</div>
                 <div class="lt-detect">${escHtml(t.detect)}</div>
                 <div class="lt-vendors">
-                  ${t.vendors.map(v => `<span class="lt-vendor ${v}">${v}</span>`).join('')}
+                  ${t.vendors.map((v) => `<span class="lt-vendor ${v}">${v}</span>`).join('')}
                 </div>
               </div>
             </label>`;
-        }).join('')}
+      }).join('')
+    }
       </div>
 
       <div class="lt-save-row" style="margin-top:1rem;">
@@ -706,8 +855,8 @@ class GroupsView extends HTMLElement {
     `;
 
     const toggleEl = body.querySelector('#lt-enabled-toggle');
-    const wrapEl   = body.querySelector('#lt-types-wrap');
-    const labelEl  = body.querySelector('#lt-enabled-label');
+    const wrapEl = body.querySelector('#lt-types-wrap');
+    const labelEl = body.querySelector('#lt-enabled-label');
 
     toggleEl.addEventListener('change', () => {
       const on = toggleEl.checked;
@@ -718,7 +867,7 @@ class GroupsView extends HTMLElement {
       body.querySelector('#lt-save-note').textContent = '';
     });
 
-    body.querySelectorAll('.lt-card').forEach(card => {
+    body.querySelectorAll('.lt-card').forEach((card) => {
       const cb = card.querySelector('input[type=checkbox]');
       card.addEventListener('click', (e) => {
         if (e.target !== cb) cb.checked = !cb.checked;
@@ -730,7 +879,7 @@ class GroupsView extends HTMLElement {
     body.querySelector('#btn-lt-save').addEventListener('click', async () => {
       const isEnabled = body.querySelector('#lt-enabled-toggle').checked;
       const checked = [...body.querySelectorAll('#lt-types-wrap input[type=checkbox]:checked')]
-        .map(c => c.dataset.key);
+        .map((c) => c.dataset.key);
       const note = body.querySelector('#lt-save-note');
 
       if (isEnabled && checked.length === 0) {
@@ -742,7 +891,7 @@ class GroupsView extends HTMLElement {
       try {
         const result = await api.put(
           `/groups/${encodeURIComponent(this._selected)}/access-types`,
-          { enabled: isEnabled, types: checked }
+          { enabled: isEnabled, types: checked },
         );
         this._detail.access_types = result.types;
         note.textContent = isEnabled
@@ -769,19 +918,24 @@ class GroupsView extends HTMLElement {
       if (!current) return; // tab changed while loading
 
       if (!data.hints || !data.hints.length) {
-        current.innerHTML = `💡 Link NAS groups in the <strong>NAS Access</strong> tab to see vendor-specific attribute suggestions here.`;
+        current.innerHTML =
+          `💡 Link NAS groups in the <strong>NAS Access</strong> tab to see vendor-specific attribute suggestions here.`;
         return;
       }
 
       const vendorList = data.vendors.length ? data.vendors.join(', ') : 'standard';
-      const ngList = data.nas_groups.length ? ` — via: ${data.nas_groups.map(n => escHtml(n)).join(', ')}` : '';
+      const ngList = data.nas_groups.length
+        ? ` — via: ${data.nas_groups.map((n) => escHtml(n)).join(', ')}`
+        : '';
 
       const wrapper = document.createElement('div');
       wrapper.style.marginTop = '1.5rem';
       wrapper.innerHTML = `
         <div class="section-header" style="display:flex;align-items:baseline;gap:0.75rem;">
           <span>💡 Suggested Reply Attributes</span>
-          <span style="font-weight:400;font-size:0.7rem;text-transform:none;letter-spacing:0;color:var(--color-muted);">${escHtml(vendorList)}${ngList}</span>
+          <span style="font-weight:400;font-size:0.7rem;text-transform:none;letter-spacing:0;color:var(--color-muted);">${
+        escHtml(vendorList)
+      }${ngList}</span>
         </div>
         <table class="attr-table">
           <thead>
@@ -794,33 +948,45 @@ class GroupsView extends HTMLElement {
             </tr>
           </thead>
           <tbody>
-            ${data.hints.map(h => `
-              <tr data-attr="${escHtml(h.attribute)}" data-op="${escHtml(h.op)}" data-val="${escHtml(h.example)}">
+            ${
+        data.hints.map((h) => `
+              <tr data-attr="${escHtml(h.attribute)}" data-op="${escHtml(h.op)}" data-val="${
+          escHtml(h.example)
+        }">
                 <td>
-                  <span class="badge badge-${h.vendor === 'standard' ? 'neutral' : 'accent'}" style="margin-right:0.3rem;">${escHtml(h.vendor)}</span>
+                  <span class="badge badge-${
+          h.vendor === 'standard' ? 'neutral' : 'accent'
+        }" style="margin-right:0.3rem;">${escHtml(h.vendor)}</span>
                   ${escHtml(h.attribute)}
                 </td>
-                <td class="op-col" style="font-family:monospace;font-size:0.78rem;">${escHtml(h.op)}</td>
-                <td><code style="font-size:0.75rem;font-family:monospace;">${escHtml(h.example)}</code></td>
-                <td style="font-size:0.75rem;color:var(--color-muted);">${escHtml(h.description)}</td>
+                <td class="op-col" style="font-family:monospace;font-size:0.78rem;">${
+          escHtml(h.op)
+        }</td>
+                <td><code style="font-size:0.75rem;font-family:monospace;">${
+          escHtml(h.example)
+        }</code></td>
+                <td style="font-size:0.75rem;color:var(--color-muted);">${
+          escHtml(h.description)
+        }</td>
                 <td class="actions-col">
                   <button class="icon-btn btn-hint-insert" title="Insert into add form">⤵</button>
                 </td>
               </tr>
-            `).join('')}
+            `).join('')
+      }
           </tbody>
         </table>
       `;
 
-      wrapper.querySelectorAll('.btn-hint-insert').forEach(btn => {
+      wrapper.querySelectorAll('.btn-hint-insert').forEach((btn) => {
         btn.addEventListener('click', () => {
           const row = btn.closest('tr');
           const nameEl = body.querySelector('#new-attr-name');
-          const opEl   = body.querySelector('#new-attr-op');
-          const valEl  = body.querySelector('#new-attr-val');
+          const opEl = body.querySelector('#new-attr-op');
+          const valEl = body.querySelector('#new-attr-val');
           if (nameEl) nameEl.value = row.dataset.attr;
-          if (opEl)   opEl.value   = row.dataset.op;
-          if (valEl)  valEl.value  = row.dataset.val;
+          if (opEl) opEl.value = row.dataset.op;
+          if (valEl) valEl.value = row.dataset.val;
           nameEl?.focus();
         });
       });
@@ -836,7 +1002,7 @@ class GroupsView extends HTMLElement {
 
   _openCreateModal() {
     const overlay = this.shadowRoot.getElementById('modal-overlay');
-    const box     = this.shadowRoot.getElementById('modal-box');
+    const box = this.shadowRoot.getElementById('modal-box');
     box.innerHTML = `
       <div class="modal-title">Create Group</div>
       <div class="form-row">
@@ -863,7 +1029,10 @@ class GroupsView extends HTMLElement {
     const nEl = box.querySelector('#m-name');
     const name = nEl.value.trim();
     clearFieldErrors(box);
-    if (!name) { setFieldError(nEl, 'Group name is required'); return; }
+    if (!name) {
+      setFieldError(nEl, 'Group name is required');
+      return;
+    }
     try {
       await api.post('/groups', { name });
       toast(`Group ${name} created`, 'success');
@@ -883,8 +1052,15 @@ class GroupsView extends HTMLElement {
   async _saveRename() {
     const dp = this.shadowRoot.getElementById('detail-panel');
     const newName = dp.querySelector('#rename-input')?.value.trim();
-    if (!newName) { toast('Group name required', 'warning'); return; }
-    if (newName === this._selected) { this._renaming = false; this._renderDetail(); return; }
+    if (!newName) {
+      toast('Group name required', 'warning');
+      return;
+    }
+    if (newName === this._selected) {
+      this._renaming = false;
+      this._renderDetail();
+      return;
+    }
     try {
       await api.put(`/groups/${encodeURIComponent(this._selected)}/rename`, { name: newName });
       toast(`Renamed to ${newName}`, 'success');
@@ -894,9 +1070,11 @@ class GroupsView extends HTMLElement {
       this._detail.name = newName;
       this._renderDetail();
       // Update list row in place
-      this._groups = this._groups.map(g => g.name === oldName ? { ...g, name: newName } : g);
+      this._groups = this._groups.map((g) => g.name === oldName ? { ...g, name: newName } : g);
       this._renderList();
-    } catch (e) { toast(e.message || 'Rename failed', 'error'); }
+    } catch (e) {
+      toast(e.message || 'Rename failed', 'error');
+    }
   }
 
   async _refreshDetail() {

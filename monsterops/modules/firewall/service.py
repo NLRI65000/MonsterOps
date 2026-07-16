@@ -1,3 +1,4 @@
+
 from __future__ import annotations
 
 import asyncio
@@ -39,15 +40,29 @@ async def get_config(db: AsyncSession) -> MrFirewallConfig:
 
 
 async def list_rules(db: AsyncSession) -> list[MrFirewallRule]:
-    return list((await db.execute(
-        select(MrFirewallRule).order_by(MrFirewallRule.position, MrFirewallRule.id)
-    )).scalars().all())
+    return list(
+        (
+            await db.execute(
+                select(MrFirewallRule).order_by(MrFirewallRule.position, MrFirewallRule.id)
+            )
+        )
+        .scalars()
+        .all()
+    )
 
 
 async def list_sets(db: AsyncSession) -> list[MrFirewallSet]:
-    return list((await db.execute(
-        select(MrFirewallSet).options(selectinload(MrFirewallSet.entries)).order_by(MrFirewallSet.name)
-    )).scalars().all())
+    return list(
+        (
+            await db.execute(
+                select(MrFirewallSet)
+                .options(selectinload(MrFirewallSet.entries))
+                .order_by(MrFirewallSet.name)
+            )
+        )
+        .scalars()
+        .all()
+    )
 
 
 async def render(db: AsyncSession, guard_ips: list[str] | None = None) -> str:
@@ -58,13 +73,16 @@ async def render(db: AsyncSession, guard_ips: list[str] | None = None) -> str:
 
 
 
+
 def _boot_path() -> str:
     from monsterops.config import settings
+
     return settings.firewall_ruleset_path
 
 
 def _write_file_sync(path: str, text: str) -> None:
     import os
+
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w") as fh:
         fh.write(text)
@@ -94,20 +112,30 @@ async def preview(db: AsyncSession, guard_ips: list[str] | None = None) -> dict:
     valid, err = await nft.check(ruleset)
     active_ok, active = await nft.list_table()
     body = _strip_prefix(ruleset)
-    diff = "\n".join(difflib.unified_diff(
-        (active or "").splitlines(), body.splitlines(),
-        fromfile="active", tofile="proposed", lineterm="",
-    )) if active_ok else ""
+    diff = (
+        "\n".join(
+            difflib.unified_diff(
+                (active or "").splitlines(),
+                body.splitlines(),
+                fromfile="active",
+                tofile="proposed",
+                lineterm="",
+            )
+        )
+        if active_ok
+        else ""
+    )
     return {"ruleset": ruleset, "valid": valid, "error": err, "diff": diff}
 
 
 def _strip_prefix(ruleset: str) -> str:
     lines = ruleset.splitlines()
-    return "\n".join(ln for ln in lines
-                     if not ln.startswith(("add table", "delete table")))
+    return "\n".join(ln for ln in lines if not ln.startswith(("add table", "delete table")))
 
 
-async def apply_with_rollback(db: AsyncSession, actor: str, guard_ips: list[str] | None = None) -> dict:
+async def apply_with_rollback(
+    db: AsyncSession, actor: str, guard_ips: list[str] | None = None
+) -> dict:
     if not nft.nft_available():
         raise RuntimeError("nft binary not installed on this host")
 
@@ -144,7 +172,9 @@ async def _rollback_after(token: str, snapshot_text: str, timeout: int) -> None:
         await asyncio.sleep(timeout)
     except asyncio.CancelledError:
         return
-    logger.warning("Firewall apply NOT confirmed within %ds — rolling back (token=%s)", timeout, token)
+    logger.warning(
+        "Firewall apply NOT confirmed within %ds — rolling back (token=%s)", timeout, token
+    )
     await _restore(snapshot_text)
     _pending.pop(token, None)
 
@@ -171,9 +201,9 @@ def pending_confirmations() -> list[dict]:
 
 
 async def rollback_now(db: AsyncSession) -> bool:
-    snap = (await db.execute(
-        select(MrFirewallSnapshot).order_by(MrFirewallSnapshot.id.desc()).limit(1)
-    )).scalar_one_or_none()
+    snap = (
+        await db.execute(select(MrFirewallSnapshot).order_by(MrFirewallSnapshot.id.desc()).limit(1))
+    ).scalar_one_or_none()
     if snap is None:
         return False
     for token in list(_pending):
@@ -201,16 +231,27 @@ async def counters(db: AsyncSession) -> dict:
             verdict = _find_verdict(rule.get("expr", []))
             comment = rule.get("comment")
             if pkts:
-                rule_ctrs.append({"comment": comment, "action": verdict,
-                                  "packets": pkts["packets"], "bytes": pkts["bytes"]})
+                rule_ctrs.append(
+                    {
+                        "comment": comment,
+                        "action": verdict,
+                        "packets": pkts["packets"],
+                        "bytes": pkts["bytes"],
+                    }
+                )
                 if verdict == "drop":
                     total_dropped += pkts["packets"]
         elif "set" in item:
             s = item["set"]
             elems = s.get("elem", [])
             set_sizes[s.get("name")] = len(elems)
-    return {"available": True, "active": True, "rules": rule_ctrs,
-            "sets": set_sizes, "total_dropped": total_dropped}
+    return {
+        "available": True,
+        "active": True,
+        "rules": rule_ctrs,
+        "sets": set_sizes,
+        "total_dropped": total_dropped,
+    }
 
 
 def _find_counter(exprs: list) -> dict | None:
@@ -251,8 +292,13 @@ async def status(db: AsyncSession) -> dict:
     }
 
 
-async def add_ban(db: AsyncSession, element: str, ttl_seconds: int | None,
-                  set_name: str | None = None, comment: str = "auto-ban") -> MrFirewallSet:
+async def add_ban(
+    db: AsyncSession,
+    element: str,
+    ttl_seconds: int | None,
+    set_name: str | None = None,
+    comment: str = "auto-ban",
+) -> MrFirewallSet:
     from datetime import timedelta
 
     from monsterops.modules.firewall.models import MrFirewallSetEntry
@@ -268,7 +314,11 @@ async def add_ban(db: AsyncSession, element: str, ttl_seconds: int | None,
 
     expires = (datetime.now(timezone.utc) + timedelta(seconds=ttl_seconds)) if ttl_seconds else None
     if not any(e.element == element for e in fset.entries):
-        db.add(MrFirewallSetEntry(set_id=fset.id, element=element, comment=comment[:120], expires_at=expires))
+        db.add(
+            MrFirewallSetEntry(
+                set_id=fset.id, element=element, comment=comment[:120], expires_at=expires
+            )
+        )
         await db.commit()
     if nft.nft_available():
         await nft.add_element(fset.name, element, ttl_seconds)
@@ -304,14 +354,22 @@ async def provision_nas_guard_set(db: AsyncSession) -> dict:
             seen.add(s)
             ips.append(s)
 
-    fset = (await db.execute(
-        select(MrFirewallSet).options(selectinload(MrFirewallSet.entries))
-        .where(MrFirewallSet.name == NAS_GUARD_SET)
-    )).scalar_one_or_none()
+    fset = (
+        await db.execute(
+            select(MrFirewallSet)
+            .options(selectinload(MrFirewallSet.entries))
+            .where(MrFirewallSet.name == NAS_GUARD_SET)
+        )
+    ).scalar_one_or_none()
     if fset is None:
-        fset = MrFirewallSet(name=NAS_GUARD_SET, family="ipv4_addr", kind="allow",
-                             auto_ban=False, managed_source=NAS_GUARD_SOURCE,
-                             comment="Anti-lockout: known NAS clients (RADIUS)")
+        fset = MrFirewallSet(
+            name=NAS_GUARD_SET,
+            family="ipv4_addr",
+            kind="allow",
+            auto_ban=False,
+            managed_source=NAS_GUARD_SOURCE,
+            comment="Anti-lockout: known NAS clients (RADIUS)",
+        )
         db.add(fset)
         await db.flush()
     else:
@@ -327,9 +385,12 @@ async def provision_nas_guard_set(db: AsyncSession) -> dict:
 
 
 
+
 async def find_lockout_ips(
-    db: AsyncSession, elements: list[str],
-    current_ip: str | None = None, country_code: str | None = None,
+    db: AsyncSession,
+    elements: list[str],
+    current_ip: str | None = None,
+    country_code: str | None = None,
 ) -> dict:
     import ipaddress
 
@@ -344,6 +405,7 @@ async def find_lockout_ips(
             continue
     if country_code:
         from monsterops.modules.firewall import geoblock
+
         try:
             for c in await geoblock.fetch_country_cidrs(country_code):
                 try:
@@ -356,11 +418,13 @@ async def find_lockout_ips(
     if not nets:
         return {"covered": [], "nas": [], "your_ip": current_ip}
 
-    rows = (await db.execute(
-        select(AuditLog.ip_address, func.max(AuditLog.created_at))
-        .where(AuditLog.ip_address.is_not(None))
-        .group_by(AuditLog.ip_address)
-    )).all()
+    rows = (
+        await db.execute(
+            select(AuditLog.ip_address, func.max(AuditLog.created_at))
+            .where(AuditLog.ip_address.is_not(None))
+            .group_by(AuditLog.ip_address)
+        )
+    ).all()
 
     covered: list[dict] = []
     seen: set[str] = set()
@@ -377,11 +441,13 @@ async def find_lockout_ips(
         for net in nets:
             if ip.version == net.version and ip in net:
                 seen.add(ip_str)
-                covered.append({
-                    "ip": ip_str,
-                    "last_seen": last_seen.isoformat() if last_seen else None,
-                    "current": is_current,
-                })
+                covered.append(
+                    {
+                        "ip": ip_str,
+                        "last_seen": last_seen.isoformat() if last_seen else None,
+                        "current": is_current,
+                    }
+                )
                 return
 
     _consider(current_ip, None, True)
@@ -406,18 +472,28 @@ async def find_lockout_ips(
 
 
 
+
 async def record_block_event(
-    db: AsyncSession, *, element: str, set_name: str,
-    source: str = "brute_force", reason: str | None = None,
+    db: AsyncSession,
+    *,
+    element: str,
+    set_name: str,
+    source: str = "brute_force",
+    reason: str | None = None,
     ban_seconds: int | None = None,
 ) -> None:
     from monsterops.modules.firewall.models import MrFirewallBlockEvent
 
     try:
-        db.add(MrFirewallBlockEvent(
-            element=element, set_name=set_name[:48], source=source[:32],
-            reason=(reason or None) and reason[:200], ban_seconds=ban_seconds,
-        ))
+        db.add(
+            MrFirewallBlockEvent(
+                element=element,
+                set_name=set_name[:48],
+                source=source[:32],
+                reason=(reason or None) and reason[:200],
+                ban_seconds=ban_seconds,
+            )
+        )
         await db.commit()
     except Exception:  # noqa: BLE001 — audit is advisory, never fatal
         logger.warning("Firewall: could not record block event for %s", element, exc_info=True)
@@ -425,17 +501,24 @@ async def record_block_event(
 
 
 async def mark_block_override(
-    db: AsyncSession, *, element: str, set_name: str, username: str,
+    db: AsyncSession,
+    *,
+    element: str,
+    set_name: str,
+    username: str,
 ) -> bool:
     from monsterops.modules.firewall.models import MrFirewallBlockEvent
 
-    ev = (await db.execute(
-        select(MrFirewallBlockEvent)
-        .where(MrFirewallBlockEvent.element == element)
-        .where(MrFirewallBlockEvent.set_name == set_name)
-        .where(MrFirewallBlockEvent.override_at.is_(None))
-        .order_by(MrFirewallBlockEvent.id.desc()).limit(1)
-    )).scalar_one_or_none()
+    ev = (
+        await db.execute(
+            select(MrFirewallBlockEvent)
+            .where(MrFirewallBlockEvent.element == element)
+            .where(MrFirewallBlockEvent.set_name == set_name)
+            .where(MrFirewallBlockEvent.override_at.is_(None))
+            .order_by(MrFirewallBlockEvent.id.desc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
     if ev is None:
         return False
     ev.override_by = username[:64]
@@ -447,8 +530,14 @@ async def mark_block_override(
 async def list_block_events(db: AsyncSession, limit: int = 50) -> list:
     from monsterops.modules.firewall.models import MrFirewallBlockEvent
 
-    return list((await db.execute(
-        select(MrFirewallBlockEvent)
-        .order_by(MrFirewallBlockEvent.created_at.desc(), MrFirewallBlockEvent.id.desc())
-        .limit(max(1, min(limit, 500)))
-    )).scalars().all())
+    return list(
+        (
+            await db.execute(
+                select(MrFirewallBlockEvent)
+                .order_by(MrFirewallBlockEvent.created_at.desc(), MrFirewallBlockEvent.id.desc())
+                .limit(max(1, min(limit, 500)))
+            )
+        )
+        .scalars()
+        .all()
+    )

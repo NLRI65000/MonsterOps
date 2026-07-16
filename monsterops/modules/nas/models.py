@@ -29,16 +29,22 @@ class NasGroup(Base):
 
 
 class NasGroupMember(Base):
+
     __tablename__ = "mr_nas_group_member"
 
     id = Column(Integer, primary_key=True)
-    nas_group_id = Column(Integer, ForeignKey("mr_nas_group.id", ondelete="CASCADE"), nullable=False)
+    nas_group_id = Column(
+        Integer, ForeignKey("mr_nas_group.id", ondelete="CASCADE"), nullable=False
+    )
     nas_id = Column(Integer, ForeignKey("nas.id", ondelete="CASCADE"), nullable=False)
 
 
 class RadiusGroupNasGroup(Base):
+
     __tablename__ = "mr_radius_group_nas_group"
 
     id = Column(Integer, primary_key=True)
     radius_groupname = Column(String(64), nullable=False)
-    nas_group_id = Column(Integer, ForeignKey("mr_nas_group.id", ondelete="CASCADE"), nullable=False)
+    nas_group_id = Column(
+        Integer, ForeignKey("mr_nas_group.id", ondelete="CASCADE"), nullable=False
+    )

@@ -2,16 +2,20 @@ import { router } from '/js/router.js';
 import { api } from '/js/api.js';
 import { toast } from '/js/components/app-toast.js';
 import { confirmDialog } from '/js/components/app-confirm.js';
-import { densityBarHTML, wireDensityBar, applyDensity, makeSortable } from '/js/utils/table.js';
+import { applyDensity, densityBarHTML, makeSortable, wireDensityBar } from '/js/utils/table.js';
 import { emptyStateHTML, skeletonRows } from '/js/utils/empty.js';
 
 function esc(s) {
-  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(
+    /"/g,
+    '&quot;',
+  );
 }
 
 function _flagEmoji(cc) {
   if (!cc || cc.length !== 2) return '';
-  return [...cc.toUpperCase()].map(c => String.fromCodePoint(0x1F1E6 - 65 + c.charCodeAt(0))).join('');
+  return [...cc.toUpperCase()].map((c) => String.fromCodePoint(0x1F1E6 - 65 + c.charCodeAt(0)))
+    .join('');
 }
 
 function _geoLabel(geo) {
@@ -42,15 +46,30 @@ const COA_PRESETS = [
 
 const PRESET_FIELDS = {
   'mikrotik-rate': {
-    fields: [{ id: 'pr-rate', label: 'Rate Limit', placeholder: '10M/10M', hint: 'Upload/Download — e.g. 5M/20M' }],
+    fields: [{
+      id: 'pr-rate',
+      label: 'Rate Limit',
+      placeholder: '10M/10M',
+      hint: 'Upload/Download — e.g. 5M/20M',
+    }],
     build: (sr) => ({ 'Mikrotik-Rate-Limit': sr.getElementById('pr-rate').value.trim() }),
   },
   'session-timeout': {
-    fields: [{ id: 'pr-timeout', label: 'Seconds', placeholder: '3600', hint: 'Session will end after this many seconds' }],
+    fields: [{
+      id: 'pr-timeout',
+      label: 'Seconds',
+      placeholder: '3600',
+      hint: 'Session will end after this many seconds',
+    }],
     build: (sr) => ({ 'Session-Timeout': sr.getElementById('pr-timeout').value.trim() }),
   },
   'idle-timeout': {
-    fields: [{ id: 'pr-idle', label: 'Seconds', placeholder: '300', hint: 'Session ends after this many seconds of idle' }],
+    fields: [{
+      id: 'pr-idle',
+      label: 'Seconds',
+      placeholder: '300',
+      hint: 'Session ends after this many seconds of idle',
+    }],
     build: (sr) => ({ 'Idle-Timeout': sr.getElementById('pr-idle').value.trim() }),
   },
 };
@@ -238,7 +257,7 @@ class AccountingView extends HTMLElement {
           <div class="form-group">
             <label class="form-label">Preset</label>
             <select class="form-input" id="coa-preset">
-              ${COA_PRESETS.map(p => `<option value="${p.id}">${p.label}</option>`).join('')}
+              ${COA_PRESETS.map((p) => `<option value="${p.id}">${p.label}</option>`).join('')}
             </select>
           </div>
 
@@ -266,7 +285,10 @@ class AccountingView extends HTMLElement {
     this._load().then(() => {
       if (_hlId) {
         const row = this.shadowRoot.querySelector(`tr[data-id="${_hlId}"]`);
-        if (row) { row.style.outline = '2px solid var(--color-accent)'; row.scrollIntoView({ block: 'center' }); }
+        if (row) {
+          row.style.outline = '2px solid var(--color-accent)';
+          row.scrollIntoView({ block: 'center' });
+        }
       }
     });
   }
@@ -277,15 +299,28 @@ class AccountingView extends HTMLElement {
 
   _bindEvents() {
     const sr = this.shadowRoot;
-    sr.getElementById('btn-search').addEventListener('click', () => { this._stopLive(); this._load(); });
-    sr.getElementById('btn-refresh').addEventListener('click', () => { this._stopLive(); this._load(); });
-    sr.getElementById('inp-user').addEventListener('keydown', e => { if (e.key === 'Enter') { this._stopLive(); this._load(); } });
+    sr.getElementById('btn-search').addEventListener('click', () => {
+      this._stopLive();
+      this._load();
+    });
+    sr.getElementById('btn-refresh').addEventListener('click', () => {
+      this._stopLive();
+      this._load();
+    });
+    sr.getElementById('inp-user').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        this._stopLive();
+        this._load();
+      }
+    });
     sr.getElementById('btn-export').addEventListener('click', () => this._exportCSV());
     sr.getElementById('btn-live').addEventListener('click', () => this._toggleLive());
 
     // CoA modal
     sr.getElementById('coa-cancel').addEventListener('click', () => this._closeCoA());
-    sr.getElementById('coa-modal').addEventListener('click', e => { if (e.target.id === 'coa-modal') this._closeCoA(); });
+    sr.getElementById('coa-modal').addEventListener('click', (e) => {
+      if (e.target.id === 'coa-modal') this._closeCoA();
+    });
     sr.getElementById('coa-submit').addEventListener('click', () => this._submitCoA());
     sr.getElementById('coa-preset').addEventListener('change', () => this._updatePresetFields());
   }
@@ -299,9 +334,8 @@ class AccountingView extends HTMLElement {
   }
 
   _startLive() {
-    const btn  = this.shadowRoot.getElementById('btn-live');
-    const dot  = this.shadowRoot.getElementById('live-dot');
-    const wrap = this.shadowRoot.getElementById('wrap');
+    const btn = this.shadowRoot.getElementById('btn-live');
+    const dot = this.shadowRoot.getElementById('live-dot');
     btn.style.borderColor = 'var(--color-success)';
     btn.style.color = 'var(--color-success)';
     dot.style.background = 'var(--color-success)';
@@ -319,7 +353,11 @@ class AccountingView extends HTMLElement {
           credentials: 'same-origin',
           signal,
         });
-        if (!res.ok) { toast(`Live stream error: ${res.status}`, 'error'); this._stopLive(); return; }
+        if (!res.ok) {
+          toast(`Live stream error: ${res.status}`, 'error');
+          this._stopLive();
+          return;
+        }
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
         let buf = '';
@@ -338,7 +376,7 @@ class AccountingView extends HTMLElement {
           }
         }
       } catch (e) {
-        if (e.name !== 'AbortError') { toast(`Live stream error: ${e.message}`, 'error'); }
+        if (e.name !== 'AbortError') toast(`Live stream error: ${e.message}`, 'error');
       } finally {
         this._stopLive();
       }
@@ -352,8 +390,14 @@ class AccountingView extends HTMLElement {
     }
     const btn = this.shadowRoot.getElementById('btn-live');
     const dot = this.shadowRoot.getElementById('live-dot');
-    if (btn) { btn.style.borderColor = ''; btn.style.color = ''; }
-    if (dot) { dot.style.background = 'var(--color-muted)'; dot.style.animation = ''; }
+    if (btn) {
+      btn.style.borderColor = '';
+      btn.style.color = '';
+    }
+    if (dot) {
+      dot.style.background = 'var(--color-muted)';
+      dot.style.animation = '';
+    }
   }
 
   async _load() {
@@ -365,7 +409,7 @@ class AccountingView extends HTMLElement {
       </tr></thead>
       <tbody>${skeletonRows(this.shadowRoot, 9, 8)}</tbody>
     </table>`;
-    const user   = this.shadowRoot.getElementById('inp-user').value.trim();
+    const user = this.shadowRoot.getElementById('inp-user').value.trim();
     const active = this.shadowRoot.getElementById('chk-active').checked;
     let url = `/accounting?limit=200&active_only=${active}`;
     if (user) url += `&username=${encodeURIComponent(user)}`;
@@ -402,38 +446,70 @@ class AccountingView extends HTMLElement {
           </tr>
         </thead>
         <tbody>
-          ${this._rows.map(r => `
+          ${
+      this._rows.map((r) => `
             <tr data-id="${r.radacctid}">
               <td style="font-weight:500">${esc(r.username || '—')}</td>
-              <td>${r.auth_outcome === 'Access-Accept'
-                  ? '<span class="badge badge-success">Accept</span>'
-                  : r.auth_outcome
-                    ? `<span class="badge" style="background:var(--mr-reject-tint);color:var(--mr-reject)">Reject</span>`
-                    : '<span class="muted" style="font-size:0.75rem">—</span>'}
-                ${r.auth_log_id ? `<a data-auth-link="${r.auth_log_id}" href="#" style="font-size:0.7rem;display:block;color:var(--color-accent);text-decoration:none;margin-top:2px" title="View auth event">↗ Auth</a>` : ''}
+              <td>${
+        r.auth_outcome === 'Access-Accept'
+          ? '<span class="badge badge-success">Accept</span>'
+          : r.auth_outcome
+          ? `<span class="badge" style="background:var(--mr-reject-tint);color:var(--mr-reject)">Reject</span>`
+          : '<span class="muted" style="font-size:0.75rem">—</span>'
+      }
+                ${
+        r.auth_log_id
+          ? `<a data-auth-link="${r.auth_log_id}" href="#" style="font-size:0.7rem;display:block;color:var(--color-accent);text-decoration:none;margin-top:2px" title="View auth event">↗ Auth</a>`
+          : ''
+      }
               </td>
               <td style="white-space:nowrap">
                 <span class="mono muted">${esc(r.nasipaddress || '—')}</span>
-                ${r.geo_client ? `<div style="font-size:0.72rem;color:var(--color-muted);margin-top:1px">${esc(_geoLabel(r.geo_client))}</div>` : ''}
+                ${
+        r.geo_client
+          ? `<div style="font-size:0.72rem;color:var(--color-muted);margin-top:1px">${
+            esc(_geoLabel(r.geo_client))
+          }</div>`
+          : ''
+      }
               </td>
-              <td class="mono" style="white-space:nowrap" data-sort="${Date.parse(r.acctstarttime) || 0}">${fmtDate(r.acctstarttime)}</td>
-              <td class="mono muted" style="white-space:nowrap" data-sort="${r.acctstoptime ? Date.parse(r.acctstoptime) : Number.MAX_SAFE_INTEGER}">
-                ${r.acctstoptime
-                  ? fmtDate(r.acctstoptime)
-                  : '<span class="badge badge-success">Active</span>'}
+              <td class="mono" style="white-space:nowrap" data-sort="${
+        Date.parse(r.acctstarttime) || 0
+      }">${fmtDate(r.acctstarttime)}</td>
+              <td class="mono muted" style="white-space:nowrap" data-sort="${
+        r.acctstoptime ? Date.parse(r.acctstoptime) : Number.MAX_SAFE_INTEGER
+      }">
+                ${
+        r.acctstoptime ? fmtDate(r.acctstoptime) : '<span class="badge badge-success">Active</span>'
+      }
               </td>
-              <td class="mono" data-sort="${(Number(r.acctinputoctets) || 0) + (Number(r.acctoutputoctets) || 0)}">${fmt(r.acctinputoctets)} / ${fmt(r.acctoutputoctets)}</td>
+              <td class="mono" data-sort="${
+        (Number(r.acctinputoctets) || 0) + (Number(r.acctoutputoctets) || 0)
+      }">${fmt(r.acctinputoctets)} / ${fmt(r.acctoutputoctets)}</td>
               <td class="mono muted">${esc(r.framedipaddress || '—')}</td>
               <td class="muted">${esc(r.acctterminatecause || '—')}</td>
               <td style="white-space:nowrap">
-                ${r.active ? `
-                  <button class="btn btn-sm" data-action="logs" data-nas="${esc(r.nasipaddress || '')}" data-user="${esc(r.username || '')}" data-since="${esc(r.acctstarttime || '')}" title="View Graylog session logs">Logs</button>
-                  <button class="btn btn-sm btn-warn" data-action="coa" data-uid="${esc(r.acctuniqueid)}" data-user="${esc(r.username || '')}" style="margin-left:4px">CoA</button>
-                  <button class="btn btn-sm btn-danger" data-action="disc" data-uid="${esc(r.acctuniqueid)}" data-user="${esc(r.username || '')}" style="margin-left:4px">Disconnect</button>
-                ` : ''}
+                ${
+        r.active
+          ? `
+                  <button class="btn btn-sm" data-action="logs" data-nas="${
+            esc(r.nasipaddress || '')
+          }" data-user="${esc(r.username || '')}" data-since="${
+            esc(r.acctstarttime || '')
+          }" title="View Graylog session logs">Logs</button>
+                  <button class="btn btn-sm btn-warn" data-action="coa" data-uid="${
+            esc(r.acctuniqueid)
+          }" data-user="${esc(r.username || '')}" style="margin-left:4px">CoA</button>
+                  <button class="btn btn-sm btn-danger" data-action="disc" data-uid="${
+            esc(r.acctuniqueid)
+          }" data-user="${esc(r.username || '')}" style="margin-left:4px">Disconnect</button>
+                `
+          : ''
+      }
               </td>
             </tr>
-          `).join('')}
+          `).join('')
+    }
         </tbody>
       </table>
     `;
@@ -442,21 +518,26 @@ class AccountingView extends HTMLElement {
     makeSortable(table, { default: { col: 3, dir: 'desc' } }); // Start, newest first
 
     // Cross-link to auth log (20.3)
-    wrap.querySelectorAll('[data-auth-link]').forEach(a => {
+    wrap.querySelectorAll('[data-auth-link]').forEach((a) => {
       a.addEventListener('click', (e) => {
         e.preventDefault();
         router.navigate('/auth-logs?highlight=' + a.dataset.authLink);
       });
     });
 
-    wrap.querySelectorAll('[data-action]').forEach(btn => {
+    wrap.querySelectorAll('[data-action]').forEach((btn) => {
       btn.addEventListener('click', () => {
-        const uid  = btn.dataset.uid;
+        const uid = btn.dataset.uid;
         const user = btn.dataset.user;
         if (btn.dataset.action === 'disc') this._confirmDisconnect(uid, user);
-        if (btn.dataset.action === 'coa')  this._openCoA(uid, user);
+        if (btn.dataset.action === 'coa') this._openCoA(uid, user);
         if (btn.dataset.action === 'logs') {
-          const params = new URLSearchParams({ tab: 'graylog', nas_ip: btn.dataset.nas, username: btn.dataset.user, since: btn.dataset.since });
+          const params = new URLSearchParams({
+            tab: 'graylog',
+            nas_ip: btn.dataset.nas,
+            username: btn.dataset.user,
+            since: btn.dataset.since,
+          });
           router.navigate(`/integrations?${params}`);
         }
       });
@@ -466,7 +547,12 @@ class AccountingView extends HTMLElement {
   // ── Disconnect ──────────────────────────────────────────────────────────────
 
   async _confirmDisconnect(uid, username) {
-    if (!(await confirmDialog(`Disconnect session for "${username}"?\n\nA Disconnect-Request will be sent to the NAS.`, { title: 'Disconnect session' }))) return;
+    if (
+      !(await confirmDialog(
+        `Disconnect session for "${username}"?\n\nA Disconnect-Request will be sent to the NAS.`,
+        { title: 'Disconnect session' },
+      ))
+    ) return;
     try {
       const res = await api.post(`/accounting/${encodeURIComponent(uid)}/disconnect`, {});
       if (res.success) {
@@ -498,11 +584,11 @@ class AccountingView extends HTMLElement {
   }
 
   _updatePresetFields() {
-    const sr    = this.shadowRoot;
-    const id    = sr.getElementById('coa-preset').value;
-    const area  = sr.getElementById('coa-preset-area');
+    const sr = this.shadowRoot;
+    const id = sr.getElementById('coa-preset').value;
+    const area = sr.getElementById('coa-preset-area');
     const cArea = sr.getElementById('coa-custom-area');
-    const def   = PRESET_FIELDS[id];
+    const def = PRESET_FIELDS[id];
 
     if (!id) {
       area.innerHTML = '';
@@ -510,7 +596,7 @@ class AccountingView extends HTMLElement {
       return;
     }
     cArea.style.display = 'none';
-    area.innerHTML = def.fields.map(f => `
+    area.innerHTML = def.fields.map((f) => `
       <div class="form-group">
         <label class="form-label">${f.label}</label>
         <input type="text" class="form-input" id="${f.id}" placeholder="${f.placeholder || ''}">
@@ -528,22 +614,34 @@ class AccountingView extends HTMLElement {
     if (presetId) {
       const def = PRESET_FIELDS[presetId];
       attributes = def.build(sr);
-      const empty = Object.values(attributes).filter(v => !v);
-      if (empty.length) { toast('Fill in all fields', 'error'); return; }
+      const empty = Object.values(attributes).filter((v) => !v);
+      if (empty.length) {
+        toast('Fill in all fields', 'error');
+        return;
+      }
     } else {
       const raw = sr.getElementById('coa-custom-attrs').value.trim();
-      if (!raw) { toast('Enter at least one attribute', 'error'); return; }
+      if (!raw) {
+        toast('Enter at least one attribute', 'error');
+        return;
+      }
       for (const line of raw.split('\n')) {
         const eq = line.indexOf('=');
-        if (eq === -1) { toast(`Invalid line (missing =): ${line}`, 'error'); return; }
+        if (eq === -1) {
+          toast(`Invalid line (missing =): ${line}`, 'error');
+          return;
+        }
         const k = line.slice(0, eq).trim();
         const v = line.slice(eq + 1).trim();
-        if (!k || !v) { toast(`Invalid attribute: ${line}`, 'error'); return; }
+        if (!k || !v) {
+          toast(`Invalid attribute: ${line}`, 'error');
+          return;
+        }
         attributes[k] = v;
       }
     }
 
-    const { uid, username } = this._coaSession;
+    const { uid } = this._coaSession;
     this._closeCoA();
 
     try {
@@ -561,7 +659,7 @@ class AccountingView extends HTMLElement {
   // ── CSV export ───────────────────────────────────────────────────────────────
 
   async _exportCSV() {
-    const user   = this.shadowRoot.getElementById('inp-user').value.trim();
+    const user = this.shadowRoot.getElementById('inp-user').value.trim();
     const active = this.shadowRoot.getElementById('chk-active').checked;
     let url = `/api/accounting/export?limit=10000&active_only=${active}`;
     if (user) url += `&username=${encodeURIComponent(user)}`;

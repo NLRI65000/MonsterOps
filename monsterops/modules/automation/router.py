@@ -15,8 +15,14 @@ from monsterops.modules.automation.models import MrAutomationRule
 
 router = APIRouter(prefix="/api/automation", tags=["automation"])
 
-_VALID_ACTIONS = ["log", "notify_webhook", "disable_user",
-                  "add_to_group", "remove_from_group", "send_email"]
+_VALID_ACTIONS = [
+    "log",
+    "notify_webhook",
+    "disable_user",
+    "add_to_group",
+    "remove_from_group",
+    "send_email",
+]
 _VALID_OPS = ["eq", "neq", "contains", "startswith", "endswith", "regex"]
 
 

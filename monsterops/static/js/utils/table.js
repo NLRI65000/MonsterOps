@@ -32,13 +32,16 @@ export function applyDensity(table) {
 }
 
 const _ICONS = {
-  compact: `<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+  compact:
+    `<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
     <line x1="1" y1="4" x2="13" y2="4"/><line x1="1" y1="7" x2="13" y2="7"/><line x1="1" y1="10" x2="13" y2="10"/>
   </svg>`,
-  default: `<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+  default:
+    `<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
     <line x1="1" y1="3" x2="13" y2="3"/><line x1="1" y1="7" x2="13" y2="7"/><line x1="1" y1="11" x2="13" y2="11"/>
   </svg>`,
-  comfortable: `<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+  comfortable:
+    `<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
     <line x1="1" y1="3" x2="13" y2="3"/><line x1="1" y1="11" x2="13" y2="11"/>
   </svg>`,
 };
@@ -62,13 +65,13 @@ export function wireDensityBar(root, tableGetter) {
 
   const refresh = () => {
     const d = getDensity();
-    bar.querySelectorAll('.density-btn').forEach(b => {
+    bar.querySelectorAll('.density-btn').forEach((b) => {
       b.classList.toggle('active', b.dataset.d === d);
     });
     applyDensity(tableGetter());
   };
 
-  bar.addEventListener('click', e => {
+  bar.addEventListener('click', (e) => {
     const btn = e.target.closest('[data-d]');
     if (!btn) return;
     localStorage.setItem(DENSITY_KEY, btn.dataset.d);
@@ -127,11 +130,12 @@ export function makeSortable(table, opts = {}) {
   const server = typeof opts.onSort === 'function';
   const keyOf = (th) => th.getAttribute('data-sort-key') || th.textContent.trim();
 
-  const clearIndicators = () => ths.forEach((o) => {
-    o.setAttribute('aria-sort', 'none');
-    const c = o.querySelector('.mr-sort-caret');
-    if (c) c.textContent = '';
-  });
+  const clearIndicators = () =>
+    ths.forEach((o) => {
+      o.setAttribute('aria-sort', 'none');
+      const c = o.querySelector('.mr-sort-caret');
+      if (c) c.textContent = '';
+    });
 
   const mark = (th, asc) => {
     clearIndicators();
@@ -149,7 +153,8 @@ export function makeSortable(table, opts = {}) {
       const c = document.createElement('span');
       c.className = 'mr-sort-caret';
       c.setAttribute('aria-hidden', 'true');
-      c.style.cssText = 'display:inline-block;width:1em;margin-left:0.15em;opacity:0.7;font-size:0.7em;';
+      c.style.cssText =
+        'display:inline-block;width:1em;margin-left:0.15em;opacity:0.7;font-size:0.7em;';
       th.appendChild(c);
     }
     th.addEventListener('click', () => {

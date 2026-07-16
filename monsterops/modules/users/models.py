@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from sqlalchemy import Column, Index, Integer, Text, TIMESTAMP
+from sqlalchemy import TIMESTAMP, Column, Index, Integer, Text
 from sqlalchemy.dialects.postgresql import JSONB, VARCHAR
 
 from monsterops.database import Base
@@ -47,7 +47,8 @@ class MrBulkJob(Base):
     job_type = Column(Text, nullable=False)
     created_by = Column(Text, nullable=False)
     created_at = Column(
-        TIMESTAMP(timezone=True), nullable=False,
+        TIMESTAMP(timezone=True),
+        nullable=False,
         default=lambda: datetime.now(tz=timezone.utc),
     )
     row_total = Column(Integer, nullable=False, default=0)

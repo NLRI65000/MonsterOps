@@ -1,9 +1,10 @@
+
 from __future__ import annotations
 
 from alembic import op
 
-revision = 'c2a8f4e71b93'
-down_revision = 'b7d3f1e92a05'
+revision = "c2a8f4e71b93"
+down_revision = "b7d3f1e92a05"
 branch_labels = None
 depends_on = None
 

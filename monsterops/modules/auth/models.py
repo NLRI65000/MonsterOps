@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sqlalchemy import BigInteger, Boolean, Column, DateTime, Integer, JSON, String, func
+from sqlalchemy import JSON, BigInteger, Boolean, Column, DateTime, Integer, String, func
 
 from monsterops.database import Base
 
@@ -35,4 +35,6 @@ class AuditLog(Base):
     target = Column(String(128), nullable=True)
     detail = Column(JSON, nullable=True)
     ip_address = Column(String(45), nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False, index=True
+    )

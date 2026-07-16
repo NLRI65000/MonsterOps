@@ -5,37 +5,57 @@ import { confirmDialog } from '/js/components/app-confirm.js';
 import { openModal } from '/js/components/mr-modal.js';
 
 const ACTION_LABELS = {
-  log:              'Log event',
-  notify_webhook:   'POST to webhook URL',
-  disable_user:     'Disable user',
-  add_to_group:     'Add user to group',
-  remove_from_group:'Remove user from group',
-  send_email:       'Send email',
+  log: 'Log event',
+  notify_webhook: 'POST to webhook URL',
+  disable_user: 'Disable user',
+  add_to_group: 'Add user to group',
+  remove_from_group: 'Remove user from group',
+  send_email: 'Send email',
 };
 
 const ACTION_CONFIGS = {
-  log:              [],
-  notify_webhook:   [{ key: 'url',    label: 'Webhook URL',      placeholder: 'https://…' },
-                     { key: 'secret', label: 'Secret (optional)', placeholder: 'HMAC signing key' }],
-  disable_user:     [],
-  add_to_group:     [{ key: 'group', label: 'Group name', placeholder: 'staff' }],
-  remove_from_group:[{ key: 'group', label: 'Group name', placeholder: 'temp' }],
-  send_email:       [{ key: 'to',      label: 'To address',           placeholder: 'admin@example.com' },
-                     { key: 'subject', label: 'Subject (optional)',   placeholder: 'MonsterOps alert' }],
+  log: [],
+  notify_webhook: [{ key: 'url', label: 'Webhook URL', placeholder: 'https://…' }, {
+    key: 'secret',
+    label: 'Secret (optional)',
+    placeholder: 'HMAC signing key',
+  }],
+  disable_user: [],
+  add_to_group: [{ key: 'group', label: 'Group name', placeholder: 'staff' }],
+  remove_from_group: [{ key: 'group', label: 'Group name', placeholder: 'temp' }],
+  send_email: [{ key: 'to', label: 'To address', placeholder: 'admin@example.com' }, {
+    key: 'subject',
+    label: 'Subject (optional)',
+    placeholder: 'MonsterOps alert',
+  }],
 };
 
 const KNOWN_EVENTS = [
-  '*', 'audit.*', 'user.*', 'nas.*', 'group.*',
-  'user.created', 'user.updated', 'user.deleted',
-  'nas.created', 'nas.updated', 'nas.deleted',
-  'group.created', 'group.deleted',
-  'audit.admin.login', 'test.ping',
+  '*',
+  'audit.*',
+  'user.*',
+  'nas.*',
+  'group.*',
+  'user.created',
+  'user.updated',
+  'user.deleted',
+  'nas.created',
+  'nas.updated',
+  'nas.deleted',
+  'group.created',
+  'group.deleted',
+  'audit.admin.login',
+  'test.ping',
 ];
 
 const CONDITION_FIELDS = ['type', 'actor', 'entity_type', 'entity_id'];
 const OP_LABELS = {
-  eq: 'equals', neq: 'not equals', contains: 'contains',
-  startswith: 'starts with', endswith: 'ends with', regex: 'regex',
+  eq: 'equals',
+  neq: 'not equals',
+  contains: 'contains',
+  startswith: 'starts with',
+  endswith: 'ends with',
+  regex: 'regex',
 };
 
 function fmtDate(iso) {
@@ -47,7 +67,10 @@ function badge(text, color) {
 }
 
 function esc(s) {
-  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(
+    /"/g,
+    '&quot;',
+  );
 }
 
 class AutomationPage extends HTMLElement {
@@ -153,7 +176,8 @@ class AutomationPage extends HTMLElement {
     count.textContent = `${this._rules.length} rule${this._rules.length !== 1 ? 's' : ''}`;
 
     if (!this._rules.length) {
-      area.innerHTML = `<div class="au-empty">No automation rules yet. Click <strong>+ New Rule</strong> to get started.</div>`;
+      area.innerHTML =
+        `<div class="au-empty">No automation rules yet. Click <strong>+ New Rule</strong> to get started.</div>`;
       return;
     }
 
@@ -168,26 +192,39 @@ class AutomationPage extends HTMLElement {
           <th></th>
         </tr></thead>
         <tbody>
-          ${this._rules.map(r => `
+          ${
+      this._rules.map((r) => `
             <tr>
               <td><strong>${esc(r.name)}</strong></td>
               <td>
                 <span class="au-pattern-tag">${esc(r.event_pattern)}</span>
-                ${(r.conditions || []).length
-                  ? `<div class="au-sub-text">+ ${r.conditions.length} condition${r.conditions.length !== 1 ? 's' : ''}</div>`
-                  : ''}
+                ${
+        (r.conditions || []).length
+          ? `<div class="au-sub-text">+ ${r.conditions.length} condition${
+            r.conditions.length !== 1 ? 's' : ''
+          }</div>`
+          : ''
+      }
               </td>
               <td>
-                <span class="au-action-tag">${ACTION_LABELS[r.action_type] || esc(r.action_type)}</span>
+                <span class="au-action-tag">${
+        ACTION_LABELS[r.action_type] || esc(r.action_type)
+      }</span>
                 ${this._configSummary(r)}
               </td>
-              <td>${r.enabled
-                ? badge('enabled', 'var(--color-success,#4caf50)')
-                : badge('disabled', 'var(--color-muted)')}</td>
+              <td>${
+        r.enabled
+          ? badge('enabled', 'var(--color-success,#4caf50)')
+          : badge('disabled', 'var(--color-muted)')
+      }</td>
               <td class="au-trigger">
-                ${r.trigger_count
-                  ? `${r.trigger_count}× &nbsp;<span style="color:var(--color-muted);font-size:0.74rem">${fmtDate(r.last_triggered_at)}</span>`
-                  : '—'}
+                ${
+        r.trigger_count
+          ? `${r.trigger_count}× &nbsp;<span style="color:var(--color-muted);font-size:0.74rem">${
+            fmtDate(r.last_triggered_at)
+          }</span>`
+          : '—'
+      }
               </td>
               <td>
                 <div class="au-actions">
@@ -197,28 +234,38 @@ class AutomationPage extends HTMLElement {
                 </div>
               </td>
             </tr>
-          `).join('')}
+          `).join('')
+    }
         </tbody>
       </table>
     `;
 
-    area.querySelectorAll('[data-action]').forEach(btn => {
+    area.querySelectorAll('[data-action]').forEach((btn) => {
       const id = parseInt(btn.dataset.id, 10);
-      const rule = this._rules.find(r => r.id === id);
-      if (btn.dataset.action === 'delete') btn.addEventListener('click', () => this._delete(id, rule?.name));
-      else if (btn.dataset.action === 'edit')   btn.addEventListener('click', () => this._openForm(rule));
-      else if (btn.dataset.action === 'test')   btn.addEventListener('click', () => this._test(id, rule?.name));
+      const rule = this._rules.find((r) => r.id === id);
+      if (btn.dataset.action === 'delete') {
+        btn.addEventListener('click', () => this._delete(id, rule?.name));
+      } else if (btn.dataset.action === 'edit') {
+        btn.addEventListener('click', () => this._openForm(rule));
+      } else if (btn.dataset.action === 'test') {
+        btn.addEventListener('click', () => this._test(id, rule?.name));
+      }
     });
   }
 
   _configSummary(r) {
     const cfg = r.action_config || {};
-    if (r.action_type === 'notify_webhook' && cfg.url)
-      return `<div class="au-sub-text" style="font-family:var(--font-mono,monospace);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(cfg.url)}">${esc(cfg.url)}</div>`;
-    if ((r.action_type === 'add_to_group' || r.action_type === 'remove_from_group') && cfg.group)
+    if (r.action_type === 'notify_webhook' && cfg.url) {
+      return `<div class="au-sub-text" style="font-family:var(--font-mono,monospace);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${
+        esc(cfg.url)
+      }">${esc(cfg.url)}</div>`;
+    }
+    if ((r.action_type === 'add_to_group' || r.action_type === 'remove_from_group') && cfg.group) {
       return `<div class="au-sub-text">group: <code>${esc(cfg.group)}</code></div>`;
-    if (r.action_type === 'send_email' && cfg.to)
+    }
+    if (r.action_type === 'send_email' && cfg.to) {
       return `<div class="au-sub-text">${esc(cfg.to)}</div>`;
+    }
     return '';
   }
 
@@ -232,7 +279,9 @@ class AutomationPage extends HTMLElement {
   }
 
   async _delete(id, name) {
-    if (!await confirmDialog(`Delete rule "${name}"?`, { title: 'Delete Rule', danger: true })) return;
+    if (!await confirmDialog(`Delete rule "${name}"?`, { title: 'Delete Rule', danger: true })) {
+      return;
+    }
     try {
       await api.delete(`/automation/${id}`);
       showToast('Rule deleted', 'success');
@@ -259,13 +308,13 @@ class AutomationPage extends HTMLElement {
 
     // Determine initial pattern state
     const existingPattern = rule?.event_pattern || '';
-    const patternIsKnown  = KNOWN_EVENTS.includes(existingPattern);
+    const patternIsKnown = KNOWN_EVENTS.includes(existingPattern);
     // Select shows existing if known; otherwise first item
-    const selectValue     = patternIsKnown ? existingPattern : KNOWN_EVENTS[0];
+    const selectValue = patternIsKnown ? existingPattern : KNOWN_EVENTS[0];
     // Custom field is pre-filled only when the pattern is NOT in the known list
-    const customValue     = patternIsKnown ? '' : existingPattern;
+    const customValue = patternIsKnown ? '' : existingPattern;
 
-    const conditions = (rule?.conditions || []).map(c => ({ ...c }));
+    const conditions = (rule?.conditions || []).map((c) => ({ ...c }));
 
     const m = openModal({
       title: isEdit ? 'Edit automation rule' : 'New automation rule',
@@ -274,13 +323,19 @@ class AutomationPage extends HTMLElement {
       bodyHTML: `
         <div class="mrm-field">
           <label class="mrm-label" for="au-f-name">Rule name</label>
-          <input id="au-f-name" class="mrm-input" value="${esc(rule?.name || '')}" placeholder="e.g. Disable temp users">
+          <input id="au-f-name" class="mrm-input" value="${
+        esc(rule?.name || '')
+      }" placeholder="e.g. Disable temp users">
         </div>
 
         <div class="mrm-field">
           <label class="mrm-label" for="au-f-pattern">When this event fires</label>
           <select id="au-f-pattern" class="mrm-select mrm-mono">
-            ${KNOWN_EVENTS.map(e => `<option value="${e}" ${e === selectValue ? 'selected' : ''}>${e}</option>`).join('')}
+            ${
+        KNOWN_EVENTS.map((e) =>
+          `<option value="${e}" ${e === selectValue ? 'selected' : ''}>${e}</option>`
+        ).join('')
+      }
           </select>
           <input id="au-f-pattern-custom" class="mrm-input mrm-mono"
             value="${esc(customValue)}"
@@ -299,7 +354,11 @@ class AutomationPage extends HTMLElement {
         <div class="mrm-field">
           <label class="mrm-label" for="au-f-action">Action to run</label>
           <select id="au-f-action" class="mrm-select">
-            ${Object.entries(ACTION_LABELS).map(([k, v]) => `<option value="${k}" ${rule?.action_type === k ? 'selected' : ''}>${v}</option>`).join('')}
+            ${
+        Object.entries(ACTION_LABELS).map(([k, v]) =>
+          `<option value="${k}" ${rule?.action_type === k ? 'selected' : ''}>${v}</option>`
+        ).join('')
+      }
           </select>
         </div>
 
@@ -319,18 +378,28 @@ class AutomationPage extends HTMLElement {
     const renderActionConfig = (preserveValues = false) => {
       const action = overlay.querySelector('#au-f-action').value;
       const fields = ACTION_CONFIGS[action] || [];
-      const cfg = preserveValues ? (rule?.action_type === action ? (rule?.action_config || {}) : {}) : {};
+      const cfg = preserveValues
+        ? (rule?.action_type === action ? (rule?.action_config || {}) : {})
+        : {};
       const area = overlay.querySelector('#au-action-config');
-      if (!fields.length) { area.innerHTML = ''; return; }
-      area.innerHTML = fields.map(f => `
+      if (!fields.length) {
+        area.innerHTML = '';
+        return;
+      }
+      area.innerHTML = fields.map((f) => `
         <div class="mrm-field">
           <label class="mrm-label">${esc(f.label)}</label>
-          <input class="mrm-input" data-cfg-key="${esc(f.key)}" value="${esc(cfg[f.key] || '')}" placeholder="${esc(f.placeholder || '')}">
+          <input class="mrm-input" data-cfg-key="${esc(f.key)}" value="${
+        esc(cfg[f.key] || '')
+      }" placeholder="${esc(f.placeholder || '')}">
         </div>
       `).join('');
     };
 
-    overlay.querySelector('#au-f-action').addEventListener('change', () => renderActionConfig(false));
+    overlay.querySelector('#au-f-action').addEventListener(
+      'change',
+      () => renderActionConfig(false),
+    );
     renderActionConfig(true); // initial render keeps existing config if action matches
 
     // Conditions
@@ -345,7 +414,7 @@ class AutomationPage extends HTMLElement {
     });
 
     // Wire remove buttons for initial conditions
-    overlay.querySelectorAll('.au-cond-remove').forEach(btn => {
+    overlay.querySelectorAll('.au-cond-remove').forEach((btn) => {
       btn.addEventListener('click', () => btn.closest('.au-cond-row').remove());
     });
 
@@ -357,28 +426,41 @@ class AutomationPage extends HTMLElement {
       const action_type = overlay.querySelector('#au-f-action').value;
       const enabled = overlay.querySelector('#au-f-enabled').checked;
 
-      const conditions_out = [...overlay.querySelectorAll('.au-cond-row')].map(row => ({
+      const conditions_out = [...overlay.querySelectorAll('.au-cond-row')].map((row) => ({
         field: row.querySelector('.au-cond-field').value,
-        op:    row.querySelector('.au-cond-op').value,
+        op: row.querySelector('.au-cond-op').value,
         value: row.querySelector('.au-cond-val').value.trim(),
-      })).filter(c => c.value !== ''); // only keep conditions where the value is filled
+      })).filter((c) => c.value !== ''); // only keep conditions where the value is filled
 
       const action_config = {};
-      overlay.querySelectorAll('[data-cfg-key]').forEach(el => {
+      overlay.querySelectorAll('[data-cfg-key]').forEach((el) => {
         if (el.value.trim()) action_config[el.dataset.cfgKey] = el.value.trim();
       });
 
-      if (!name) { showToast('Name is required', 'error'); return; }
-      if (!event_pattern) { showToast('Event pattern is required', 'error'); return; }
+      if (!name) {
+        showToast('Name is required', 'error');
+        return;
+      }
+      if (!event_pattern) {
+        showToast('Event pattern is required', 'error');
+        return;
+      }
 
       const saveBtn = m.submitBtn;
       saveBtn.disabled = true;
       saveBtn.textContent = 'Saving…';
 
-      const body = { name, event_pattern, conditions: conditions_out, action_type, action_config, enabled };
+      const body = {
+        name,
+        event_pattern,
+        conditions: conditions_out,
+        action_type,
+        action_config,
+        enabled,
+      };
       try {
         if (isEdit) await api.put(`/automation/${rule.id}`, body);
-        else        await api.post('/automation', body);
+        else await api.post('/automation', body);
         showToast(isEdit ? 'Rule updated' : 'Rule created', 'success');
         m.close();
         await this._load();
@@ -391,7 +473,7 @@ class AutomationPage extends HTMLElement {
   }
 
   _condRowHtml(idx, c) {
-    const fieldOpts = CONDITION_FIELDS.map(f =>
+    const fieldOpts = CONDITION_FIELDS.map((f) =>
       `<option value="${f}" ${c.field === f ? 'selected' : ''}>${f}</option>`
     ).join('');
     const opOpts = Object.entries(OP_LABELS).map(([k, v]) =>
@@ -410,7 +492,6 @@ class AutomationPage extends HTMLElement {
 }
 
 customElements.define('automation-page', AutomationPage);
-
 
 // ── Automation workspace (Phase 26.3) ─────────────────────────────────────────
 // One "event → action" page: Rules + Scheduler + Webhooks (live event stream) as

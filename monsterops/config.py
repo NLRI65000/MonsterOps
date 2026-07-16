@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Literal
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -24,7 +25,9 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 30
 
     debug: bool = False
-    allowed_origins: str = ""
+    allowed_origins: str = (
+        ""
+    )
 
     cookie_secure: bool | None = None
 

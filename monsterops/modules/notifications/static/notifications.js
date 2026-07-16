@@ -3,12 +3,15 @@ import { router } from '/js/router.js';
 import { toast as showToast } from '/js/components/app-toast.js';
 import { confirmDialog } from '/js/components/app-confirm.js';
 import { emptyRowHTML, skeletonRows } from '/js/utils/empty.js';
-import { setFieldError, clearFieldErrors, applyServerErrors } from '/js/utils/form.js';
+import { applyServerErrors, clearFieldErrors, setFieldError } from '/js/utils/form.js';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function esc(s) {
-  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(
+    /"/g,
+    '&quot;',
+  );
 }
 
 const EVENT_TYPE_LABELS = {
@@ -112,9 +115,9 @@ class NotificationsPage extends HTMLElement {
       </div>
       <div id="modal-container"></div>
     `;
-    this.querySelectorAll('.tab-btn').forEach(btn => {
+    this.querySelectorAll('.tab-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
-        this.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        this.querySelectorAll('.tab-btn').forEach((b) => b.classList.remove('active'));
         btn.classList.add('active');
         this._tab = btn.dataset.tab;
         this._renderTab();
@@ -147,7 +150,9 @@ class NotificationsPage extends HTMLElement {
   // state, or the real rows — so all three tabs share one consistent treatment.
   _tbody(cols, rows, emptyOpts) {
     if (this._loading) return skeletonRows(this.getRootNode(), cols);
-    if (this._error) return emptyRowHTML(cols, { title: 'Couldn’t load notifications', message: this._error });
+    if (this._error) {
+      return emptyRowHTML(cols, { title: 'Couldn’t load notifications', message: this._error });
+    }
     return rows || emptyRowHTML(cols, emptyOpts);
   }
 
@@ -162,11 +167,21 @@ class NotificationsPage extends HTMLElement {
   // ── Channels tab ────────────────────────────────────────────────────────────
 
   _channelsHTML() {
-    const rows = (this._channels || []).map(ch => `
+    const rows = (this._channels || []).map((ch) => `
       <tr>
         <td>${esc(ch.name)}</td>
-        <td>${badge(CHANNEL_TYPE_LABELS[ch.type] || esc(ch.type), ch.type === 'email' ? 'var(--color-accent)' : 'var(--color-warning)')}</td>
-        <td>${badge(ch.enabled ? 'Enabled' : 'Disabled', ch.enabled ? 'var(--color-success)' : 'var(--color-muted)')}</td>
+        <td>${
+      badge(
+        CHANNEL_TYPE_LABELS[ch.type] || esc(ch.type),
+        ch.type === 'email' ? 'var(--color-accent)' : 'var(--color-warning)',
+      )
+    }</td>
+        <td>${
+      badge(
+        ch.enabled ? 'Enabled' : 'Disabled',
+        ch.enabled ? 'var(--color-success)' : 'var(--color-muted)',
+      )
+    }</td>
         <td>${fmtDate(ch.created_at)}</td>
         <td>
           <div class="actions">
@@ -180,14 +195,21 @@ class NotificationsPage extends HTMLElement {
 
     return `
       <div class="section-header">
-        <span style="color:var(--color-muted);font-size:0.88rem;">${(this._channels || []).length} channel(s)</span>
+        <span style="color:var(--color-muted);font-size:0.88rem;">${
+      (this._channels || []).length
+    } channel(s)</span>
         <button class="btn btn-primary" data-action="add-ch">+ Add Channel</button>
       </div>
       <table>
         <thead><tr>
           <th>Name</th><th>Type</th><th>Status</th><th>Created</th><th>Actions</th>
         </tr></thead>
-        <tbody>${this._tbody(5, rows, { title: 'No channels yet', message: 'Add a channel (email or webhook) to start delivering alerts.' })}</tbody>
+        <tbody>${
+      this._tbody(5, rows, {
+        title: 'No channels yet',
+        message: 'Add a channel (email or webhook) to start delivering alerts.',
+      })
+    }</tbody>
       </table>
     `;
   }
@@ -195,15 +217,30 @@ class NotificationsPage extends HTMLElement {
   // ── Rules tab ───────────────────────────────────────────────────────────────
 
   _rulesHTML() {
-    const channelMap = Object.fromEntries((this._channels || []).map(c => [c.id, c.name]));
-    const rows = (this._rules || []).map(r => `
+    const channelMap = Object.fromEntries((this._channels || []).map((c) => [c.id, c.name]));
+    const rows = (this._rules || []).map((r) => `
       <tr>
         <td>${esc(r.name)}</td>
-        <td>${badge(EVENT_TYPE_LABELS[r.event_type] || esc(r.event_type), 'var(--color-accent)')}</td>
-        <td>${r.channel_id ? esc(channelMap[r.channel_id]) || `#${r.channel_id}` : '<span style="color:var(--color-muted)">—</span>'}</td>
+        <td>${
+      badge(EVENT_TYPE_LABELS[r.event_type] || esc(r.event_type), 'var(--color-accent)')
+    }</td>
+        <td>${
+      r.channel_id
+        ? esc(channelMap[r.channel_id]) || `#${r.channel_id}`
+        : '<span style="color:var(--color-muted)">—</span>'
+    }</td>
         <td>${r.cooldown_minutes} min</td>
-        <td>${badge(r.enabled ? 'Enabled' : 'Disabled', r.enabled ? 'var(--color-success)' : 'var(--color-muted)')}</td>
-        <td>${r.last_triggered ? fmtDate(r.last_triggered) : '<span style="color:var(--color-muted)">Never</span>'}</td>
+        <td>${
+      badge(
+        r.enabled ? 'Enabled' : 'Disabled',
+        r.enabled ? 'var(--color-success)' : 'var(--color-muted)',
+      )
+    }</td>
+        <td>${
+      r.last_triggered
+        ? fmtDate(r.last_triggered)
+        : '<span style="color:var(--color-muted)">Never</span>'
+    }</td>
         <td>
           <div class="actions">
             <button class="btn btn-ghost btn-sm" data-action="edit-rule" data-id="${r.id}">Edit</button>
@@ -215,14 +252,21 @@ class NotificationsPage extends HTMLElement {
 
     return `
       <div class="section-header">
-        <span style="color:var(--color-muted);font-size:0.88rem;">${(this._rules || []).length} rule(s)</span>
+        <span style="color:var(--color-muted);font-size:0.88rem;">${
+      (this._rules || []).length
+    } rule(s)</span>
         <button class="btn btn-primary" data-action="add-rule">+ Add Rule</button>
       </div>
       <table>
         <thead><tr>
           <th>Name</th><th>Event</th><th>Channel</th><th>Cooldown</th><th>Status</th><th>Last Triggered</th><th>Actions</th>
         </tr></thead>
-        <tbody>${this._tbody(7, rows, { title: 'No rules yet', message: 'Create a rule to route events to your channels.' })}</tbody>
+        <tbody>${
+      this._tbody(7, rows, {
+        title: 'No rules yet',
+        message: 'Create a rule to route events to your channels.',
+      })
+    }</tbody>
       </table>
     `;
   }
@@ -230,28 +274,44 @@ class NotificationsPage extends HTMLElement {
   // ── History tab ─────────────────────────────────────────────────────────────
 
   _historyHTML() {
-    const rows = (this._history || []).map(h => `
+    const rows = (this._history || []).map((h) => `
       <tr>
         <td style="font-size:0.8rem;">${fmtDate(h.created_at)}</td>
         <td>${esc(h.rule_name) || '—'}</td>
-        <td>${badge(EVENT_TYPE_LABELS[h.event_type] || esc(h.event_type), 'var(--color-accent)')}</td>
+        <td>${
+      badge(EVENT_TYPE_LABELS[h.event_type] || esc(h.event_type), 'var(--color-accent)')
+    }</td>
         <td>${esc(h.channel_name) || '—'}</td>
-        <td>${badge(h.status === 'sent' ? 'Sent' : 'Failed', h.status === 'sent' ? 'var(--color-success)' : 'var(--color-danger)')}</td>
+        <td>${
+      badge(
+        h.status === 'sent' ? 'Sent' : 'Failed',
+        h.status === 'sent' ? 'var(--color-success)' : 'var(--color-danger)',
+      )
+    }</td>
         <td style="font-size:0.8rem;color:var(--color-muted);max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
-            title="${esc(h.error || h.message)}">${esc((h.error || h.message || '').split('\n')[0])}</td>
+            title="${esc(h.error || h.message)}">${
+      esc((h.error || h.message || '').split('\n')[0])
+    }</td>
       </tr>
     `).join('');
 
     return `
       <div class="section-header">
-        <span style="color:var(--color-muted);font-size:0.88rem;">Last ${(this._history || []).length} events</span>
+        <span style="color:var(--color-muted);font-size:0.88rem;">Last ${
+      (this._history || []).length
+    } events</span>
         <button class="btn btn-ghost btn-sm" data-action="refresh-history">↺ Refresh</button>
       </div>
       <table>
         <thead><tr>
           <th>Time</th><th>Rule</th><th>Event</th><th>Channel</th><th>Status</th><th>Detail</th>
         </tr></thead>
-        <tbody>${this._tbody(6, rows, { title: 'No notifications yet', message: 'Delivered alerts will appear here.' })}</tbody>
+        <tbody>${
+      this._tbody(6, rows, {
+        title: 'No notifications yet',
+        message: 'Delivered alerts will appear here.',
+      })
+    }</tbody>
       </table>
     `;
   }
@@ -259,18 +319,19 @@ class NotificationsPage extends HTMLElement {
   // ── Event wiring ─────────────────────────────────────────────────────────────
 
   _bindTabEvents() {
-    this.querySelector('#tab-content').addEventListener('click', e => {
+    this.querySelector('#tab-content').addEventListener('click', (e) => {
       const btn = e.target.closest('[data-action]');
       if (!btn) return;
       const { action, id } = btn.dataset;
       const numId = id ? +id : null;
 
       if (action === 'add-ch') this._showChannelModal(null);
-      else if (action === 'edit-ch') this._showChannelModal(this._channels.find(c => c.id === numId));
-      else if (action === 'del-ch') this._deleteChannel(numId);
+      else if (action === 'edit-ch') {
+        this._showChannelModal(this._channels.find((c) => c.id === numId));
+      } else if (action === 'del-ch') this._deleteChannel(numId);
       else if (action === 'test-ch') this._testChannel(numId, btn);
       else if (action === 'add-rule') this._showRuleModal(null);
-      else if (action === 'edit-rule') this._showRuleModal(this._rules.find(r => r.id === numId));
+      else if (action === 'edit-rule') this._showRuleModal(this._rules.find((r) => r.id === numId));
       else if (action === 'del-rule') this._deleteRule(numId);
       else if (action === 'refresh-history') this._refreshHistory();
     });
@@ -310,10 +371,14 @@ class NotificationsPage extends HTMLElement {
       </div>
       <div class="form-group">
         <label>To Addresses (comma-separated)</label>
-        <input name="to_addrs" value="${esc((cfg.to_addrs || []).join(', '))}" placeholder="admin@example.com, ops@example.com" />
+        <input name="to_addrs" value="${
+      esc((cfg.to_addrs || []).join(', '))
+    }" placeholder="admin@example.com, ops@example.com" />
       </div>
       <div class="form-group toggle-wrap">
-        <input type="checkbox" name="use_tls" id="use_tls" ${cfg.use_tls !== false ? 'checked' : ''} />
+        <input type="checkbox" name="use_tls" id="use_tls" ${
+      cfg.use_tls !== false ? 'checked' : ''
+    } />
         <label for="use_tls" style="text-transform:none;font-size:0.88rem;">Use STARTTLS</label>
       </div>
     `;
@@ -321,25 +386,33 @@ class NotificationsPage extends HTMLElement {
     const webhookFields = `
       <div class="form-group">
         <label>Webhook URL</label>
-        <input name="url" value="${esc(cfg.url)}" placeholder="https://hooks.slack.com/services/..." />
+        <input name="url" value="${
+      esc(cfg.url)
+    }" placeholder="https://hooks.slack.com/services/..." />
       </div>
       <div class="form-row">
         <div class="form-group">
           <label>Method</label>
           <select name="method">
-            <option value="POST" ${(cfg.method || 'POST') === 'POST' ? 'selected' : ''}>POST</option>
+            <option value="POST" ${
+      (cfg.method || 'POST') === 'POST' ? 'selected' : ''
+    }>POST</option>
             <option value="GET" ${cfg.method === 'GET' ? 'selected' : ''}>GET</option>
           </select>
         </div>
       </div>
       <div class="form-group">
         <label>Body Template</label>
-        <textarea name="body_template" placeholder='{"text":"{{message}}"}'>${cfg.body_template || ''}</textarea>
+        <textarea name="body_template" placeholder='{"text":"{{message}}"}'>${
+      cfg.body_template || ''
+    }</textarea>
         <div class="config-hint">Use <code>{{subject}}</code> and <code>{{message}}</code> as placeholders. Leave empty for default JSON body.</div>
       </div>
       <div class="form-group">
         <label>Custom Headers (JSON)</label>
-        <textarea name="headers" placeholder='{"Authorization":"Bearer token"}'>${cfg.headers ? JSON.stringify(cfg.headers, null, 2) : ''}</textarea>
+        <textarea name="headers" placeholder='{"Authorization":"Bearer token"}'>${
+      cfg.headers ? JSON.stringify(cfg.headers, null, 2) : ''
+    }</textarea>
       </div>
     `;
 
@@ -362,7 +435,9 @@ class NotificationsPage extends HTMLElement {
             ${type === 'email' ? emailFields : webhookFields}
           </div>
           <div class="form-group toggle-wrap">
-            <input type="checkbox" name="ch-enabled" id="ch-enabled" ${ch?.enabled !== false ? 'checked' : ''} />
+            <input type="checkbox" name="ch-enabled" id="ch-enabled" ${
+      ch?.enabled !== false ? 'checked' : ''
+    } />
             <label for="ch-enabled" style="text-transform:none;font-size:0.88rem;">Enabled</label>
           </div>
           <div class="modal-actions">
@@ -376,9 +451,10 @@ class NotificationsPage extends HTMLElement {
     const container = this.querySelector('#modal-container');
     container.innerHTML = html;
 
-    container.querySelector('#ch-type-sel').addEventListener('change', e => {
-      container.querySelector('#ch-type-fields').innerHTML =
-        e.target.value === 'email' ? emailFields : webhookFields;
+    container.querySelector('#ch-type-sel').addEventListener('change', (e) => {
+      container.querySelector('#ch-type-fields').innerHTML = e.target.value === 'email'
+        ? emailFields
+        : webhookFields;
     });
 
     container.querySelector('#ch-cancel').addEventListener('click', () => {
@@ -395,15 +471,24 @@ class NotificationsPage extends HTMLElement {
       // Client-side checks mirror what a channel needs to actually deliver — the
       // server only validates these at send/test time, so catch them inline now.
       let ok = true;
-      if (!name) { setFieldError(nameInput, 'Name is required'); ok = false; }
+      if (!name) {
+        setFieldError(nameInput, 'Name is required');
+        ok = false;
+      }
 
       let config = {};
       if (chType === 'email') {
         const hostInput = container.querySelector('[name=smtp_host]');
         const toInput = container.querySelector('[name=to_addrs]');
-        const toAddrs = toInput.value.split(',').map(s => s.trim()).filter(Boolean);
-        if (!hostInput.value.trim()) { setFieldError(hostInput, 'SMTP host is required'); ok = false; }
-        if (!toAddrs.length) { setFieldError(toInput, 'Add at least one recipient address'); ok = false; }
+        const toAddrs = toInput.value.split(',').map((s) => s.trim()).filter(Boolean);
+        if (!hostInput.value.trim()) {
+          setFieldError(hostInput, 'SMTP host is required');
+          ok = false;
+        }
+        if (!toAddrs.length) {
+          setFieldError(toInput, 'Add at least one recipient address');
+          ok = false;
+        }
         config = {
           smtp_host: hostInput.value.trim(),
           smtp_port: +container.querySelector('[name=smtp_port]').value,
@@ -415,9 +500,14 @@ class NotificationsPage extends HTMLElement {
         };
       } else {
         const urlInput = container.querySelector('[name=url]');
-        if (!urlInput.value.trim()) { setFieldError(urlInput, 'Webhook URL is required'); ok = false; }
+        if (!urlInput.value.trim()) {
+          setFieldError(urlInput, 'Webhook URL is required');
+          ok = false;
+        }
         let headers = {};
-        try { headers = JSON.parse(container.querySelector('[name=headers]').value || '{}'); } catch {}
+        try {
+          headers = JSON.parse(container.querySelector('[name=headers]').value || '{}');
+        } catch { /* invalid JSON → send with empty headers */ }
         config = {
           url: urlInput.value.trim(),
           method: container.querySelector('[name=method]').value,
@@ -429,7 +519,12 @@ class NotificationsPage extends HTMLElement {
 
       try {
         if (isEdit) {
-          await api.put(`/notifications/channels/${ch.id}`, { name, type: chType, config, enabled });
+          await api.put(`/notifications/channels/${ch.id}`, {
+            name,
+            type: chType,
+            config,
+            enabled,
+          });
           showToast('Channel updated', 'success');
         } else {
           await api.post('/notifications/channels', { name, type: chType, config, enabled });
@@ -438,15 +533,25 @@ class NotificationsPage extends HTMLElement {
         container.innerHTML = '';
         await this._load();
       } catch (err) {
-        if (applyServerErrors(container, err, (f) => container.querySelector(`[name=${f === 'name' ? 'ch-name' : f}]`))) return;
+        if (
+          applyServerErrors(
+            container,
+            err,
+            (f) => container.querySelector(`[name=${f === 'name' ? 'ch-name' : f}]`),
+          )
+        ) return;
         showToast(err.message || 'Save failed', 'error');
       }
     });
   }
 
   async _deleteChannel(id) {
-    const ch = this._channels.find(c => c.id === id);
-    if (!await confirmDialog(`Delete channel "${ch?.name}"? Rules using it will have no channel.`, { danger: true })) return;
+    const ch = this._channels.find((c) => c.id === id);
+    if (
+      !await confirmDialog(`Delete channel "${ch?.name}"? Rules using it will have no channel.`, {
+        danger: true,
+      })
+    ) return;
     try {
       await api.delete(`/notifications/channels/${id}`);
       showToast('Channel deleted', 'success');
@@ -474,7 +579,8 @@ class NotificationsPage extends HTMLElement {
 
   _ruleConfigFields(eventType, cfg) {
     cfg = cfg || {};
-    if (eventType === 'auth_failure') return `
+    if (eventType === 'auth_failure') {
+      return `
       <div class="form-row">
         <div class="form-group">
           <label>Failure Threshold</label>
@@ -488,10 +594,14 @@ class NotificationsPage extends HTMLElement {
       </div>
       <div class="form-group">
         <label>Username Filter (optional)</label>
-        <input name="username" value="${esc(cfg.username)}" placeholder="Leave blank to monitor all users" />
+        <input name="username" value="${
+        esc(cfg.username)
+      }" placeholder="Leave blank to monitor all users" />
       </div>
     `;
-    if (eventType === 'nas_offline') return `
+    }
+    if (eventType === 'nas_offline') {
+      return `
       <div class="form-group">
         <label>Idle Threshold (minutes)</label>
         <input name="idle_minutes" type="number" value="${cfg.idle_minutes ?? 5}" min="1" />
@@ -499,42 +609,57 @@ class NotificationsPage extends HTMLElement {
       </div>
       <div class="form-group">
         <label>NAS IP Filter (optional)</label>
-        <input name="nas_ip" value="${esc(cfg.nas_ip)}" placeholder="Leave blank to monitor all NAS devices" />
+        <input name="nas_ip" value="${
+        esc(cfg.nas_ip)
+      }" placeholder="Leave blank to monitor all NAS devices" />
       </div>
     `;
-    if (eventType === 'system_health') return `
+    }
+    if (eventType === 'system_health') {
+      return `
       <div class="form-group">
         <label>Health Check</label>
         <select name="check">
-          <option value="db" ${(cfg.check || 'db') === 'db' ? 'selected' : ''}>Database connectivity</option>
+          <option value="db" ${
+        (cfg.check || 'db') === 'db' ? 'selected' : ''
+      }>Database connectivity</option>
         </select>
       </div>
     `;
+    }
     return '';
   }
 
   _collectRuleConfig(eventType) {
-    const get = name => this.querySelector(`#rule-modal [name=${name}]`);
-    if (eventType === 'auth_failure') return {
-      threshold: +get('threshold').value,
-      window_minutes: +get('window_minutes').value,
-      username: get('username').value.trim() || null,
-    };
-    if (eventType === 'nas_offline') return {
-      idle_minutes: +get('idle_minutes').value,
-      nas_ip: get('nas_ip').value.trim() || null,
-    };
-    if (eventType === 'system_health') return {
-      check: get('check').value,
-    };
+    const get = (name) => this.querySelector(`#rule-modal [name=${name}]`);
+    if (eventType === 'auth_failure') {
+      return {
+        threshold: +get('threshold').value,
+        window_minutes: +get('window_minutes').value,
+        username: get('username').value.trim() || null,
+      };
+    }
+    if (eventType === 'nas_offline') {
+      return {
+        idle_minutes: +get('idle_minutes').value,
+        nas_ip: get('nas_ip').value.trim() || null,
+      };
+    }
+    if (eventType === 'system_health') {
+      return {
+        check: get('check').value,
+      };
+    }
     return {};
   }
 
   _showRuleModal(rule) {
     const isEdit = !!rule;
     const eventType = rule?.event_type || 'auth_failure';
-    const channelOptions = (this._channels || []).map(c =>
-      `<option value="${c.id}" ${rule?.channel_id === c.id ? 'selected' : ''}>${c.name} (${c.type})</option>`
+    const channelOptions = (this._channels || []).map((c) =>
+      `<option value="${c.id}" ${
+        rule?.channel_id === c.id ? 'selected' : ''
+      }>${c.name} (${c.type})</option>`
     ).join('');
 
     const html = `
@@ -548,9 +673,15 @@ class NotificationsPage extends HTMLElement {
           <div class="form-group">
             <label>Event Type</label>
             <select name="event-type" id="event-type-sel">
-              <option value="auth_failure" ${eventType === 'auth_failure' ? 'selected' : ''}>Auth Failure</option>
-              <option value="nas_offline" ${eventType === 'nas_offline' ? 'selected' : ''}>NAS Offline</option>
-              <option value="system_health" ${eventType === 'system_health' ? 'selected' : ''}>System Health</option>
+              <option value="auth_failure" ${
+      eventType === 'auth_failure' ? 'selected' : ''
+    }>Auth Failure</option>
+              <option value="nas_offline" ${
+      eventType === 'nas_offline' ? 'selected' : ''
+    }>NAS Offline</option>
+              <option value="system_health" ${
+      eventType === 'system_health' ? 'selected' : ''
+    }>System Health</option>
             </select>
           </div>
           <div id="rule-event-config">
@@ -566,12 +697,16 @@ class NotificationsPage extends HTMLElement {
             </div>
             <div class="form-group">
               <label>Cooldown (minutes)</label>
-              <input name="cooldown" type="number" value="${rule?.cooldown_minutes ?? 60}" min="1" />
+              <input name="cooldown" type="number" value="${
+      rule?.cooldown_minutes ?? 60
+    }" min="1" />
               <div class="config-hint">Minimum time between repeated alerts</div>
             </div>
           </div>
           <div class="form-group toggle-wrap">
-            <input type="checkbox" name="rule-enabled" id="rule-enabled" ${rule?.enabled !== false ? 'checked' : ''} />
+            <input type="checkbox" name="rule-enabled" id="rule-enabled" ${
+      rule?.enabled !== false ? 'checked' : ''
+    } />
             <label for="rule-enabled" style="text-transform:none;font-size:0.88rem;">Enabled</label>
           </div>
           <div class="modal-actions">
@@ -585,9 +720,11 @@ class NotificationsPage extends HTMLElement {
     const container = this.querySelector('#modal-container');
     container.innerHTML = html;
 
-    container.querySelector('#event-type-sel').addEventListener('change', e => {
-      container.querySelector('#rule-event-config').innerHTML =
-        this._ruleConfigFields(e.target.value, {});
+    container.querySelector('#event-type-sel').addEventListener('change', (e) => {
+      container.querySelector('#rule-event-config').innerHTML = this._ruleConfigFields(
+        e.target.value,
+        {},
+      );
     });
 
     container.querySelector('#rule-cancel').addEventListener('click', () => {
@@ -602,7 +739,10 @@ class NotificationsPage extends HTMLElement {
       const channelId = container.querySelector('[name=channel-id]').value;
       const cooldown = +container.querySelector('[name=cooldown]').value;
       const enabled = container.querySelector('[name=rule-enabled]').checked;
-      if (!name) { setFieldError(nameInput, 'Name is required'); return; }
+      if (!name) {
+        setFieldError(nameInput, 'Name is required');
+        return;
+      }
 
       const config = this._collectRuleConfig(evType);
       const body = {
@@ -625,14 +765,20 @@ class NotificationsPage extends HTMLElement {
         container.innerHTML = '';
         await this._load();
       } catch (err) {
-        if (applyServerErrors(container, err, (f) => container.querySelector(`[name=${f === 'name' ? 'rule-name' : f}]`))) return;
+        if (
+          applyServerErrors(
+            container,
+            err,
+            (f) => container.querySelector(`[name=${f === 'name' ? 'rule-name' : f}]`),
+          )
+        ) return;
         showToast(err.message || 'Save failed', 'error');
       }
     });
   }
 
   async _deleteRule(id) {
-    const r = this._rules.find(x => x.id === id);
+    const r = this._rules.find((x) => x.id === id);
     if (!await confirmDialog(`Delete rule "${r?.name}"?`, { danger: true })) return;
     try {
       await api.delete(`/notifications/rules/${id}`);
@@ -654,7 +800,6 @@ class NotificationsPage extends HTMLElement {
 }
 
 customElements.define('notifications-page', NotificationsPage);
-
 
 // ── Alerting workspace (Phase 26.4) ───────────────────────────────────────────
 // One "when something happens, tell someone" surface: Notifications (channels +

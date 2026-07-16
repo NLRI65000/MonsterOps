@@ -83,19 +83,19 @@ class StyleGuideView extends HTMLElement {
           ${swatch('--mr-accept', 'var(--mr-accept)', '#4ADE9A')}
           ${swatch('--mr-reject', 'var(--mr-reject)', '#FF6B5B')}
           ${swatch('--mr-action', 'var(--mr-action)', '#4FA8FF')}
-          ${swatch('--mr-warning','var(--mr-warning)','#F5A623')}
+          ${swatch('--mr-warning', 'var(--mr-warning)', '#F5A623')}
         </div>
       </section>
 
       <section>
         <h2>Canvas & surface</h2>
         <div class="swatch-row">
-          ${swatch('canvas',   'var(--mr-canvas)',        '#0E1117')}
-          ${swatch('surface',  'var(--mr-surface)',       '#161B22')}
-          ${swatch('raised',   'var(--mr-surface-raised)','#1C2330')}
-          ${swatch('hairline', 'var(--mr-hairline)',      '#262C36')}
-          ${swatch('text',     'var(--mr-text)',          '#E6E9EF')}
-          ${swatch('muted',    'var(--mr-text-muted)',    '#8B95A5')}
+          ${swatch('canvas', 'var(--mr-canvas)', '#0E1117')}
+          ${swatch('surface', 'var(--mr-surface)', '#161B22')}
+          ${swatch('raised', 'var(--mr-surface-raised)', '#1C2330')}
+          ${swatch('hairline', 'var(--mr-hairline)', '#262C36')}
+          ${swatch('text', 'var(--mr-text)', '#E6E9EF')}
+          ${swatch('muted', 'var(--mr-text-muted)', '#8B95A5')}
         </div>
         <p style="font-size:0.75rem;color:var(--mr-text-muted);margin-top:0.75rem;">
           Light theme overrides the canvas/surface/hairline/text tokens — semantic colors stay the same in both themes.

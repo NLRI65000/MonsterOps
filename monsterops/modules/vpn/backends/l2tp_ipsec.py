@@ -1,3 +1,4 @@
+
 from __future__ import annotations
 
 import asyncio
@@ -123,8 +124,9 @@ class L2tpIpsecBackend(VpnBackend):
         missing = [b for b in ("ipsec", "xl2tpd", "xl2tpd-control", "pppd") if not have(b)]
         if missing:
             return False, (
-                "L2TP/IPsec tools missing (" + ", ".join(missing) +
-                ") — install with: apt install strongswan xl2tpd ppp"
+                "L2TP/IPsec tools missing ("
+                + ", ".join(missing)
+                + ") — install with: apt install strongswan xl2tpd ppp"
             )
         return True, None
 
@@ -152,8 +154,12 @@ class L2tpIpsecBackend(VpnBackend):
         rc, out, _ = await run(["ip", "-o", "link", "show"], timeout=10)
         if rc != 0:
             return set()
-        return {p.split(":")[0].strip() for line in out.splitlines()
-                for p in [line.split(": ", 1)[1]] if p.startswith("ppp")}
+        return {
+            p.split(":")[0].strip()
+            for line in out.splitlines()
+            for p in [line.split(": ", 1)[1]]
+            if p.startswith("ppp")
+        }
 
     async def up(self, t) -> TunnelStatus:
         ok, hint = self.tooling()
@@ -182,8 +188,10 @@ class L2tpIpsecBackend(VpnBackend):
             return TunnelStatus(oper_state="error", detail=f"ipsec up: {err.strip()}")
 
         control, pid = self._control_path(name), self._pid_path(name)
-        await run(["xl2tpd", "-c", str(self._xl2tpd_path(name)),
-                   "-C", str(control), "-p", str(pid)], timeout=15)
+        await run(
+            ["xl2tpd", "-c", str(self._xl2tpd_path(name)), "-C", str(control), "-p", str(pid)],
+            timeout=15,
+        )
         await asyncio.sleep(1)
         rc, _o, err = await run(["xl2tpd-control", "-c", str(control), "connect", lac], timeout=20)
         if rc != 0:

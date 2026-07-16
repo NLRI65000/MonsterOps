@@ -5,7 +5,9 @@ from typing import Any
 
 import httpx
 
-_SKIP_FIELDS = frozenset({"_id", "gl2_message_id", "gl2_source_node", "gl2_source_input", "gl2_remote_ip"})
+_SKIP_FIELDS = frozenset(
+    {"_id", "gl2_message_id", "gl2_source_node", "gl2_source_input", "gl2_remote_ip"}
+)
 
 
 class GraylogClient:
@@ -58,7 +60,7 @@ class GraylogClient:
             nas_parts.append(f'message:"*{safe_id}*"')
         if not nas_parts:
             raise ValueError("Either nas_ip or nas_identifier must be provided")
-        parts = [f'({" OR ".join(nas_parts)})'] if len(nas_parts) > 1 else [nas_parts[0]]
+        parts = [f"({' OR '.join(nas_parts)})"] if len(nas_parts) > 1 else [nas_parts[0]]
 
         if username:
             if self.username_field:
@@ -90,14 +92,17 @@ class GraylogClient:
             result: list[dict[str, Any]] = []
             for item in data.get("messages", []):
                 msg = item.get("message", {})
-                result.append({
-                    "timestamp": msg.get("timestamp", ""),
-                    "message": msg.get("message", ""),
-                    "source": msg.get("source", ""),
-                    "level": msg.get("level"),
-                    "fields": {
-                        k: v for k, v in msg.items()
-                        if k not in _SKIP_FIELDS | {"timestamp", "message", "source", "level"}
-                    },
-                })
+                result.append(
+                    {
+                        "timestamp": msg.get("timestamp", ""),
+                        "message": msg.get("message", ""),
+                        "source": msg.get("source", ""),
+                        "level": msg.get("level"),
+                        "fields": {
+                            k: v
+                            for k, v in msg.items()
+                            if k not in _SKIP_FIELDS | {"timestamp", "message", "source", "level"}
+                        },
+                    }
+                )
             return result

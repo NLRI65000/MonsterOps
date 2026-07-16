@@ -1,5 +1,3 @@
-import { router } from '../router.js';
-import { toast } from '../components/app-toast.js';
 import { api } from '../api.js';
 
 const TEMPLATE = `
@@ -129,11 +127,11 @@ export function LoginView() {
   el.attachShadow({ mode: 'open' }).innerHTML = TEMPLATE;
 
   const shadow = el.shadowRoot;
-  const form     = shadow.getElementById('form');
-  const spinner  = shadow.getElementById('spinner');
-  const btnText  = shadow.getElementById('btn-text');
-  const errorEl  = shadow.getElementById('error');
-  const btn      = shadow.querySelector('.btn');
+  const form = shadow.getElementById('form');
+  const spinner = shadow.getElementById('spinner');
+  const btnText = shadow.getElementById('btn-text');
+  const errorEl = shadow.getElementById('error');
+  const btn = shadow.querySelector('.btn');
 
   const nodeEl = shadow.getElementById('node');
   if (nodeEl) nodeEl.textContent = `MonsterOps · ${(location.hostname || 'local').toLowerCase()}`;

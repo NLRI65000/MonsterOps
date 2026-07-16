@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from sqlalchemy import BigInteger, Column, Index, Text
-from sqlalchemy.dialects.postgresql import INET, TIMESTAMP
 from sqlalchemy import text as sa_text
+from sqlalchemy.dialects.postgresql import INET, TIMESTAMP
 
 from monsterops.database import Base
 

@@ -40,14 +40,16 @@ export function sparkline(values, opts = {}) {
   });
 
   const line = pts.map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
-  const areaPath = `${line} L${pts[pts.length - 1][0].toFixed(1)},${h} L${pts[0][0].toFixed(1)},${h} Z`;
+  const areaPath = `${line} L${pts[pts.length - 1][0].toFixed(1)},${h} L${
+    pts[0][0].toFixed(1)
+  },${h} Z`;
   const [lx, ly] = pts[pts.length - 1];
 
-  return `<span class="${cls}" aria-hidden="true"><svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">`
-    + (area ? `<path class="spark-area" d="${areaPath}"/>` : '')
-    + `<path class="spark-line" d="${line}"/>`
-    + (dot ? `<circle class="spark-dot" cx="${lx.toFixed(1)}" cy="${ly.toFixed(1)}" r="1.6"/>` : '')
-    + `</svg></span>`;
+  return `<span class="${cls}" aria-hidden="true"><svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">` +
+    (area ? `<path class="spark-area" d="${areaPath}"/>` : '') +
+    `<path class="spark-line" d="${line}"/>` +
+    (dot ? `<circle class="spark-dot" cx="${lx.toFixed(1)}" cy="${ly.toFixed(1)}" r="1.6"/>` : '') +
+    `</svg></span>`;
 }
 
 /**
@@ -74,9 +76,19 @@ export function histogram(buckets, opts = {}) {
     const okH = (ok / max) * h;
     const badH = (bad / max) * h;
     let out = '';
-    if (badH > 0) out += `<rect x="${x}" y="${(h - okH - badH).toFixed(1)}" width="${bar}" height="${badH.toFixed(1)}" fill="var(--mr-reject)"/>`;
-    if (okH > 0) out += `<rect x="${x}" y="${(h - okH).toFixed(1)}" width="${bar}" height="${okH.toFixed(1)}" fill="var(--mr-accept)"/>`;
-    if (okH + badH === 0) out += `<rect x="${x}" y="${h - 1}" width="${bar}" height="1" fill="var(--mr-hairline)"/>`;
+    if (badH > 0) {
+      out += `<rect x="${x}" y="${(h - okH - badH).toFixed(1)}" width="${bar}" height="${
+        badH.toFixed(1)
+      }" fill="var(--mr-reject)"/>`;
+    }
+    if (okH > 0) {
+      out += `<rect x="${x}" y="${(h - okH).toFixed(1)}" width="${bar}" height="${
+        okH.toFixed(1)
+      }" fill="var(--mr-accept)"/>`;
+    }
+    if (okH + badH === 0) {
+      out += `<rect x="${x}" y="${h - 1}" width="${bar}" height="1" fill="var(--mr-hairline)"/>`;
+    }
     return out;
   }).join('');
 

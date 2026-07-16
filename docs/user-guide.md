@@ -110,7 +110,7 @@ You can customise any of these defaults with environment variables before runnin
 MONSTEROPS_PORT=9000 INSTALL_DIR=/srv/monsterops sudo bash deploy/install.sh
 ```
 
-### Development
+### From Source
 
 ```bash
 git clone https://github.com/NLRI65000/MonsterOps.git
@@ -118,16 +118,13 @@ cd MonsterOps
 
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -e ".[dev]"
+pip install -e .
 
 cp .env.example .env
 # Edit .env — set MONSTEROPS_DATABASE_URL and MONSTEROPS_SECRET_KEY
 
 alembic upgrade head
 
-# Run with auto-reload
-bash dev.sh
-# or directly:
 monsterops serve --host 0.0.0.0 --port 8000
 ```
 
@@ -273,6 +270,15 @@ The sidebar table above lists every module. This section goes deeper on the few 
 
 RADIUS users live in `radcheck`/`radreply`; groups in `radgroupcheck`/`radgroupreply`, with membership in `radusergroup`. Put shared reply attributes — rate limits, VLANs, address-pool names — on a **group** and add users to it, rather than repeating attributes on every user. Link **NAS Groups** to RADIUS groups when you need to control *which* devices a given group is allowed to authenticate against.
 
+### Authentication realms & Active Directory
+
+On **Realms & Proxy → Authentication**, a **realm** pairs an authentication method with an authorization policy. Two methods ship today:
+
+- **Local password** — MonsterOps owns each subscriber's password (any protocol, works offline). It can optionally sync the *user list* from Active Directory. No server-side setup.
+- **Directory-delegated** — subscribers log in with their **real AD password**, verified live against a Domain Controller via winbind/`ntlm_auth`. This needs the RADIUS host **joined to the domain** — a one-time, root-level step (`deploy/provision-ad.sh`) done outside the UI. Delegated realm rows show a **host: ready / needs join** badge; click it for the exact command and the per-check status.
+
+Full walkthrough — prerequisites, the domain join, verification, group mapping, selective import, and troubleshooting (including the `Auth-Type NTLM-Auth` login failure) — is in **[docs/active-directory-auth.md](active-directory-auth.md)**.
+
 ### NAS entries vs. NAS Manager
 
 These are two different things that are easy to conflate:
@@ -334,17 +340,9 @@ sudo journalctl -u monsterops -n 200 --no-pager
 sudo journalctl -u monsterops --since "2026-07-02 10:00:00" --no-pager
 ```
 
-In development (`bash dev.sh`), logs go straight to your terminal.
+When you run `monsterops serve` directly, application logs go straight to your terminal.
 
 You can also tail the app log from inside the UI: open the **Server Console** (`` ` `` or the terminal icon) and switch to the **App Log** tab.
-
-**Log location on disk (if redirected):**
-
-```
-<project-root>/logs/server-YYYYMMDD-HHMMSS.log
-```
-
-(Only present when running `dev.sh` which redirects stdout to a dated file.)
 
 ### 8b. FreeRADIUS log
 
@@ -401,8 +399,6 @@ If the issue involves a specific API call, add the HTTP method + path + status c
 
 ## 9. Opening an Issue
 
-> **Security issue?** Do **not** open a public issue — report vulnerabilities privately to **nlrigithub@hotmail.com** (see [SECURITY.md](../SECURITY.md)).
-
 1. Go to **https://github.com/NLRI65000/MonsterOps/issues**
 2. Click **New issue**
 3. Use the template fields: **Steps to reproduce**, **Expected**, **Actual**, and paste the log snippet from [Section 8](#8-finding-logs)
@@ -416,4 +412,4 @@ If the issue involves a specific API call, add the HTTP method + path + status c
 
 ### Security vulnerabilities
 
-Do **not** open a public issue for security vulnerabilities. Send details directly to the maintainer at **igorholandafilho@gmail.com** with `[MonsterOps Security]` in the subject line.
+Do **not** open a public issue for security vulnerabilities. Send details directly to the maintainer at **nlrigithub@hotmail.com** with `[MonsterOps Security]` in the subject line.

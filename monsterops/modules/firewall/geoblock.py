@@ -1,3 +1,4 @@
+
 from __future__ import annotations
 
 import ipaddress
@@ -77,23 +78,39 @@ async def fetch_country_cidrs(cc: str) -> list[str]:
 
 
 async def _build_managed_country_set(
-    db: AsyncSession, cc: str, *, kind: str, name: str, source: str, comment: str,
+    db: AsyncSession,
+    cc: str,
+    *,
+    kind: str,
+    name: str,
+    source: str,
+    comment: str,
 ) -> dict:
     cidrs = await fetch_country_cidrs(cc)
 
-    fset = (await db.execute(
-        select(MrFirewallSet).options(selectinload(MrFirewallSet.entries))
-        .where(MrFirewallSet.name == name)
-    )).scalar_one_or_none()
+    fset = (
+        await db.execute(
+            select(MrFirewallSet)
+            .options(selectinload(MrFirewallSet.entries))
+            .where(MrFirewallSet.name == name)
+        )
+    ).scalar_one_or_none()
 
     if fset is None:
-        fset = MrFirewallSet(name=name, family="ipv4_addr", kind=kind,
-                             auto_ban=False, managed_source=source, comment=comment)
+        fset = MrFirewallSet(
+            name=name,
+            family="ipv4_addr",
+            kind=kind,
+            auto_ban=False,
+            managed_source=source,
+            comment=comment,
+        )
         db.add(fset)
         await db.flush()
     elif fset.managed_source != source:
         raise CountryBlockError(
-            f"a set named {name!r} already exists and is not managed as {source!r}")
+            f"a set named {name!r} already exists and is not managed as {source!r}"
+        )
     else:
         for e in list(fset.entries):
             await db.delete(e)
@@ -111,12 +128,22 @@ async def _build_managed_country_set(
 async def build_country_set(db: AsyncSession, cc: str) -> dict:
     cc = normalize_cc(cc)
     return await _build_managed_country_set(
-        db, cc, kind="block", name=set_name_for(cc), source=f"country:{cc}",
-        comment=f"Auto-managed country block: {cc}")
+        db,
+        cc,
+        kind="block",
+        name=set_name_for(cc),
+        source=f"country:{cc}",
+        comment=f"Auto-managed country block: {cc}",
+    )
 
 
 async def build_country_allow_set(db: AsyncSession, cc: str) -> dict:
     cc = normalize_cc(cc)
     return await _build_managed_country_set(
-        db, cc, kind="allow", name=set_name_for_allow(cc), source=f"country_allow:{cc}",
-        comment=f"Auto-managed allow-only (block all except {cc})")
+        db,
+        cc,
+        kind="allow",
+        name=set_name_for_allow(cc),
+        source=f"country_allow:{cc}",
+        comment=f"Auto-managed allow-only (block all except {cc})",
+    )

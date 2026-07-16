@@ -1,3 +1,4 @@
+
 from __future__ import annotations
 
 import asyncio
@@ -56,7 +57,11 @@ async def check_interface_up(name: str) -> bool | None:
         return None
     try:
         proc = await asyncio.create_subprocess_exec(
-            "ip", "link", "show", "dev", name,
+            "ip",
+            "link",
+            "show",
+            "dev",
+            name,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.DEVNULL,
         )
@@ -77,8 +82,10 @@ async def run_probe_cycle() -> int:
             return 0
 
         results = await asyncio.gather(
-            *(probe_server(s.host, s.auth_port if s.type != "acct" else s.acct_port, s.secret)
-              for s in servers)
+            *(
+                probe_server(s.host, s.auth_port if s.type != "acct" else s.acct_port, s.secret)
+                for s in servers
+            )
         )
 
         now = datetime.now(tz=timezone.utc)

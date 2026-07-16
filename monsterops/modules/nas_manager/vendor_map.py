@@ -1,3 +1,4 @@
+
 from __future__ import annotations
 
 VENDOR_MAP: dict[str, dict] = {
@@ -55,7 +56,10 @@ def device_types_for(vendor: str) -> list[str]:
 
 def config_cmd_for(device_type: str) -> str:
     for meta in VENDOR_MAP.values():
-        if device_type in meta["device_types"] or device_type.replace("_telnet", "") in meta["device_types"]:
+        if (
+            device_type in meta["device_types"]
+            or device_type.replace("_telnet", "") in meta["device_types"]
+        ):
             return meta["config_cmd"]
     return "show running-config"
 

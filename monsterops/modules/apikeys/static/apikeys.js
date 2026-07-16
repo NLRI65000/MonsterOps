@@ -3,24 +3,28 @@ import { api } from '/js/api.js';
 import { toast } from '/js/components/app-toast.js';
 import { confirmDialog } from '/js/components/app-confirm.js';
 import { emptyStateHTML, skeletonRows } from '/js/utils/empty.js';
-import { setFieldError, clearFieldErrors, applyServerErrors } from '/js/utils/form.js';
+import { applyServerErrors, clearFieldErrors, setFieldError } from '/js/utils/form.js';
 
 // The list header, reused for both the populated table and the loading skeleton
 // so the table keeps its shape while it loads instead of collapsing.
-const KEYS_THEAD =
-  '<thead><tr><th>Name</th><th>Prefix</th><th>Scopes</th><th>Last Used</th>' +
+const KEYS_THEAD = '<thead><tr><th>Name</th><th>Prefix</th><th>Scopes</th><th>Last Used</th>' +
   '<th>Expires</th><th>Status</th><th></th></tr></thead>';
 
 function esc(s) {
-  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(
+    /"/g,
+    '&quot;',
+  );
 }
 
-function fmtDate(iso) { return iso ? new Date(iso).toLocaleString() : '—'; }
+function fmtDate(iso) {
+  return iso ? new Date(iso).toLocaleString() : '—';
+}
 
 const SCOPES = [
-  { id: 'sessions.read',  label: 'Sessions — read active sessions' },
-  { id: 'users.read',     label: 'Users — read user profiles & groups' },
-  { id: 'coa.send',       label: 'CoA — send disconnect/change-of-auth requests' },
+  { id: 'sessions.read', label: 'Sessions — read active sessions' },
+  { id: 'users.read', label: 'Users — read user profiles & groups' },
+  { id: 'coa.send', label: 'CoA — send disconnect/change-of-auth requests' },
   { id: 'auth_logs.read', label: 'Auth Logs — read authentication history' },
 ];
 
@@ -122,12 +126,27 @@ class ApiKeysPage extends HTMLElement {
       </div>
     `;
 
-    this.shadowRoot.getElementById('btn-create').addEventListener('click', () => this._openCreate());
-    this.shadowRoot.getElementById('modal-close').addEventListener('click', () => this._closeModal());
-    this.shadowRoot.getElementById('modal-cancel').addEventListener('click', () => this._closeModal());
-    this.shadowRoot.getElementById('modal-submit').addEventListener('click', () => this._submitCreate());
-    this.shadowRoot.getElementById('modal-done').addEventListener('click', () => this._closeModal());
-    this.shadowRoot.getElementById('modal-overlay').addEventListener('click', e => {
+    this.shadowRoot.getElementById('btn-create').addEventListener(
+      'click',
+      () => this._openCreate(),
+    );
+    this.shadowRoot.getElementById('modal-close').addEventListener(
+      'click',
+      () => this._closeModal(),
+    );
+    this.shadowRoot.getElementById('modal-cancel').addEventListener(
+      'click',
+      () => this._closeModal(),
+    );
+    this.shadowRoot.getElementById('modal-submit').addEventListener(
+      'click',
+      () => this._submitCreate(),
+    );
+    this.shadowRoot.getElementById('modal-done').addEventListener(
+      'click',
+      () => this._closeModal(),
+    );
+    this.shadowRoot.getElementById('modal-overlay').addEventListener('click', (e) => {
       if (e.target === this.shadowRoot.getElementById('modal-overlay')) this._closeModal();
     });
 
@@ -136,7 +155,9 @@ class ApiKeysPage extends HTMLElement {
 
   async _load() {
     const wrap = this.shadowRoot.getElementById('keys-wrap');
-    wrap.innerHTML = `<table>${KEYS_THEAD}<tbody>${skeletonRows(this.shadowRoot, 7)}</tbody></table>`;
+    wrap.innerHTML = `<table>${KEYS_THEAD}<tbody>${
+      skeletonRows(this.shadowRoot, 7)
+    }</tbody></table>`;
     try {
       this._keys = await api.get('/apikeys');
       this._render(wrap);
@@ -160,26 +181,38 @@ class ApiKeysPage extends HTMLElement {
       <table>
         ${KEYS_THEAD}
         <tbody>
-          ${this._keys.map(k => `
+          ${
+      this._keys.map((k) => `
             <tr>
               <td style="font-weight:500;">${esc(k.name)}</td>
               <td><code>${esc(k.key_prefix)}…</code></td>
-              <td style="font-size:0.75rem;color:var(--color-muted);">${(k.scopes || []).map(s => esc(s)).join(', ') || '—'}</td>
-              <td style="color:var(--color-muted);font-size:0.78rem;">${fmtDate(k.last_used_at)}</td>
+              <td style="font-size:0.75rem;color:var(--color-muted);">${
+        (k.scopes || []).map((s) => esc(s)).join(', ') || '—'
+      }</td>
+              <td style="color:var(--color-muted);font-size:0.78rem;">${
+        fmtDate(k.last_used_at)
+      }</td>
               <td style="color:var(--color-muted);font-size:0.78rem;">${fmtDate(k.expires_at)}</td>
-              <td>${k.revoked
-                ? '<span class="badge badge-off">Revoked</span>'
-                : '<span class="badge badge-ok">Active</span>'}</td>
+              <td>${
+        k.revoked
+          ? '<span class="badge badge-off">Revoked</span>'
+          : '<span class="badge badge-ok">Active</span>'
+      }</td>
               <td>
-                ${!k.revoked ? `<button class="btn btn-sm btn-danger" data-action="revoke" data-id="${k.id}">Revoke</button>` : ''}
+                ${
+        !k.revoked
+          ? `<button class="btn btn-sm btn-danger" data-action="revoke" data-id="${k.id}">Revoke</button>`
+          : ''
+      }
                 <button class="btn btn-sm" data-action="delete" data-id="${k.id}" style="margin-left:4px;">Delete</button>
               </td>
             </tr>
-          `).join('')}
+          `).join('')
+    }
         </tbody>
       </table>
     `;
-    wrap.querySelectorAll('[data-action]').forEach(btn => {
+    wrap.querySelectorAll('[data-action]').forEach((btn) => {
       btn.addEventListener('click', () => {
         const id = parseInt(btn.dataset.id);
         if (btn.dataset.action === 'revoke') this._revokeKey(id);
@@ -201,12 +234,14 @@ class ApiKeysPage extends HTMLElement {
       <div class="field">
         <label>Scopes</label>
         <div class="scope-list">
-          ${SCOPES.map(s => `
+          ${
+      SCOPES.map((s) => `
             <label class="scope-item">
               <input type="checkbox" value="${s.id}" />
               <span><strong>${esc(s.id)}</strong> — ${esc(s.label.split(' — ')[1] || '')}</span>
             </label>
-          `).join('')}
+          `).join('')
+    }
         </div>
       </div>
       <div class="field">
@@ -222,9 +257,12 @@ class ApiKeysPage extends HTMLElement {
     clearFieldErrors(body);
     const nameInput = body.querySelector('#k-name');
     const name = nameInput?.value.trim();
-    const scopes = [...body.querySelectorAll('input[type=checkbox]:checked')].map(c => c.value);
+    const scopes = [...body.querySelectorAll('input[type=checkbox]:checked')].map((c) => c.value);
     const expiresVal = body.querySelector('#k-expires')?.value;
-    if (!name) { setFieldError(nameInput, 'Key name is required'); return; }
+    if (!name) {
+      setFieldError(nameInput, 'Key name is required');
+      return;
+    }
     try {
       const res = await api.post('/apikeys', {
         name,
@@ -233,7 +271,9 @@ class ApiKeysPage extends HTMLElement {
       });
       this._newKeyPlaintext = res.plaintext_key;
       body.innerHTML = `
-        <p style="margin:0 0 0.75rem;font-size:0.85rem;">Key <strong>${esc(res.name)}</strong> created. Copy it now — it will not be shown again.</p>
+        <p style="margin:0 0 0.75rem;font-size:0.85rem;">Key <strong>${
+        esc(res.name)
+      }</strong> created. Copy it now — it will not be shown again.</p>
         <div class="key-reveal">${esc(res.plaintext_key)}</div>
         <p class="key-warn">⚠ Store this key securely. This is the only time it is displayed.</p>
       `;
@@ -247,7 +287,12 @@ class ApiKeysPage extends HTMLElement {
   }
 
   async _revokeKey(id) {
-    if (!(await confirmDialog('Revoke this API key? It will stop working immediately.', { title: 'Revoke key', danger: true }))) return;
+    if (
+      !(await confirmDialog('Revoke this API key? It will stop working immediately.', {
+        title: 'Revoke key',
+        danger: true,
+      }))
+    ) return;
     try {
       await api.delete(`/apikeys/${id}`);
       toast('Key revoked', 'success');
@@ -258,7 +303,12 @@ class ApiKeysPage extends HTMLElement {
   }
 
   async _deleteKey(id) {
-    if (!(await confirmDialog('Permanently delete this API key?', { title: 'Delete key', danger: true }))) return;
+    if (
+      !(await confirmDialog('Permanently delete this API key?', {
+        title: 'Delete key',
+        danger: true,
+      }))
+    ) return;
     try {
       await api.delete(`/apikeys/${id}`);
       toast('Key deleted', 'success');

@@ -48,6 +48,8 @@ class UserListItem(BaseModel):
     groups: list[str] = []
     expiration: str | None = None
     simultaneous_use: int | None = None
+    source: str = "local"
+    source_realm: str | None = None
 
 
 class UserListResponse(BaseModel):
@@ -63,6 +65,8 @@ class UserDetail(BaseModel):
     groups: list[RadusergroupRow]
     check_attrs: list[RadcheckRow]
     reply_attrs: list[RadreplyRow]
+    source: str = "local"
+    source_realm: str | None = None
 
 
 class UserCreate(BaseModel):
@@ -78,11 +82,9 @@ class UserCreate(BaseModel):
     def validate_username(cls, v: str) -> str:
         if any(ord(c) < 0x20 or ord(c) == 0x7F for c in v):
             raise ValueError("username must not contain control characters")
-        forbidden = set('<>"\'`&')
+        forbidden = set("<>\"'`&")
         if forbidden & set(v):
-            raise ValueError(
-                "username must not contain any of these characters: < > \" ' ` &"
-            )
+            raise ValueError("username must not contain any of these characters: < > \" ' ` &")
         return v
 
 
@@ -126,13 +128,13 @@ class SessionOut(BaseModel):
     auth_log_id: int | None = None
     model_config = {"from_attributes": True}
 
-    @field_validator('nasipaddress', 'framedipaddress', mode='before')
+    @field_validator("nasipaddress", "framedipaddress", mode="before")
     @classmethod
     def coerce_ip(cls, v: object) -> str | None:
         if v is None:
             return None
         s = str(v)
-        return s.split('/')[0] if '/' in s else s
+        return s.split("/")[0] if "/" in s else s
 
 
 class BulkUsernameList(BaseModel):
@@ -198,16 +200,17 @@ class AuthHistoryOut(BaseModel):
     linked_session_id: int | None = None
     model_config = {"from_attributes": True}
 
-    @field_validator('nasipaddress', mode='before')
+    @field_validator("nasipaddress", mode="before")
     @classmethod
     def coerce_nas_ip(cls, v: object) -> str | None:
         if v is None:
             return None
         s = str(v)
-        return s.split('/')[0] if '/' in s else s
+        return s.split("/")[0] if "/" in s else s
 
 
 class TimelineEvent(BaseModel):
+
     type: Literal["auth", "session"]
     timestamp: datetime
     auth_log_id: int | None = None

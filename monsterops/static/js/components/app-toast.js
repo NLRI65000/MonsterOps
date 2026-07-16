@@ -12,9 +12,9 @@ import { BaseComponent } from './base-component.js';
 
 const ICONS = {
   success: '✓',
-  error:   '✕',
+  error: '✕',
   warning: '⚠',
-  info:    'ℹ',
+  info: 'ℹ',
 };
 
 // Toast messages routinely carry user- and server-controlled strings (entity
@@ -76,7 +76,9 @@ class AppToast extends BaseComponent {
   show(message, type = 'info', duration = 3500) {
     const el = document.createElement('div');
     el.className = `toast ${type}`;
-    el.innerHTML = `<span class="icon">${ICONS[type] ?? ICONS.info}</span><span>${_esc(message)}</span>`;
+    el.innerHTML = `<span class="icon">${ICONS[type] ?? ICONS.info}</span><span>${
+      _esc(message)
+    }</span>`;
     this.shadowRoot.appendChild(el);
 
     setTimeout(() => {

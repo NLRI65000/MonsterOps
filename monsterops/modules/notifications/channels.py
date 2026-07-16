@@ -45,9 +45,7 @@ def _smtp_send(config: dict[str, Any], subject: str, message: str) -> None:
             srv.sendmail(from_addr, to_addrs, msg.as_string())
 
 
-async def send_email(
-    config: dict[str, Any], subject: str, message: str
-) -> tuple[bool, str | None]:
+async def send_email(config: dict[str, Any], subject: str, message: str) -> tuple[bool, str | None]:
     smtp_host = config.get("smtp_host", "")
     to_addrs = config.get("to_addrs", [])
     if not smtp_host or not to_addrs:

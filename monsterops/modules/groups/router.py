@@ -7,11 +7,21 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from monsterops.database import get_db
 from monsterops.modules.auth.utils import audit, get_current_user, require_roles
 from monsterops.modules.users.models import Radusergroup
+
 from .models import GroupAccessType, Radgroupcheck, Radgroupreply
 from .schemas import (
-    AttributeCreate, AttributeUpdate,
-    GroupCreate, GroupDetail, GroupListItem, GroupListResponse, GroupRename,
-    LoginTypeInfo, MemberAdd, MemberOut, RadgroupcheckRow, RadgroupreplyRow,
+    AttributeCreate,
+    AttributeUpdate,
+    GroupCreate,
+    GroupDetail,
+    GroupListItem,
+    GroupListResponse,
+    GroupRename,
+    LoginTypeInfo,
+    MemberAdd,
+    MemberOut,
+    RadgroupcheckRow,
+    RadgroupreplyRow,
     SetAccessTypesBody,
 )
 
@@ -76,11 +86,17 @@ router = APIRouter(prefix="/api/groups", tags=["groups"])
 
 
 
+
 @router.get("/login-types", response_model=list[LoginTypeInfo])
 async def list_login_types(_user=Depends(get_current_user)):
     return [
-        LoginTypeInfo(key=k, label=v["label"], description=v["description"],
-                      vendors=v["vendors"], detect=v["detect"])
+        LoginTypeInfo(
+            key=k,
+            label=v["label"],
+            description=v["description"],
+            vendors=v["vendors"],
+            detect=v["detect"],
+        )
         for k, v in _LOGIN_TYPES.items()
     ]
 
@@ -93,6 +109,7 @@ async def _exists_or_404(groupname: str, db: AsyncSession) -> str:
         if q.scalar_one():
             return groupname
     raise HTTPException(404, f"Group '{groupname}' not found")
+
 
 
 
@@ -119,9 +136,7 @@ async def list_groups(
     total = total_q.scalar_one() or 0
 
     name_order = sub.c.groupname.desc() if order == "desc" else sub.c.groupname.asc()
-    names_q = await db.execute(
-        base.order_by(name_order).limit(size).offset((page - 1) * size)
-    )
+    names_q = await db.execute(base.order_by(name_order).limit(size).offset((page - 1) * size))
     names = [r[0] for r in names_q.all()]
 
     if not names:
@@ -142,9 +157,9 @@ async def list_groups(
         .where(Radgroupreply.groupname.in_(names))
         .group_by(Radgroupreply.groupname)
     )
-    mem_map  = {r.groupname: r.cnt for r in mem_q.all()}
-    chk_map  = {r.groupname: r.cnt for r in chk_q.all()}
-    rpl_map  = {r.groupname: r.cnt for r in rpl_q.all()}
+    mem_map = {r.groupname: r.cnt for r in mem_q.all()}
+    chk_map = {r.groupname: r.cnt for r in chk_q.all()}
+    rpl_map = {r.groupname: r.cnt for r in rpl_q.all()}
 
     items = [
         GroupListItem(
@@ -156,6 +171,7 @@ async def list_groups(
         for n in names
     ]
     return GroupListResponse(total=total, page=page, size=size, items=items)
+
 
 
 
@@ -175,9 +191,17 @@ async def create_group(
 
     db.add(Radgroupcheck(groupname=body.name, attribute="Fall-Through", op=":=", value="No"))
     await db.commit()
-    await audit(db, user_id=current.id, username=current.username,
-                action="group.create", target=body.name, detail={}, request=request)
+    await audit(
+        db,
+        user_id=current.id,
+        username=current.username,
+        action="group.create",
+        target=body.name,
+        detail={},
+        request=request,
+    )
     return {"name": body.name}
+
 
 
 
@@ -212,6 +236,7 @@ async def get_group(
 
 
 
+
 @router.put("/{groupname}/rename")
 async def rename_group(
     groupname: str,
@@ -231,14 +256,36 @@ async def rename_group(
         if q.scalar_one():
             raise HTTPException(409, f"Group '{body.name}' already exists")
 
-    await db.execute(update(Radgroupcheck).where(Radgroupcheck.groupname == groupname).values(groupname=body.name))
-    await db.execute(update(Radgroupreply).where(Radgroupreply.groupname == groupname).values(groupname=body.name))
-    await db.execute(update(Radusergroup).where(Radusergroup.groupname == groupname).values(groupname=body.name))
-    await db.execute(update(GroupAccessType).where(GroupAccessType.groupname == groupname).values(groupname=body.name))
+    await db.execute(
+        update(Radgroupcheck)
+        .where(Radgroupcheck.groupname == groupname)
+        .values(groupname=body.name)
+    )
+    await db.execute(
+        update(Radgroupreply)
+        .where(Radgroupreply.groupname == groupname)
+        .values(groupname=body.name)
+    )
+    await db.execute(
+        update(Radusergroup).where(Radusergroup.groupname == groupname).values(groupname=body.name)
+    )
+    await db.execute(
+        update(GroupAccessType)
+        .where(GroupAccessType.groupname == groupname)
+        .values(groupname=body.name)
+    )
     await db.commit()
-    await audit(db, user_id=current.id, username=current.username,
-                action="group.rename", target=groupname, detail={"new_name": body.name}, request=request)
+    await audit(
+        db,
+        user_id=current.id,
+        username=current.username,
+        action="group.rename",
+        target=groupname,
+        detail={"new_name": body.name},
+        request=request,
+    )
     return {"name": body.name}
+
 
 
 
@@ -255,8 +302,16 @@ async def delete_group(
     await db.execute(delete(Radusergroup).where(Radusergroup.groupname == groupname))
     await db.execute(delete(GroupAccessType).where(GroupAccessType.groupname == groupname))
     await db.commit()
-    await audit(db, user_id=current.id, username=current.username,
-                action="group.delete", target=groupname, detail={}, request=request)
+    await audit(
+        db,
+        user_id=current.id,
+        username=current.username,
+        action="group.delete",
+        target=groupname,
+        detail={},
+        request=request,
+    )
+
 
 
 
@@ -285,7 +340,9 @@ async def update_check_attr(
     current=Depends(require_roles("admin", "superadmin")),
 ):
     q = await db.execute(
-        select(Radgroupcheck).where(Radgroupcheck.id == attr_id, Radgroupcheck.groupname == groupname)
+        select(Radgroupcheck).where(
+            Radgroupcheck.id == attr_id, Radgroupcheck.groupname == groupname
+        )
     )
     row = q.scalar_one_or_none()
     if not row:
@@ -307,13 +364,16 @@ async def delete_check_attr(
     current=Depends(require_roles("admin", "superadmin")),
 ):
     q = await db.execute(
-        select(Radgroupcheck).where(Radgroupcheck.id == attr_id, Radgroupcheck.groupname == groupname)
+        select(Radgroupcheck).where(
+            Radgroupcheck.id == attr_id, Radgroupcheck.groupname == groupname
+        )
     )
     row = q.scalar_one_or_none()
     if not row:
         raise HTTPException(404, "Attribute not found")
     await db.delete(row)
     await db.commit()
+
 
 
 
@@ -342,7 +402,9 @@ async def update_reply_attr(
     current=Depends(require_roles("admin", "superadmin")),
 ):
     q = await db.execute(
-        select(Radgroupreply).where(Radgroupreply.id == attr_id, Radgroupreply.groupname == groupname)
+        select(Radgroupreply).where(
+            Radgroupreply.id == attr_id, Radgroupreply.groupname == groupname
+        )
     )
     row = q.scalar_one_or_none()
     if not row:
@@ -364,13 +426,16 @@ async def delete_reply_attr(
     current=Depends(require_roles("admin", "superadmin")),
 ):
     q = await db.execute(
-        select(Radgroupreply).where(Radgroupreply.id == attr_id, Radgroupreply.groupname == groupname)
+        select(Radgroupreply).where(
+            Radgroupreply.id == attr_id, Radgroupreply.groupname == groupname
+        )
     )
     row = q.scalar_one_or_none()
     if not row:
         raise HTTPException(404, "Attribute not found")
     await db.delete(row)
     await db.commit()
+
 
 
 
@@ -399,7 +464,9 @@ async def add_member(
 ):
     await _exists_or_404(groupname, db)
     q = await db.execute(
-        select(func.count()).select_from(Radusergroup).where(
+        select(func.count())
+        .select_from(Radusergroup)
+        .where(
             Radusergroup.groupname == groupname,
             Radusergroup.username == body.username,
         )
@@ -408,9 +475,15 @@ async def add_member(
         raise HTTPException(409, f"'{body.username}' is already in group '{groupname}'")
     db.add(Radusergroup(username=body.username, groupname=groupname, priority=body.priority))
     await db.commit()
-    await audit(db, user_id=current.id, username=current.username,
-                action="group.member.add", target=groupname,
-                detail={"username": body.username}, request=request)
+    await audit(
+        db,
+        user_id=current.id,
+        username=current.username,
+        action="group.member.add",
+        target=groupname,
+        detail={"username": body.username},
+        request=request,
+    )
     return {"ok": True}
 
 
@@ -433,9 +506,15 @@ async def remove_member(
         raise HTTPException(404, "Member not found")
     await db.delete(row)
     await db.commit()
-    await audit(db, user_id=current.id, username=current.username,
-                action="group.member.remove", target=groupname,
-                detail={"username": username}, request=request)
+    await audit(
+        db,
+        user_id=current.id,
+        username=current.username,
+        action="group.member.remove",
+        target=groupname,
+        detail={"username": username},
+        request=request,
+    )
 
 
 @router.put("/{groupname}/members/{username}/priority")
@@ -458,6 +537,7 @@ async def set_member_priority(
     row.priority = priority
     await db.commit()
     return {"ok": True}
+
 
 
 
@@ -487,9 +567,15 @@ async def set_access_types(
     if not body.enabled:
         await db.execute(delete(GroupAccessType).where(GroupAccessType.groupname == groupname))
         await db.commit()
-        await audit(db, user_id=current.id, username=current.username,
-                    action="group.access_types.set", target=groupname,
-                    detail={"enabled": False}, request=request)
+        await audit(
+            db,
+            user_id=current.id,
+            username=current.username,
+            action="group.access_types.set",
+            target=groupname,
+            detail={"enabled": False},
+            request=request,
+        )
         return {"enabled": False, "types": []}
 
     if not body.types:
@@ -503,7 +589,13 @@ async def set_access_types(
     for lt in body.types:
         db.add(GroupAccessType(groupname=groupname, login_type=lt))
     await db.commit()
-    await audit(db, user_id=current.id, username=current.username,
-                action="group.access_types.set", target=groupname,
-                detail={"enabled": True, "types": body.types}, request=request)
+    await audit(
+        db,
+        user_id=current.id,
+        username=current.username,
+        action="group.access_types.set",
+        target=groupname,
+        detail={"enabled": True, "types": body.types},
+        request=request,
+    )
     return {"enabled": True, "types": body.types}

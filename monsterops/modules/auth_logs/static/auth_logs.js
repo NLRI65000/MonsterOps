@@ -1,12 +1,15 @@
 import { router } from '/js/router.js';
 import { api } from '/js/api.js';
 import { toast } from '/js/components/app-toast.js';
-import { densityBarHTML, wireDensityBar, applyDensity, makeSortable } from '/js/utils/table.js';
+import { applyDensity, densityBarHTML, makeSortable, wireDensityBar } from '/js/utils/table.js';
 import { emptyStateHTML, skeletonRows } from '/js/utils/empty.js';
 import { geoLabelHTML } from '/js/utils/geo.js';
 
 function _esc(s) {
-  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(
+    /"/g,
+    '&quot;',
+  );
 }
 
 function _fmtTime(s) {
@@ -17,7 +20,9 @@ function _fmtTime(s) {
 function _geoCell(geo, ip) {
   const ipSpan = `<span class="mono muted">${_esc(ip || '—')}</span>`;
   if (!geo) return ipSpan;
-  return `${ipSpan}<div style="font-size:0.72rem;color:var(--color-muted);margin-top:1px">${geoLabelHTML(geo)}</div>`;
+  return `${ipSpan}<div style="font-size:0.72rem;color:var(--color-muted);margin-top:1px">${
+    geoLabelHTML(geo)
+  }</div>`;
 }
 
 const STYLE = `
@@ -215,10 +220,14 @@ class AuthLogsView extends HTMLElement {
         <button class="btn btn-export" id="btn-export">⬇ Export CSV</button>
       </div>
 
-      ${rangeLabel ? `<div id="range-chip" style="display:inline-flex;align-items:center;gap:0.5rem;margin-bottom:0.6rem;padding:0.22rem 0.55rem;border:1px solid var(--mr-action);border-radius:var(--mr-radius,2px);background:var(--mr-action-tint);color:var(--mr-action);font-family:var(--mr-font-data);font-size:0.66rem;letter-spacing:0.04em;">
+      ${
+      rangeLabel
+        ? `<div id="range-chip" style="display:inline-flex;align-items:center;gap:0.5rem;margin-bottom:0.6rem;padding:0.22rem 0.55rem;border:1px solid var(--mr-action);border-radius:var(--mr-radius,2px);background:var(--mr-action-tint);color:var(--mr-action);font-family:var(--mr-font-data);font-size:0.66rem;letter-spacing:0.04em;">
         <span>⌖ ${rangeLabel}</span>
         <button id="range-clear" title="Clear time range" style="background:none;border:none;color:inherit;cursor:pointer;font-size:0.85rem;line-height:1;padding:0;">✕</button>
-      </div>` : ''}
+      </div>`
+        : ''
+    }
 
       ${densityBarHTML()}
       <div class="click-hint">Click any row to see full details</div>
@@ -249,7 +258,8 @@ class AuthLogsView extends HTMLElement {
     this._loadTimeline();
 
     this.shadowRoot.getElementById('range-clear')?.addEventListener('click', () => {
-      this._from = ''; this._to = '';
+      this._from = '';
+      this._to = '';
       this.shadowRoot.getElementById('range-chip')?.remove();
       // drop from/to from the URL without re-rendering the whole workspace
       history.replaceState(null, '', '#/logs?tab=auth');
@@ -263,13 +273,13 @@ class AuthLogsView extends HTMLElement {
       this._loadAnomalies();
       this._loadTimeline();
     });
-    this.shadowRoot.getElementById('inp-user').addEventListener('keydown', e => {
+    this.shadowRoot.getElementById('inp-user').addEventListener('keydown', (e) => {
       if (e.key === 'Enter') this._load();
     });
     this.shadowRoot.getElementById('btn-export').addEventListener('click', () => this._exportCsv());
 
     // Row click → detail panel (event delegation)
-    this.shadowRoot.getElementById('wrap').addEventListener('click', e => {
+    this.shadowRoot.getElementById('wrap').addEventListener('click', (e) => {
       const row = e.target.closest('tr[data-id]');
       if (row) this._showDetail(Number(row.dataset.id));
     });
@@ -279,7 +289,12 @@ class AuthLogsView extends HTMLElement {
     if (!this._from && !this._to) return '';
     const fmt = (s) => {
       const d = new Date(s);
-      return isNaN(d) ? s : d.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+      return isNaN(d) ? s : d.toLocaleString([], {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
     };
     if (this._from && this._to) return `${fmt(this._from)} → ${fmt(this._to)}`;
     return this._from ? `since ${fmt(this._from)}` : `until ${fmt(this._to)}`;
@@ -299,10 +314,10 @@ class AuthLogsView extends HTMLElement {
     const user = this.shadowRoot.getElementById('inp-user').value.trim();
     const reply = this.shadowRoot.getElementById('sel-reply').value;
     let url = `/auth-logs?limit=200`;
-    if (user)  url += `&username=${encodeURIComponent(user)}`;
+    if (user) url += `&username=${encodeURIComponent(user)}`;
     if (reply) url += `&reply=${encodeURIComponent(reply)}`;
     if (this._from) url += `&from=${encodeURIComponent(this._from)}`;
-    if (this._to)   url += `&to=${encodeURIComponent(this._to)}`;
+    if (this._to) url += `&to=${encodeURIComponent(this._to)}`;
     try {
       const rows = await api.get(url);
       this._logs = rows;
@@ -318,7 +333,7 @@ class AuthLogsView extends HTMLElement {
           <th>Time</th><th>User</th><th>Result</th><th>Method</th>
           <th>Failure Reason</th><th>Latency</th><th>Calling Station / Location</th><th>NAS IP</th><th>NAS ID</th>
         </tr></thead>
-        <tbody>${rows.map(r => this._row(r)).join('')}</tbody>
+        <tbody>${rows.map((r) => this._row(r)).join('')}</tbody>
       </table>`;
       const table = wrap.querySelector('table');
       applyDensity(table);
@@ -337,14 +352,18 @@ class AuthLogsView extends HTMLElement {
       ? `<span class="badge badge-info">${_esc(r.authmethod)}</span>`
       : '<span class="muted">—</span>';
     const reason = r.failurereason
-      ? `<span class="muted" title="${_esc(r.failurereason)}">${_esc(r.failurereason.slice(0, 40))}${r.failurereason.length > 40 ? '…' : ''}</span>`
+      ? `<span class="muted" title="${_esc(r.failurereason)}">${
+        _esc(r.failurereason.slice(0, 40))
+      }${r.failurereason.length > 40 ? '…' : ''}</span>`
       : '<span class="muted">—</span>';
     const latency = r.auth_latency_ms != null
       ? `<span class="mono">${r.auth_latency_ms} ms</span>`
       : '<span class="muted">—</span>';
     const ts = Date.parse(r.authdate) || 0;
     return `<tr data-id="${r.id}">
-      <td class="mono muted" style="white-space:nowrap" data-sort="${ts}">${_fmtTime(r.authdate)}</td>
+      <td class="mono muted" style="white-space:nowrap" data-sort="${ts}">${
+      _fmtTime(r.authdate)
+    }</td>
       <td style="font-weight:500">${_esc(r.username)}</td>
       <td>${resultBadge}</td>
       <td>${method}</td>
@@ -359,7 +378,7 @@ class AuthLogsView extends HTMLElement {
   // ── Detail panel ─────────────────────────────────────────────────────────────
 
   _showDetail(logId) {
-    const entry = this._logs.find(r => r.id === logId);
+    const entry = this._logs.find((r) => r.id === logId);
     if (!entry) return;
 
     // Remove any existing panel
@@ -377,7 +396,11 @@ class AuthLogsView extends HTMLElement {
         <div class="detail-header">
           <div>
             <div class="detail-title">Auth Log #${entry.id}</div>
-            <div style="margin-top:0.25rem">${resultBadge}${entry.authmethod ? `&nbsp;<span class="badge badge-info">${_esc(entry.authmethod)}</span>` : ''}</div>
+            <div style="margin-top:0.25rem">${resultBadge}${
+      entry.authmethod
+        ? `&nbsp;<span class="badge badge-info">${_esc(entry.authmethod)}</span>`
+        : ''
+    }</div>
           </div>
           <button class="detail-close" id="btn-close" title="Close (Esc)">&#10005;</button>
         </div>
@@ -392,7 +415,9 @@ class AuthLogsView extends HTMLElement {
               </div>
               <div class="detail-field">
                 <div class="detail-label">Latency</div>
-                <div class="detail-value mono">${entry.auth_latency_ms != null ? entry.auth_latency_ms + ' ms' : '—'}</div>
+                <div class="detail-value mono">${
+      entry.auth_latency_ms != null ? entry.auth_latency_ms + ' ms' : '—'
+    }</div>
               </div>
               <div class="detail-field">
                 <div class="detail-label">Username</div>
@@ -405,19 +430,29 @@ class AuthLogsView extends HTMLElement {
             </div>
           </div>
 
-          ${entry.failurereason ? `
+          ${
+      entry.failurereason
+        ? `
           <div class="detail-section">
             <div class="detail-section-title">Failure Reason</div>
             <div class="reason-block${accept ? ' success' : ''}">${_esc(entry.failurereason)}</div>
           </div>
-          ` : ''}
+          `
+        : ''
+    }
 
           <div class="detail-section">
             <div class="detail-section-title">Network</div>
             <div class="detail-grid">
               <div class="detail-field">
                 <div class="detail-label">Calling Station</div>
-                <div class="detail-value mono">${_esc(entry.callingstationid || '—')}${entry.geo_client ? `<div style="font-size:0.75rem;color:var(--color-muted);font-family:inherit">${geoLabelHTML(entry.geo_client)}</div>` : ''}</div>
+                <div class="detail-value mono">${_esc(entry.callingstationid || '—')}${
+      entry.geo_client
+        ? `<div style="font-size:0.75rem;color:var(--color-muted);font-family:inherit">${
+          geoLabelHTML(entry.geo_client)
+        }</div>`
+        : ''
+    }</div>
               </div>
               <div class="detail-field">
                 <div class="detail-label">Called Station</div>
@@ -431,7 +466,9 @@ class AuthLogsView extends HTMLElement {
                 <div class="detail-label">NAS Identifier</div>
                 <div class="detail-value">${_esc(entry.nasidentifier || '—')}</div>
               </div>
-              ${entry.geo_client?.latitude ? `
+              ${
+      entry.geo_client?.latitude
+        ? `
               <div class="detail-field">
                 <div class="detail-label">Country</div>
                 <div class="detail-value">${_esc(entry.geo_client.country || '—')}</div>
@@ -439,21 +476,29 @@ class AuthLogsView extends HTMLElement {
               <div class="detail-field">
                 <div class="detail-label">City</div>
                 <div class="detail-value">${_esc(entry.geo_client.city || '—')}</div>
-              </div>` : ''}
+              </div>`
+        : ''
+    }
             </div>
           </div>
 
-          ${entry.linked_session_id ? `
+          ${
+      entry.linked_session_id
+        ? `
           <div class="detail-section">
             <div class="detail-section-title">Linked Session</div>
             <button class="btn" id="btn-view-session" data-session-id="${entry.linked_session_id}" style="font-size:0.8rem">
               ↗ View Session #${entry.linked_session_id}
             </button>
-          </div>` : ''}
+          </div>`
+        : ''
+    }
 
           <div class="detail-section">
             <div class="detail-section-title">FreeRADIUS Log Context</div>
-            <button class="btn btn-primary" id="btn-load-log">Load log lines for "${_esc(entry.username)}"</button>
+            <button class="btn btn-primary" id="btn-load-log">Load log lines for "${
+      _esc(entry.username)
+    }"</button>
             <div id="log-context-body"></div>
           </div>
 
@@ -466,8 +511,15 @@ class AuthLogsView extends HTMLElement {
     // Close handlers
     const close = () => overlay.remove();
     overlay.querySelector('#btn-close').addEventListener('click', close);
-    overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
-    const onKey = e => { if (e.key === 'Escape') { close(); document.removeEventListener('keydown', onKey); } };
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) close();
+    });
+    const onKey = (e) => {
+      if (e.key === 'Escape') {
+        close();
+        document.removeEventListener('keydown', onKey);
+      }
+    };
     document.addEventListener('keydown', onKey);
 
     // View Session cross-link (20.4)
@@ -499,7 +551,7 @@ class AuthLogsView extends HTMLElement {
       return '<div class="log-error">No log files configured.</div>';
     }
 
-    return data.log_files.map(f => {
+    return data.log_files.map((f) => {
       if (f.error) {
         return `<div class="log-file-label">${_esc(f.file)}</div>
                 <div class="log-error">${_esc(f.error)}</div>`;
@@ -511,11 +563,9 @@ class AuthLogsView extends HTMLElement {
       const totalNote = f.total_matches > 50
         ? ` <span style="color:var(--color-warning)">(showing last 50 of ${f.total_matches})</span>`
         : '';
-      const highlighted = f.lines.map(line => {
+      const highlighted = f.lines.map((line) => {
         const esc = _esc(line);
-        return esc.includes(_esc(username))
-          ? `<span class="log-match">${esc}</span>`
-          : esc;
+        return esc.includes(_esc(username)) ? `<span class="log-match">${esc}</span>` : esc;
       }).join('\n');
       return `<div class="log-file-label">${_esc(f.file)}${totalNote}</div>
               <div class="log-block">${highlighted}</div>`;
@@ -528,7 +578,7 @@ class AuthLogsView extends HTMLElement {
     const user = this.shadowRoot.getElementById('inp-user').value.trim();
     const reply = this.shadowRoot.getElementById('sel-reply').value;
     let url = `/api/auth-logs/export?limit=10000`;
-    if (user)  url += `&username=${encodeURIComponent(user)}`;
+    if (user) url += `&username=${encodeURIComponent(user)}`;
     if (reply) url += `&reply=${encodeURIComponent(reply)}`;
 
     try {
@@ -552,9 +602,12 @@ class AuthLogsView extends HTMLElement {
       const data = await api.get('/auth-logs/failed-counts?hours=24&min_count=5');
       const banner = this.shadowRoot.getElementById('alert-banner');
       const list = this.shadowRoot.getElementById('alert-list');
-      if (!data.length) { banner.classList.add('hidden'); return; }
+      if (!data.length) {
+        banner.classList.add('hidden');
+        return;
+      }
       banner.classList.remove('hidden');
-      list.innerHTML = data.map(d =>
+      list.innerHTML = data.map((d) =>
         `<li>${_esc(d.username)} — <strong>${d.count} failures</strong></li>`
       ).join('');
     } catch (_) { /* non-critical */ }
@@ -569,20 +622,31 @@ class AuthLogsView extends HTMLElement {
       const list = this.shadowRoot.getElementById('anomaly-list');
       const items = [];
       if (data.concurrent_sessions?.length) {
-        items.push(...data.concurrent_sessions.map(d =>
-          `<li>${_esc(d.username)} — <strong>${d.nas_count} concurrent NAS sessions</strong></li>`
-        ));
+        items.push(
+          ...data.concurrent_sessions.map((d) =>
+            `<li>${_esc(d.username)} — <strong>${d.nas_count} concurrent NAS sessions</strong></li>`
+          ),
+        );
       }
       if (data.multi_location_users?.length) {
-        items.push(...data.multi_location_users.map(d =>
-          `<li>${_esc(d.username)} — <strong>${d.nas_count} NAS locations</strong></li>`
-        ));
+        items.push(
+          ...data.multi_location_users.map((d) =>
+            `<li>${_esc(d.username)} — <strong>${d.nas_count} NAS locations</strong></li>`
+          ),
+        );
       }
       if (data.off_hours_events?.length) {
-        const users = [...new Set(data.off_hours_events.map(e => e.username))].slice(0, 5);
-        items.push(`<li>Off-hours logins: <strong>${users.map(_esc).join(', ')}</strong>${data.off_hours_events.length > 5 ? ` +${data.off_hours_events.length - 5} more` : ''}</li>`);
+        const users = [...new Set(data.off_hours_events.map((e) => e.username))].slice(0, 5);
+        items.push(
+          `<li>Off-hours logins: <strong>${users.map(_esc).join(', ')}</strong>${
+            data.off_hours_events.length > 5 ? ` +${data.off_hours_events.length - 5} more` : ''
+          }</li>`,
+        );
       }
-      if (!items.length) { banner.classList.add('hidden'); return; }
+      if (!items.length) {
+        banner.classList.add('hidden');
+        return;
+      }
       banner.classList.remove('hidden');
       list.innerHTML = items.join('');
     } catch (_) { /* non-critical */ }
@@ -617,8 +681,11 @@ class AuthLogsView extends HTMLElement {
       const h = new Date(pt.hour);
       h.setMinutes(0, 0, 0);
       const key = h.toISOString();
-      const slot = slots.find(s => s.hour.slice(0, 13) === key.slice(0, 13));
-      if (slot) { slot.accept = pt.accept_count; slot.reject = pt.reject_count; }
+      const slot = slots.find((s) => s.hour.slice(0, 13) === key.slice(0, 13));
+      if (slot) {
+        slot.accept = pt.accept_count;
+        slot.reject = pt.reject_count;
+      }
     }
 
     const dpr = window.devicePixelRatio || 1;
@@ -635,11 +702,11 @@ class AuthLogsView extends HTMLElement {
     const PAD_L = 42, PAD_R = 8, PAD_T = 12, PAD_B = 28;
     const chartW = W - PAD_L - PAD_R;
     const chartH = H - PAD_T - PAD_B;
-    const maxVal = Math.max(1, ...slots.map(s => s.accept + s.reject));
+    const maxVal = Math.max(1, ...slots.map((s) => s.accept + s.reject));
 
     const cs = getComputedStyle(this);
     const colorBorder = cs.getPropertyValue('--color-border').trim() || '#e2e8f0';
-    const colorMuted  = cs.getPropertyValue('--color-muted').trim()  || '#94a3b8';
+    const colorMuted = cs.getPropertyValue('--color-muted').trim() || '#94a3b8';
 
     ctx.strokeStyle = colorBorder;
     ctx.lineWidth = 1;
@@ -703,13 +770,16 @@ customElements.define('auth-logs-view', AuthLogsView);
 function _redirect(to) {
   queueMicrotask(() => router.navigate(to));
   const d = document.createElement('div');
-  d.style.cssText = 'padding:2rem;color:var(--mr-text-muted);font-family:var(--mr-font-data);font-size:0.72rem;letter-spacing:0.08em;';
+  d.style.cssText =
+    'padding:2rem;color:var(--mr-text-muted);font-family:var(--mr-font-data);font-size:0.72rem;letter-spacing:0.08em;';
   d.textContent = 'REDIRECTING…';
   return d;
 }
 
 class LogsWorkspace extends HTMLElement {
-  connectedCallback() { this._render(); }
+  connectedCallback() {
+    this._render();
+  }
 
   _activeTab() {
     const q = location.hash.split('?')[1] || '';
@@ -721,10 +791,14 @@ class LogsWorkspace extends HTMLElement {
     this.innerHTML = `
       <div class="page-header"><span class="page-title">Logs</span></div>
       <div class="tabbar" role="tablist">
-        <button class="tab ${tab === 'auth' ? 'active' : ''}" data-tab="auth" role="tab" aria-selected="${tab === 'auth'}">
+        <button class="tab ${
+      tab === 'auth' ? 'active' : ''
+    }" data-tab="auth" role="tab" aria-selected="${tab === 'auth'}">
           <span class="led ${tab === 'auth' ? 'led-on' : 'led-idle'}"></span>Auth Events
         </button>
-        <button class="tab ${tab === 'radius' ? 'active' : ''}" data-tab="radius" role="tab" aria-selected="${tab === 'radius'}">
+        <button class="tab ${
+      tab === 'radius' ? 'active' : ''
+    }" data-tab="radius" role="tab" aria-selected="${tab === 'radius'}">
           <span class="led ${tab === 'radius' ? 'led-on' : 'led-idle'}"></span>RADIUS Log
         </button>
       </div>
@@ -737,7 +811,7 @@ class LogsWorkspace extends HTMLElement {
     );
     const panel = this.querySelector('#logs-panel');
     panel.replaceChildren(
-      document.createElement(tab === 'radius' ? 'radius-logs-view' : 'auth-logs-view')
+      document.createElement(tab === 'radius' ? 'radius-logs-view' : 'auth-logs-view'),
     );
   }
 }

@@ -1,3 +1,4 @@
+
 from __future__ import annotations
 
 import logging
@@ -32,6 +33,7 @@ def _parse_radius_date(value: str) -> datetime | None:
             continue
     return None
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -57,8 +59,8 @@ async def _run_summary(
     period_end: datetime,
     recipients: list[str],
 ) -> None:
-    from monsterops.modules.auth_logs.models import Radpostauth
     from monsterops.modules.accounting.models import Radacct
+    from monsterops.modules.auth_logs.models import Radpostauth
     from monsterops.modules.scheduler.models import ReportRun, SchedulerJob
 
     data: dict[str, Any] = {}
@@ -68,8 +70,12 @@ async def _run_summary(
         async with SessionLocal() as db:
             auth_q = await db.execute(
                 select(
-                    func.sum(func.cast(Radpostauth.reply == "Access-Accept", func.Integer())).label("accepts"),
-                    func.sum(func.cast(Radpostauth.reply != "Access-Accept", func.Integer())).label("rejects"),
+                    func.sum(func.cast(Radpostauth.reply == "Access-Accept", func.Integer())).label(
+                        "accepts"
+                    ),
+                    func.sum(func.cast(Radpostauth.reply != "Access-Accept", func.Integer())).label(
+                        "rejects"
+                    ),
                     func.count().label("total"),
                 ).where(
                     Radpostauth.authdate >= period_start,
@@ -115,9 +121,13 @@ async def _run_summary(
                     job.last_run_at = datetime.now(tz=timezone.utc)
 
             run = ReportRun(
-                job_id=job_id, job_name=job_name, job_type=job_type,
+                job_id=job_id,
+                job_name=job_name,
+                job_type=job_type,
                 run_at=datetime.now(tz=timezone.utc),
-                status="ok", data=data, emailed_to=recipients or None,
+                status="ok",
+                data=data,
+                emailed_to=recipients or None,
             )
             db.add(run)
             await db.commit()
@@ -127,9 +137,12 @@ async def _run_summary(
         error_msg = str(exc)
         async with SessionLocal() as db2:
             run = ReportRun(
-                job_id=job_id, job_name=job_name, job_type=job_type,
+                job_id=job_id,
+                job_name=job_name,
+                job_type=job_type,
                 run_at=datetime.now(tz=timezone.utc),
-                status="error", error_message=error_msg,
+                status="error",
+                error_message=error_msg,
             )
             db2.add(run)
             await db2.commit()
@@ -192,9 +205,12 @@ def _send_email(job_name: str, job_type: str, data: dict[str, Any], recipients: 
 
 
 
-async def run_expired_user_cleanup(job_id: int | None, job_name: str, recipients: list[str]) -> None:
-    from monsterops.modules.users.models import Radcheck
+
+async def run_expired_user_cleanup(
+    job_id: int | None, job_name: str, recipients: list[str]
+) -> None:
     from monsterops.modules.scheduler.models import ReportRun, SchedulerJob
+    from monsterops.modules.users.models import Radcheck
 
     disabled: list[str] = []
     skipped: list[str] = []
@@ -203,27 +219,39 @@ async def run_expired_user_cleanup(job_id: int | None, job_name: str, recipients
     try:
         async with SessionLocal() as db:
             now = datetime.now(tz=timezone.utc)
-            expiry_rows = (await db.execute(
-                select(Radcheck).where(Radcheck.attribute == "Expiration")
-            )).scalars().all()
+            expiry_rows = (
+                (await db.execute(select(Radcheck).where(Radcheck.attribute == "Expiration")))
+                .scalars()
+                .all()
+            )
 
             for row in expiry_rows:
                 expiry_dt = _parse_radius_date(row.value)
                 if expiry_dt is None:
                     skipped.append(row.username)
-                    logger.warning("expired_user_cleanup: cannot parse Expiration '%s' for %s", row.value, row.username)
+                    logger.warning(
+                        "expired_user_cleanup: cannot parse Expiration '%s' for %s",
+                        row.value,
+                        row.username,
+                    )
                     continue
                 if expiry_dt >= now:
                     continue
                 already = await db.scalar(
-                    select(func.count()).select_from(Radcheck).where(
+                    select(func.count())
+                    .select_from(Radcheck)
+                    .where(
                         Radcheck.username == row.username,
                         Radcheck.attribute == "Auth-Type",
                         Radcheck.value == "Reject",
                     )
                 )
                 if not already:
-                    db.add(Radcheck(username=row.username, attribute="Auth-Type", op=":=", value="Reject"))
+                    db.add(
+                        Radcheck(
+                            username=row.username, attribute="Auth-Type", op=":=", value="Reject"
+                        )
+                    )
                     disabled.append(row.username)
 
             await db.commit()
@@ -234,10 +262,16 @@ async def run_expired_user_cleanup(job_id: int | None, job_name: str, recipients
                     job.last_run_at = now
 
             run = ReportRun(
-                job_id=job_id, job_name=job_name, job_type="expired_user_cleanup",
-                run_at=now, status="ok",
-                data={"disabled": disabled, "skipped_unparseable": skipped,
-                      "disabled_count": len(disabled)},
+                job_id=job_id,
+                job_name=job_name,
+                job_type="expired_user_cleanup",
+                run_at=now,
+                status="ok",
+                data={
+                    "disabled": disabled,
+                    "skipped_unparseable": skipped,
+                    "disabled_count": len(disabled),
+                },
             )
             db.add(run)
             await db.commit()
@@ -246,10 +280,16 @@ async def run_expired_user_cleanup(job_id: int | None, job_name: str, recipients
         logger.exception("expired_user_cleanup job '%s' failed", job_name)
         error_msg = str(exc)
         async with SessionLocal() as db2:
-            db2.add(ReportRun(
-                job_id=job_id, job_name=job_name, job_type="expired_user_cleanup",
-                run_at=datetime.now(tz=timezone.utc), status="error", error_message=error_msg,
-            ))
+            db2.add(
+                ReportRun(
+                    job_id=job_id,
+                    job_name=job_name,
+                    job_type="expired_user_cleanup",
+                    run_at=datetime.now(tz=timezone.utc),
+                    status="error",
+                    error_message=error_msg,
+                )
+            )
             await db2.commit()
         return
 
@@ -257,9 +297,10 @@ async def run_expired_user_cleanup(job_id: int | None, job_name: str, recipients
 
 
 async def run_stale_session_sweep(job_id: int | None, job_name: str, recipients: list[str]) -> None:
+    from sqlalchemy import func as sqlfunc
+
     from monsterops.modules.accounting.models import Radacct
     from monsterops.modules.scheduler.models import ReportRun, SchedulerJob
-    from sqlalchemy import func as sqlfunc
 
     closed_count = 0
     error_msg: str | None = None
@@ -269,12 +310,19 @@ async def run_stale_session_sweep(job_id: int | None, job_name: str, recipients:
             now = datetime.now(tz=timezone.utc)
             cutoff = now - timedelta(hours=_STALE_SESSION_HOURS)
 
-            stale = (await db.execute(
-                select(Radacct).where(
-                    Radacct.acctstoptime.is_(None),
-                    sqlfunc.coalesce(Radacct.acctupdatetime, Radacct.acctstarttime) < cutoff,
+            stale = (
+                (
+                    await db.execute(
+                        select(Radacct).where(
+                            Radacct.acctstoptime.is_(None),
+                            sqlfunc.coalesce(Radacct.acctupdatetime, Radacct.acctstarttime)
+                            < cutoff,
+                        )
+                    )
                 )
-            )).scalars().all()
+                .scalars()
+                .all()
+            )
 
             for s in stale:
                 start = s.acctstarttime
@@ -294,10 +342,15 @@ async def run_stale_session_sweep(job_id: int | None, job_name: str, recipients:
                     job.last_run_at = now
 
             run = ReportRun(
-                job_id=job_id, job_name=job_name, job_type="stale_session_sweep",
-                run_at=now, status="ok",
-                data={"closed_sessions": closed_count,
-                      "stale_threshold_hours": _STALE_SESSION_HOURS},
+                job_id=job_id,
+                job_name=job_name,
+                job_type="stale_session_sweep",
+                run_at=now,
+                status="ok",
+                data={
+                    "closed_sessions": closed_count,
+                    "stale_threshold_hours": _STALE_SESSION_HOURS,
+                },
             )
             db.add(run)
             await db.commit()
@@ -306,10 +359,16 @@ async def run_stale_session_sweep(job_id: int | None, job_name: str, recipients:
         logger.exception("stale_session_sweep job '%s' failed", job_name)
         error_msg = str(exc)
         async with SessionLocal() as db2:
-            db2.add(ReportRun(
-                job_id=job_id, job_name=job_name, job_type="stale_session_sweep",
-                run_at=datetime.now(tz=timezone.utc), status="error", error_message=error_msg,
-            ))
+            db2.add(
+                ReportRun(
+                    job_id=job_id,
+                    job_name=job_name,
+                    job_type="stale_session_sweep",
+                    run_at=datetime.now(tz=timezone.utc),
+                    status="error",
+                    error_message=error_msg,
+                )
+            )
             await db2.commit()
         return
 
@@ -328,10 +387,18 @@ async def run_log_retention(job_id: int | None, job_name: str, recipients: list[
     targets = [
         ("radpostauth", Radpostauth, Radpostauth.authdate, settings.retention_auth_log_days),
         ("audit_log", AuditLog, AuditLog.created_at, settings.retention_audit_log_days),
-        ("notification_history", NotificationHistory, NotificationHistory.created_at,
-         settings.retention_notification_days),
-        ("nas_dispatch_log", MrNasDispatchLog, MrNasDispatchLog.executed_at,
-         settings.retention_dispatch_log_days),
+        (
+            "notification_history",
+            NotificationHistory,
+            NotificationHistory.created_at,
+            settings.retention_notification_days,
+        ),
+        (
+            "nas_dispatch_log",
+            MrNasDispatchLog,
+            MrNasDispatchLog.executed_at,
+            settings.retention_dispatch_log_days,
+        ),
     ]
 
     deleted: dict[str, int] = {}
@@ -353,22 +420,35 @@ async def run_log_retention(job_id: int | None, job_name: str, recipients: list[
                 if job:
                     job.last_run_at = now
 
-            db.add(ReportRun(
-                job_id=job_id, job_name=job_name, job_type="log_retention",
-                run_at=now, status="ok",
-                data={"deleted": deleted,
-                      "retention_days": {label: days for label, _, _, days in targets}},
-            ))
+            db.add(
+                ReportRun(
+                    job_id=job_id,
+                    job_name=job_name,
+                    job_type="log_retention",
+                    run_at=now,
+                    status="ok",
+                    data={
+                        "deleted": deleted,
+                        "retention_days": {label: days for label, _, _, days in targets},
+                    },
+                )
+            )
             await db.commit()
 
     except Exception as exc:
         logger.exception("log_retention job '%s' failed", job_name)
         error_msg = str(exc)
         async with SessionLocal() as db2:
-            db2.add(ReportRun(
-                job_id=job_id, job_name=job_name, job_type="log_retention",
-                run_at=datetime.now(tz=timezone.utc), status="error", error_message=error_msg,
-            ))
+            db2.add(
+                ReportRun(
+                    job_id=job_id,
+                    job_name=job_name,
+                    job_type="log_retention",
+                    run_at=datetime.now(tz=timezone.utc),
+                    status="error",
+                    error_message=error_msg,
+                )
+            )
             await db2.commit()
         return
 

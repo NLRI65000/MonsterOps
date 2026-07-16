@@ -23,6 +23,7 @@ _sse_queues: list[asyncio.Queue[dict[str, Any]]] = []
 
 
 
+
 class WebhookSubIn(BaseModel):
     name: str
     url: HttpUrl
@@ -41,6 +42,7 @@ class WebhookSubOut(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
 
 
 
@@ -90,6 +92,7 @@ async def create_sub(
         enabled=bool(sub.enabled),
         created_at=sub.created_at,
     )
+
 
 
 
@@ -179,6 +182,7 @@ async def test_sub(
 
 
 
+
 @router.get("/stream/events")
 async def event_stream(
     _user=Depends(require_roles("superadmin", "admin")),
@@ -188,7 +192,7 @@ async def event_stream(
 
     async def _generate():
         try:
-            yield "data: {\"type\":\"connected\"}\n\n"
+            yield 'data: {"type":"connected"}\n\n'
             while True:
                 try:
                     event_dict = await asyncio.wait_for(q.get(), timeout=30)

@@ -1,3 +1,4 @@
+
 from __future__ import annotations
 
 import difflib
@@ -13,8 +14,12 @@ from monsterops.modules.nas_manager.models import MrNasConfigVersion, MrNasManag
 _TS_PATTERNS = [
     re.compile(r"(?:[A-Za-z]{3}/\d{1,2}|\d{1,2}/[A-Za-z]{3})/\d{4}\s+\d{2}:\d{2}:\d{2}"),
     re.compile(r"\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?"),
-    re.compile(r"(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s+[A-Za-z]{3}\s+\d{1,2}\s+\d{2}:\d{2}:\d{2}(?:\s+\w+)?\s+\d{4}"),
-    re.compile(r"\d{2}:\d{2}:\d{2}(?:\.\d+)?\s+\w+\s+(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s+[A-Za-z]{3}\s+\d{1,2}\s+\d{4}"),
+    re.compile(
+        r"(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s+[A-Za-z]{3}\s+\d{1,2}\s+\d{2}:\d{2}:\d{2}(?:\s+\w+)?\s+\d{4}"
+    ),
+    re.compile(
+        r"\d{2}:\d{2}:\d{2}(?:\.\d+)?\s+\w+\s+(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s+[A-Za-z]{3}\s+\d{1,2}\s+\d{4}"
+    ),
 ]
 _TS_TOKEN = "<timestamp>"
 
@@ -42,12 +47,14 @@ async def store_version(
     if not config or not config.strip():
         return None
 
-    latest = (await db.execute(
-        select(MrNasConfigVersion)
-        .where(MrNasConfigVersion.manager_id == manager.id)
-        .order_by(MrNasConfigVersion.created_at.desc())
-        .limit(1)
-    )).scalar_one_or_none()
+    latest = (
+        await db.execute(
+            select(MrNasConfigVersion)
+            .where(MrNasConfigVersion.manager_id == manager.id)
+            .order_by(MrNasConfigVersion.created_at.desc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
     if latest is not None and normalize_config(latest.config) == normalize_config(config):
         return None
     sha = _sha(config)
@@ -73,12 +80,14 @@ async def apply_retention(db: AsyncSession, manager: MrNasManager) -> int:
         return 0
 
     cutoff = datetime.now(timezone.utc) - timedelta(days=days)
-    latest_id = (await db.execute(
-        select(MrNasConfigVersion.id)
-        .where(MrNasConfigVersion.manager_id == manager.id)
-        .order_by(MrNasConfigVersion.created_at.desc())
-        .limit(1)
-    )).scalar_one_or_none()
+    latest_id = (
+        await db.execute(
+            select(MrNasConfigVersion.id)
+            .where(MrNasConfigVersion.manager_id == manager.id)
+            .order_by(MrNasConfigVersion.created_at.desc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
 
     stmt = delete(MrNasConfigVersion).where(
         MrNasConfigVersion.manager_id == manager.id,
@@ -106,10 +115,12 @@ def diff_stats(old_text: str, new_text: str) -> tuple[int, int]:
 
 
 def unified_diff(old_text: str, new_text: str, from_label: str, to_label: str) -> str:
-    return "\n".join(difflib.unified_diff(
-        normalize_config(old_text).splitlines(),
-        normalize_config(new_text).splitlines(),
-        fromfile=from_label,
-        tofile=to_label,
-        lineterm="",
-    ))
+    return "\n".join(
+        difflib.unified_diff(
+            normalize_config(old_text).splitlines(),
+            normalize_config(new_text).splitlines(),
+            fromfile=from_label,
+            tofile=to_label,
+            lineterm="",
+        )
+    )

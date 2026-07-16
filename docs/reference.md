@@ -11,11 +11,7 @@ Full feature list, configuration, architecture, and project reference. New here?
 - [Keyboard Shortcuts](#keyboard-shortcuts)
 - [Architecture](#architecture)
 - [Plugin System](#plugin-system)
-- [Development](#development)
 - [Tech Stack](#tech-stack)
-- [Project Status](#project-status)
-- [Roadmap](#roadmap)
-- [Contributing](#contributing)
 
 ---
 
@@ -212,31 +208,6 @@ MONSTEROPS_PLUGINS=your_monsterops_plugin
 
 ---
 
-## Development
-
-```bash
-# Install with dev extras (pytest, ruff, mypy, playwright)
-pip install -e ".[dev]"
-
-# Run the unit/integration suite (asyncio, no live server needed)
-pytest
-
-# End-to-end (needs a live server on :8000 and Chromium)
-playwright install chromium
-monsterops serve &            # in another shell
-pytest -m e2e tests/e2e
-
-# Lint & type-check
-ruff check monsterops
-mypy monsterops
-```
-
-Bare `pytest` runs the unit/integration suite — it excludes the `e2e` (live-server Playwright) and `security` (OWASP ZAP) markers, which can't share a process with the session-scoped asyncio loop. CI runs both: the **Tests (pytest)** job runs the unit suite, and a dedicated **E2E (Playwright)** job boots the app on `:8000`, seeds an admin, and drives the core journeys (login, navigation, user CRUD, live sessions) in headless Chromium. There is one test module per feature module under `tests/`.
-
-**Adding a module:** create `monsterops/modules/<name>/` with `router.py`, `models.py`, `schemas.py`, and `static/manifest.json`; add the name to the default list in `config.py`; write an Alembic migration for any new tables; add `tests/test_<name>.py`.
-
----
-
 ## Tech Stack
 
 | Layer | Technology |
@@ -256,50 +227,3 @@ Bare `pytest` runs the unit/integration suite — it excludes the `e2e` (live-se
 | Credential encryption | cryptography — AES-256-GCM (hazmat AESGCM) |
 | Scheduling | APScheduler |
 | Packaging | pyproject.toml (hatchling) |
-
----
-
-## Project Status
-
-**Mature and production-ready.** All core RADIUS management, monitoring, proxy/realm, VPN, NAS Manager, Firewall, automation, API, and integration features are complete and shipped. See the [Roadmap](#roadmap) for what's planned next.
-
----
-
-## Roadmap
-
-MonsterOps is mature and actively maintained. Here's what's planned and under consideration — feedback is welcome.
-
-### Planned
-
-| Area | What |
-|------|------|
-| **NAS reachability monitoring** | Background probe (ICMP / SNMP / RADIUS Status-Server) so the dashboard shows a true **reachable / unreachable** state, distinct from activity-based **idle** (no RADIUS traffic ≠ device down) |
-| **Automatic NAS config deploy** | Point a managed NAS at this RADIUS server in one click — pick which services authenticate against RADIUS (PPP/PPPoE, hotspot, admin login, 802.1X), generate the vendor-specific client config from a per-vendor template, preview the exact lines, and push them over SSH with a config snapshot taken first for rollback. Ships with Huawei + MikroTik templates and a generic fallback |
-| **Terraform / Ansible provider** | Manage MonsterOps resources as code against the External API |
-| **Server Console history** | Persist command history and add a console enable/disable toggle |
-
-### Under consideration
-
-Candidate directions, not yet scheduled:
-
-| Idea | Why |
-|------|-----|
-| **TOTP two-factor for admin login** | Admin accounts control the whole RADIUS estate; 2FA is the obvious next hardening step after Argon2id + rate limiting |
-| **LDAP / Active Directory authentication** | Authenticate RADIUS subscribers against one or more LDAP/AD directories instead of only the SQL `radcheck` table — binding each directory to specific **Realms / NAS Groups** so different sites or customer groups authenticate against different LDAP instances (FreeRADIUS `ldap` module generated per realm, extending the existing Realms module). Optionally reuse the same directories for MonsterOps admin login. Common ISP/enterprise requirement |
-| **Prometheus `/metrics` endpoint** | First-class observability — sessions, auth rate, reject %, DB pool, worker health — so MonsterOps plugs into existing Grafana stacks |
-| **Live session map** | Plot active sessions on a world map from the geo data already collected, with click-through to the session |
-| **Config-as-code export/import** | Snapshot the entire logical config (groups, NAS, realms, automation, firewall) to a versionable file and re-apply it to another instance |
-| **RADIUS attribute template library** | Reusable, named bundles of reply attributes (rate limits, VLANs, address pools) applied to groups/users in one click |
-| **Alert escalation & on-call routing** | Multi-step notification policies (retry, escalate, quiet hours) on top of the existing channels |
-
-### Future exploration
-
-ISP billing and invoicing, hotspot/voucher portal for guest WiFi, multi-tenancy for managing multiple ISPs from one instance, and full VPN *server* provisioning (accepting inbound WireGuard / OpenVPN peers) tightly coupled with RADIUS auth.
-
----
-
-## Contributing
-
-Each module is self-contained — pick an open roadmap item, open an issue to claim it, and submit a PR against `main`. Keep the module contract (router / models / schemas / manifest), add a matching `tests/test_<module>.py`, and run `ruff` + `pytest` before pushing.
-
-See the [User Guide](user-guide.md) for installation and configuration details.

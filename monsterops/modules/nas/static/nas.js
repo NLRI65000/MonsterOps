@@ -3,14 +3,15 @@ import { toast } from '/js/components/app-toast.js';
 import { confirmDialog } from '/js/components/app-confirm.js';
 import { router } from '/js/router.js';
 import { emptyStateHTML, skeletonBlock } from '/js/utils/empty.js';
-import { setFieldError, clearFieldErrors, applyServerErrors } from '/js/utils/form.js';
+import { applyServerErrors, clearFieldErrors, setFieldError } from '/js/utils/form.js';
 
 // ── NAS type list ─────────────────────────────────────────────────────────────
 const NAS_TYPES = ['other', 'cisco', 'huawei', 'mikrotik', 'juniper', 'ubiquiti', 'hp', 'ericsson'];
 
 function nasTypeOptions(selected = 'other') {
   const all = NAS_TYPES.includes(selected) ? NAS_TYPES : [...NAS_TYPES, selected];
-  return all.map(t => `<option value="${t}"${t === selected ? ' selected' : ''}>${t}</option>`).join('');
+  return all.map((t) => `<option value="${t}"${t === selected ? ' selected' : ''}>${t}</option>`)
+    .join('');
 }
 
 // ── Preset definitions ────────────────────────────────────────────────────────
@@ -401,7 +402,9 @@ class NasView extends HTMLElement {
   }
 
   // ── Shorthand ─────────────────────────────────────────────────────────────
-  $(s) { return this.shadowRoot.querySelector(s); }
+  $(s) {
+    return this.shadowRoot.querySelector(s);
+  }
 
   // ── Event wiring ──────────────────────────────────────────────────────────
   _bindStatic() {
@@ -444,7 +447,9 @@ class NasView extends HTMLElement {
     const list = this.$('#nas-list');
     list.innerHTML = skeletonBlock(this.shadowRoot, 6);
     try {
-      const data = await api.get(`/nas?page=${this._page}&size=20&search=${encodeURIComponent(this._search)}`);
+      const data = await api.get(
+        `/nas?page=${this._page}&size=20&search=${encodeURIComponent(this._search)}`,
+      );
       this._renderList(data);
     } catch (err) {
       list.innerHTML = emptyStateHTML({
@@ -496,8 +501,14 @@ class NasView extends HTMLElement {
       <span>${this._page} / ${totalPages} (${data.total})</span>
       <button id="p-next" ${this._page >= totalPages ? 'disabled' : ''}>Next ›</button>
     `;
-    pager.querySelector('#p-prev')?.addEventListener('click', () => { this._page--; this._loadList(); });
-    pager.querySelector('#p-next')?.addEventListener('click', () => { this._page++; this._loadList(); });
+    pager.querySelector('#p-prev')?.addEventListener('click', () => {
+      this._page--;
+      this._loadList();
+    });
+    pager.querySelector('#p-next')?.addEventListener('click', () => {
+      this._page++;
+      this._loadList();
+    });
   }
 
   // ── Detail ────────────────────────────────────────────────────────────────
@@ -512,7 +523,8 @@ class NasView extends HTMLElement {
     this.$('#list-panel').classList.add('narrow');
     this.$('#detail-empty').classList.add('hidden');
     this.$('#detail-inner').classList.remove('hidden');
-    this.$('#tab-content').innerHTML = '<div style="padding:1rem;color:var(--color-muted);font-size:0.8rem;">Loading…</div>';
+    this.$('#tab-content').innerHTML =
+      '<div style="padding:1rem;color:var(--color-muted);font-size:0.8rem;">Loading…</div>';
 
     try {
       const nas = await api.get(`/nas/${id}`);
@@ -521,7 +533,9 @@ class NasView extends HTMLElement {
       this._bindTabs();
       this._renderTab('overview');
     } catch (err) {
-      this.$('#tab-content').innerHTML = `<div class="empty-msg">Failed to load: ${escHtml(err.message)}</div>`;
+      this.$('#tab-content').innerHTML = `<div class="empty-msg">Failed to load: ${
+        escHtml(err.message)
+      }</div>`;
     }
   }
 
@@ -610,7 +624,9 @@ class NasView extends HTMLElement {
         </div>
         <div class="field">
           <label>Ports</label>
-          <input id="e-ports" type="number" min="1" max="65535" value="${n.ports ?? ''}" placeholder="optional" />
+          <input id="e-ports" type="number" min="1" max="65535" value="${
+      n.ports ?? ''
+    }" placeholder="optional" />
         </div>
         <div class="field">
           <label>SNMP Community</label>
@@ -618,7 +634,9 @@ class NasView extends HTMLElement {
         </div>
         <div class="field">
           <label>Virtual Server</label>
-          <input id="e-server" value="${escHtml(n.server ?? '')}" maxlength="64" placeholder="optional" />
+          <input id="e-server" value="${
+      escHtml(n.server ?? '')
+    }" maxlength="64" placeholder="optional" />
           <span class="field-hint">FreeRADIUS virtual server to route requests to</span>
         </div>
         <div class="field">
@@ -646,8 +664,14 @@ class NasView extends HTMLElement {
     const nasname = tc.querySelector('#e-nasname').value.trim();
     const secret = tc.querySelector('#e-secret').value.trim();
 
-    if (!nasname) { toast('IP / Hostname is required', 'error'); return; }
-    if (!secret) { toast('Shared secret is required', 'error'); return; }
+    if (!nasname) {
+      toast('IP / Hostname is required', 'error');
+      return;
+    }
+    if (!secret) {
+      toast('Shared secret is required', 'error');
+      return;
+    }
 
     const portsVal = tc.querySelector('#e-ports').value;
     const payload = {
@@ -683,10 +707,12 @@ class NasView extends HTMLElement {
   // ── Sessions tab ──────────────────────────────────────────────────────────
   async _renderSessions() {
     const tc = this.$('#tab-content');
-    tc.innerHTML = '<div style="padding:1rem;color:var(--color-muted);font-size:0.8rem;">Loading sessions…</div>';
+    tc.innerHTML =
+      '<div style="padding:1rem;color:var(--color-muted);font-size:0.8rem;">Loading sessions…</div>';
     try {
       const sessions = await api.get(`/nas/${this._selectedId}/sessions`);
-      const refreshBtn = `<div style="display:flex;justify-content:flex-end;padding:0.5rem 0;"><button class="btn btn-ghost" style="padding:0.3rem 0.65rem;font-size:0.75rem;" id="btn-refresh-sess">↻ Refresh</button></div>`;
+      const refreshBtn =
+        `<div style="display:flex;justify-content:flex-end;padding:0.5rem 0;"><button class="btn btn-ghost" style="padding:0.3rem 0.65rem;font-size:0.75rem;" id="btn-refresh-sess">↻ Refresh</button></div>`;
       if (!sessions.length) {
         tc.innerHTML = refreshBtn + '<div class="empty-msg">No active sessions for this NAS</div>';
       } else {
@@ -699,9 +725,14 @@ class NasView extends HTMLElement {
               </tr>
             </thead>
             <tbody>
-              ${sessions.map((s) => `
+              ${
+          sessions.map((s) => `
                 <tr>
-                  <td><span class="nav-user" data-user="${escHtml(s.username ?? '')}" style="cursor:pointer;color:var(--color-accent);">${escHtml(s.username ?? '—')}</span></td>
+                  <td><span class="nav-user" data-user="${
+            escHtml(s.username ?? '')
+          }" style="cursor:pointer;color:var(--color-accent);">${
+            escHtml(s.username ?? '—')
+          }</span></td>
                   <td>${escHtml(s.nasportid ?? '—')}</td>
                   <td>${escHtml(s.framedipaddress ?? '—')}</td>
                   <td>${escHtml(s.callingstationid ?? '—')}</td>
@@ -710,27 +741,34 @@ class NasView extends HTMLElement {
                   <td>${fmtBytes(s.acctinputoctets)}</td>
                   <td>${fmtBytes(s.acctoutputoctets)}</td>
                 </tr>
-              `).join('')}
+              `).join('')
+        }
             </tbody>
           </table>
         `;
       }
-      tc.querySelector('#btn-refresh-sess')?.addEventListener('click', () => this._renderSessions());
-      tc.querySelectorAll('span.nav-user').forEach(el => {
+      tc.querySelector('#btn-refresh-sess')?.addEventListener(
+        'click',
+        () => this._renderSessions(),
+      );
+      tc.querySelectorAll('span.nav-user').forEach((el) => {
         el.addEventListener('click', () => {
           const u = el.dataset.user;
           if (u) router.navigate(`/users/${encodeURIComponent(u)}`);
         });
       });
     } catch (err) {
-      tc.innerHTML = `<div class="empty-msg">Failed to load sessions: ${escHtml(err.message)}</div>`;
+      tc.innerHTML = `<div class="empty-msg">Failed to load sessions: ${
+        escHtml(err.message)
+      }</div>`;
     }
   }
 
   // ── Groups tab ────────────────────────────────────────────────────────────
   async _renderGroupsTab() {
     const tc = this.$('#tab-content');
-    tc.innerHTML = '<div style="padding:1rem;color:var(--color-muted);font-size:0.8rem;">Loading…</div>';
+    tc.innerHTML =
+      '<div style="padding:1rem;color:var(--color-muted);font-size:0.8rem;">Loading…</div>';
     try {
       const [memberships, allGroupsData] = await Promise.all([
         api.get(`/nas/${this._selectedId}/groups`),
@@ -741,33 +779,51 @@ class NasView extends HTMLElement {
 
       tc.innerHTML = `
         <div class="section-label">Member of</div>
-        ${memberships.length ? `
+        ${
+        memberships.length
+          ? `
           <table class="sessions-table">
             <thead><tr><th>Group</th><th>Description</th><th></th></tr></thead>
             <tbody>
-              ${memberships.map((m) => `
+              ${
+            memberships.map((m) => `
                 <tr data-member-id="${m.member_id}" data-group-id="${m.group_id}">
                   <td style="font-weight:500;">${escHtml(m.group_name)}</td>
-                  <td style="color:var(--color-muted);font-size:0.78rem;">${escHtml(m.group_description ?? '')}</td>
+                  <td style="color:var(--color-muted);font-size:0.78rem;">${
+              escHtml(m.group_description ?? '')
+            }</td>
                   <td style="text-align:right;">
                     <button class="btn btn-secondary btn-rm-group" style="padding:0.25rem 0.6rem;font-size:0.75rem;">Remove</button>
                   </td>
                 </tr>
-              `).join('')}
+              `).join('')
+          }
             </tbody>
           </table>
-        ` : '<div class="empty-msg">Not in any NAS group</div>'}
+        `
+          : '<div class="empty-msg">Not in any NAS group</div>'
+      }
 
         <div class="section-label">Add to Group</div>
-        ${available.length ? `
+        ${
+        available.length
+          ? `
           <div style="display:flex;gap:0.5rem;margin-top:0.5rem;">
             <select id="group-add-sel" style="flex:1;background:var(--color-bg);border:1px solid var(--color-border);border-radius:6px;color:var(--color-text);padding:0.45rem 0.65rem;font-size:0.8rem;font-family:inherit;">
               <option value="">— select a NAS group —</option>
-              ${available.map((g) => `<option value="${g.id}">${escHtml(g.name)}${g.description ? ' — ' + escHtml(g.description) : ''}</option>`).join('')}
+              ${
+            available.map((g) =>
+              `<option value="${g.id}">${escHtml(g.name)}${
+                g.description ? ' — ' + escHtml(g.description) : ''
+              }</option>`
+            ).join('')
+          }
             </select>
             <button class="btn btn-primary" id="btn-add-to-group">Add</button>
           </div>
-        ` : '<p style="color:var(--color-muted);font-size:0.8rem;margin-top:0.5rem;">This device is in all available groups.</p>'}
+        `
+          : '<p style="color:var(--color-muted);font-size:0.8rem;margin-top:0.5rem;">This device is in all available groups.</p>'
+      }
       `;
 
       tc.querySelectorAll('.btn-rm-group').forEach((btn) => {
@@ -776,12 +832,19 @@ class NasView extends HTMLElement {
           const memberId = parseInt(row.dataset.memberId);
           const groupId = parseInt(row.dataset.groupId);
           const m = memberships.find((x) => x.member_id === memberId);
-          if (!(await confirmDialog(`Remove this NAS from group "${m?.group_name}"?`, { title: 'Remove from group', danger: true }))) return;
+          if (
+            !(await confirmDialog(`Remove this NAS from group "${m?.group_name}"?`, {
+              title: 'Remove from group',
+              danger: true,
+            }))
+          ) return;
           try {
             await api.delete(`/nas/groups/${groupId}/members/${memberId}`);
             toast('Removed from group', 'success');
             this._renderGroupsTab();
-          } catch (e) { toast(e.message || 'Remove failed', 'error'); }
+          } catch (e) {
+            toast(e.message || 'Remove failed', 'error');
+          }
         });
       });
 
@@ -789,12 +852,17 @@ class NasView extends HTMLElement {
       if (addBtn) {
         addBtn.addEventListener('click', async () => {
           const groupId = tc.querySelector('#group-add-sel').value;
-          if (!groupId) { toast('Select a group', 'warning'); return; }
+          if (!groupId) {
+            toast('Select a group', 'warning');
+            return;
+          }
           try {
             await api.post(`/nas/groups/${groupId}/members?nas_id=${this._selectedId}`);
             toast('Added to group', 'success');
             this._renderGroupsTab();
-          } catch (e) { toast(e.message || 'Add failed', 'error'); }
+          } catch (e) {
+            toast(e.message || 'Add failed', 'error');
+          }
         });
       }
     } catch (err) {
@@ -806,7 +874,12 @@ class NasView extends HTMLElement {
   async _deleteSelected() {
     if (!this._selectedId) return;
     const name = this._selectedNas?.shortname || this._selectedNas?.nasname || 'this NAS';
-    if (!(await confirmDialog(`Delete "${name}"? This cannot be undone.`, { title: 'Delete NAS', danger: true }))) return;
+    if (
+      !(await confirmDialog(`Delete "${name}"? This cannot be undone.`, {
+        title: 'Delete NAS',
+        danger: true,
+      }))
+    ) return;
     try {
       await api.delete(`/nas/${this._selectedId}`);
       toast(`${name} deleted`, 'success');
@@ -859,8 +932,14 @@ class NasView extends HTMLElement {
     const nasname = nameInput.value.trim();
     const secret = secretInput.value.trim();
     let ok = true;
-    if (!nasname) { setFieldError(nameInput, 'IP / Hostname is required'); ok = false; }
-    if (!secret) { setFieldError(secretInput, 'Shared secret is required'); ok = false; }
+    if (!nasname) {
+      setFieldError(nameInput, 'IP / Hostname is required');
+      ok = false;
+    }
+    if (!secret) {
+      setFieldError(secretInput, 'Shared secret is required');
+      ok = false;
+    }
     if (!ok) return;
 
     const portsVal = this.$('#m-ports').value;
@@ -903,14 +982,29 @@ class NasView extends HTMLElement {
     const nas = this._selectedNas;
     if (!nas) return;
     const nasIp = nas.nasname;
-    tc.innerHTML = `<div style="padding:1rem;color:var(--color-muted);font-size:0.8rem;">Fetching Zabbix alarms for ${escHtml(nasIp)}…</div>`;
+    tc.innerHTML =
+      `<div style="padding:1rem;color:var(--color-muted);font-size:0.8rem;">Fetching Zabbix alarms for ${
+        escHtml(nasIp)
+      }…</div>`;
     try {
-      const data = await api.get(`/integrations/zabbix/host-problems?nas_ip=${encodeURIComponent(nasIp)}`);
+      const data = await api.get(
+        `/integrations/zabbix/host-problems?nas_ip=${encodeURIComponent(nasIp)}`,
+      );
       if (!data.problems.length) {
-        tc.innerHTML = `<div style="padding:1.5rem;color:var(--color-muted);font-size:0.85rem;text-align:center;">No active alarms for <strong>${escHtml(nasIp)}</strong>.</div>`;
+        tc.innerHTML =
+          `<div style="padding:1.5rem;color:var(--color-muted);font-size:0.85rem;text-align:center;">No active alarms for <strong>${
+            escHtml(nasIp)
+          }</strong>.</div>`;
         return;
       }
-      const severityColor = { 'Disaster': '#dc2626', 'High': 'var(--color-danger)', 'Average': 'orange', 'Warning': 'orange', 'Information': 'var(--color-accent)', 'Not classified': 'var(--color-muted)' };
+      const severityColor = {
+        'Disaster': '#dc2626',
+        'High': 'var(--color-danger)',
+        'Average': 'orange',
+        'Warning': 'orange',
+        'Information': 'var(--color-accent)',
+        'Not classified': 'var(--color-muted)',
+      };
       tc.innerHTML = `
         <div style="padding:0.75rem 0;font-size:0.78rem;color:var(--color-muted);">${data.count} active alarm(s)</div>
         <table style="width:100%;border-collapse:collapse;font-size:0.82rem;">
@@ -921,23 +1015,40 @@ class NasView extends HTMLElement {
             <th style="text-align:left;padding:0.4rem 0.5rem;font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--color-muted);border-bottom:1px solid var(--color-border);">ACK</th>
           </tr></thead>
           <tbody>
-            ${data.problems.map(p => `
+            ${
+        data.problems.map((p) => `
               <tr>
-                <td style="padding:0.4rem 0.5rem;border-bottom:1px solid var(--color-border);font-weight:600;color:${escHtml(severityColor[p.severity] || 'inherit')};">${escHtml(p.severity)}</td>
-                <td style="padding:0.4rem 0.5rem;border-bottom:1px solid var(--color-border);">${escHtml(p.name)}</td>
-                <td style="padding:0.4rem 0.5rem;border-bottom:1px solid var(--color-border);color:var(--color-muted);white-space:nowrap;">${p.clock ? new Date(p.clock * 1000).toLocaleString() : '—'}</td>
-                <td style="padding:0.4rem 0.5rem;border-bottom:1px solid var(--color-border);">${p.acknowledged ? '✓' : '—'}</td>
+                <td style="padding:0.4rem 0.5rem;border-bottom:1px solid var(--color-border);font-weight:600;color:${
+          escHtml(severityColor[p.severity] || 'inherit')
+        };">${escHtml(p.severity)}</td>
+                <td style="padding:0.4rem 0.5rem;border-bottom:1px solid var(--color-border);">${
+          escHtml(p.name)
+        }</td>
+                <td style="padding:0.4rem 0.5rem;border-bottom:1px solid var(--color-border);color:var(--color-muted);white-space:nowrap;">${
+          p.clock ? new Date(p.clock * 1000).toLocaleString() : '—'
+        }</td>
+                <td style="padding:0.4rem 0.5rem;border-bottom:1px solid var(--color-border);">${
+          p.acknowledged ? '✓' : '—'
+        }</td>
               </tr>
-            `).join('')}
+            `).join('')
+      }
           </tbody>
         </table>
       `;
     } catch (err) {
       if (err.message && err.message.includes('No enabled zabbix')) {
-        tc.innerHTML = `<div style="padding:1.5rem;color:var(--color-muted);font-size:0.85rem;text-align:center;">No Zabbix integration configured. <a href="#" id="go-integrations" style="color:var(--color-accent);">Set it up here</a>.</div>`;
-        tc.querySelector('#go-integrations')?.addEventListener('click', (e) => { e.preventDefault(); router.push('/integrations'); });
+        tc.innerHTML =
+          `<div style="padding:1.5rem;color:var(--color-muted);font-size:0.85rem;text-align:center;">No Zabbix integration configured. <a href="#" id="go-integrations" style="color:var(--color-accent);">Set it up here</a>.</div>`;
+        tc.querySelector('#go-integrations')?.addEventListener('click', (e) => {
+          e.preventDefault();
+          router.push('/integrations');
+        });
       } else {
-        tc.innerHTML = `<div style="padding:1rem;color:var(--color-danger);font-size:0.82rem;">Error: ${escHtml(err.message)}</div>`;
+        tc.innerHTML =
+          `<div style="padding:1rem;color:var(--color-danger);font-size:0.82rem;">Error: ${
+            escHtml(err.message)
+          }</div>`;
       }
     }
   }
@@ -1180,7 +1291,9 @@ class NasGroupsView extends HTMLElement {
     this._loadList();
   }
 
-  $(s) { return this.shadowRoot.querySelector(s); }
+  $(s) {
+    return this.shadowRoot.querySelector(s);
+  }
 
   _bindStatic() {
     this.$('#ng-btn-create').addEventListener('click', () => this._openModal());
@@ -1207,7 +1320,9 @@ class NasGroupsView extends HTMLElement {
     const list = this.$('#ng-group-list');
     list.innerHTML = skeletonBlock(this.shadowRoot, 6);
     try {
-      const data = await api.get(`/nas/groups/list?page=${this._page}&size=20&search=${encodeURIComponent(this._search)}`);
+      const data = await api.get(
+        `/nas/groups/list?page=${this._page}&size=20&search=${encodeURIComponent(this._search)}`,
+      );
       this._renderList(data);
     } catch (err) {
       list.innerHTML = emptyStateHTML({
@@ -1235,7 +1350,9 @@ class NasGroupsView extends HTMLElement {
         ${g.description ? `<div class="group-desc">${escHtml(g.description)}</div>` : ''}
         <div class="group-meta">
           <span class="meta-chip">${g.device_count} device${g.device_count !== 1 ? 's' : ''}</span>
-          <span class="meta-chip">${g.radius_group_count} RADIUS group${g.radius_group_count !== 1 ? 's' : ''}</span>
+          <span class="meta-chip">${g.radius_group_count} RADIUS group${
+      g.radius_group_count !== 1 ? 's' : ''
+    }</span>
         </div>
       </div>
     `).join('');
@@ -1253,8 +1370,14 @@ class NasGroupsView extends HTMLElement {
       <span>${this._page} / ${totalPages} (${data.total})</span>
       <button id="ng-p-next" ${this._page >= totalPages ? 'disabled' : ''}>Next ›</button>
     `;
-    pager.querySelector('#ng-p-prev')?.addEventListener('click', () => { this._page--; this._loadList(); });
-    pager.querySelector('#ng-p-next')?.addEventListener('click', () => { this._page++; this._loadList(); });
+    pager.querySelector('#ng-p-prev')?.addEventListener('click', () => {
+      this._page--;
+      this._loadList();
+    });
+    pager.querySelector('#ng-p-next')?.addEventListener('click', () => {
+      this._page++;
+      this._loadList();
+    });
   }
 
   // ── Detail ────────────────────────────────────────────────────────────────
@@ -1267,7 +1390,8 @@ class NasGroupsView extends HTMLElement {
     this.$('#ng-list-panel').classList.add('narrow');
     this.$('#ng-detail-empty').classList.add('hidden');
     this.$('#ng-detail-inner').classList.remove('hidden');
-    this.$('#ng-tab-content').innerHTML = '<div style="padding:1rem;color:var(--color-muted);font-size:0.8rem;">Loading…</div>';
+    this.$('#ng-tab-content').innerHTML =
+      '<div style="padding:1rem;color:var(--color-muted);font-size:0.8rem;">Loading…</div>';
     try {
       this._selectedGroup = await api.get(`/nas/groups/${id}`);
       this.$('#ng-detail-title').textContent = this._selectedGroup.name;
@@ -1275,7 +1399,9 @@ class NasGroupsView extends HTMLElement {
       this._bindTabs();
       this._renderTab();
     } catch (err) {
-      this.$('#ng-tab-content').innerHTML = `<div class="empty-msg">Failed: ${escHtml(err.message)}</div>`;
+      this.$('#ng-tab-content').innerHTML = `<div class="empty-msg">Failed: ${
+        escHtml(err.message)
+      }</div>`;
     }
   }
 
@@ -1298,7 +1424,8 @@ class NasGroupsView extends HTMLElement {
   // ── Devices tab ───────────────────────────────────────────────────────────
   async _renderDevicesTab() {
     const tc = this.$('#ng-tab-content');
-    tc.innerHTML = '<div style="padding:1rem;color:var(--color-muted);font-size:0.8rem;">Loading…</div>';
+    tc.innerHTML =
+      '<div style="padding:1rem;color:var(--color-muted);font-size:0.8rem;">Loading…</div>';
     try {
       const [members, allNasData] = await Promise.all([
         api.get(`/nas/groups/${this._selectedId}/members`),
@@ -1309,32 +1436,48 @@ class NasGroupsView extends HTMLElement {
 
       tc.innerHTML = `
         <div class="section-label">Devices in this Group</div>
-        ${members.length ? `
+        ${
+        members.length
+          ? `
           <table class="data-table">
             <thead><tr><th>IP / Host</th><th>Name</th><th>Type</th><th></th></tr></thead>
             <tbody>
-              ${members.map((m) => `
+              ${
+            members.map((m) => `
                 <tr data-member-id="${m.id}">
                   <td style="font-family:monospace;font-size:0.75rem;">${escHtml(m.nasname)}</td>
                   <td>${escHtml(m.shortname)}</td>
                   <td><span class="badge-type">${escHtml(m.type)}</span></td>
                   <td style="text-align:right;"><button class="icon-btn btn-rm-member" title="Remove from group">✕</button></td>
                 </tr>
-              `).join('')}
+              `).join('')
+          }
             </tbody>
           </table>
-        ` : '<div class="empty-msg">No devices in this group</div>'}
+        `
+          : '<div class="empty-msg">No devices in this group</div>'
+      }
 
         <div class="section-label">Add Device</div>
-        ${available.length ? `
+        ${
+        available.length
+          ? `
           <div class="add-row">
             <select id="nas-add-select">
               <option value="">— select a NAS device —</option>
-              ${available.map((n) => `<option value="${n.id}">${escHtml(n.shortname || n.nasname)} (${escHtml(n.nasname)})</option>`).join('')}
+              ${
+            available.map((n) =>
+              `<option value="${n.id}">${escHtml(n.shortname || n.nasname)} (${
+                escHtml(n.nasname)
+              })</option>`
+            ).join('')
+          }
             </select>
             <button class="btn btn-primary" id="btn-add-nas">Add</button>
           </div>
-        ` : '<p style="color:var(--color-muted);font-size:0.8rem;margin-top:0.5rem;">All NAS devices are already in this group.</p>'}
+        `
+          : '<p style="color:var(--color-muted);font-size:0.8rem;margin-top:0.5rem;">All NAS devices are already in this group.</p>'
+      }
       `;
 
       tc.querySelectorAll('.btn-rm-member').forEach((btn) => {
@@ -1342,13 +1485,20 @@ class NasGroupsView extends HTMLElement {
           const row = btn.closest('tr');
           const memberId = parseInt(row.dataset.memberId);
           const member = members.find((m) => m.id === memberId);
-          if (!(await confirmDialog(`Remove ${member?.shortname || member?.nasname || 'device'} from this group?`, { title: 'Remove device', danger: true }))) return;
+          if (
+            !(await confirmDialog(
+              `Remove ${member?.shortname || member?.nasname || 'device'} from this group?`,
+              { title: 'Remove device', danger: true },
+            ))
+          ) return;
           try {
             await api.delete(`/nas/groups/${this._selectedId}/members/${memberId}`);
             toast('Device removed from group', 'success');
             this._renderDevicesTab();
             this._loadList();
-          } catch (err) { toast(err.message || 'Remove failed', 'error'); }
+          } catch (err) {
+            toast(err.message || 'Remove failed', 'error');
+          }
         });
       });
 
@@ -1356,13 +1506,18 @@ class NasGroupsView extends HTMLElement {
       if (addBtn) {
         addBtn.addEventListener('click', async () => {
           const nasId = tc.querySelector('#nas-add-select').value;
-          if (!nasId) { toast('Select a NAS device', 'warning'); return; }
+          if (!nasId) {
+            toast('Select a NAS device', 'warning');
+            return;
+          }
           try {
             await api.post(`/nas/groups/${this._selectedId}/members?nas_id=${nasId}`);
             toast('Device added to group', 'success');
             this._renderDevicesTab();
             this._loadList();
-          } catch (err) { toast(err.message || 'Add failed', 'error'); }
+          } catch (err) {
+            toast(err.message || 'Add failed', 'error');
+          }
         });
       }
     } catch (err) {
@@ -1373,7 +1528,8 @@ class NasGroupsView extends HTMLElement {
   // ── RADIUS Groups tab ─────────────────────────────────────────────────────
   async _renderRadiusGroupsTab() {
     const tc = this.$('#ng-tab-content');
-    tc.innerHTML = '<div style="padding:1rem;color:var(--color-muted);font-size:0.8rem;">Loading…</div>';
+    tc.innerHTML =
+      '<div style="padding:1rem;color:var(--color-muted);font-size:0.8rem;">Loading…</div>';
     try {
       const links = await api.get(`/nas/groups/${this._selectedId}/radius-groups`);
 
@@ -1386,29 +1542,40 @@ class NasGroupsView extends HTMLElement {
 
       tc.innerHTML = `
         <div class="section-label">Linked RADIUS Groups</div>
-        ${links.length ? `
+        ${
+        links.length
+          ? `
           <table class="data-table">
             <thead><tr><th>RADIUS Group Name</th><th></th></tr></thead>
             <tbody>
-              ${links.map((l) => `
+              ${
+            links.map((l) => `
                 <tr data-link-id="${l.id}">
                   <td>${escHtml(l.radius_groupname)}</td>
                   <td style="text-align:right;"><button class="icon-btn btn-rm-link" title="Unlink">✕</button></td>
                 </tr>
-              `).join('')}
+              `).join('')
+          }
             </tbody>
           </table>
-        ` : '<div class="empty-msg">No RADIUS groups linked</div>'}
+        `
+          : '<div class="empty-msg">No RADIUS groups linked</div>'
+      }
 
         <div class="section-label">Link RADIUS Group</div>
         <div class="add-row">
-          ${availableGroups.length
-            ? `<select id="rg-add-sel">
+          ${
+        availableGroups.length
+          ? `<select id="rg-add-sel">
                  <option value="">— select RADIUS group —</option>
-                 ${availableGroups.map((g) => `<option value="${escHtml(g.name)}">${escHtml(g.name)}</option>`).join('')}
-               </select>`
-            : `<input id="rg-add-inp" placeholder="RADIUS group name" maxlength="64" />`
+                 ${
+            availableGroups.map((g) =>
+              `<option value="${escHtml(g.name)}">${escHtml(g.name)}</option>`
+            ).join('')
           }
+               </select>`
+          : `<input id="rg-add-inp" placeholder="RADIUS group name" maxlength="64" />`
+      }
           <button class="btn btn-primary" id="btn-link-rg">Link</button>
         </div>
       `;
@@ -1418,26 +1585,40 @@ class NasGroupsView extends HTMLElement {
           const row = btn.closest('tr');
           const linkId = parseInt(row.dataset.linkId);
           const link = links.find((l) => l.id === linkId);
-          if (!(await confirmDialog(`Unlink RADIUS group "${link?.radius_groupname}"?`, { title: 'Unlink group', danger: true }))) return;
+          if (
+            !(await confirmDialog(`Unlink RADIUS group "${link?.radius_groupname}"?`, {
+              title: 'Unlink group',
+              danger: true,
+            }))
+          ) return;
           try {
             await api.delete(`/nas/groups/${this._selectedId}/radius-groups/${linkId}`);
             toast('RADIUS group unlinked', 'success');
             this._renderRadiusGroupsTab();
             this._loadList();
-          } catch (err) { toast(err.message || 'Unlink failed', 'error'); }
+          } catch (err) {
+            toast(err.message || 'Unlink failed', 'error');
+          }
         });
       });
 
       tc.querySelector('#btn-link-rg').addEventListener('click', async () => {
         const el = tc.querySelector('#rg-add-sel') || tc.querySelector('#rg-add-inp');
         const groupname = el?.value?.trim();
-        if (!groupname) { toast('Select or enter a RADIUS group name', 'warning'); return; }
+        if (!groupname) {
+          toast('Select or enter a RADIUS group name', 'warning');
+          return;
+        }
         try {
-          await api.post(`/nas/groups/${this._selectedId}/radius-groups`, { radius_groupname: groupname });
+          await api.post(`/nas/groups/${this._selectedId}/radius-groups`, {
+            radius_groupname: groupname,
+          });
           toast('RADIUS group linked', 'success');
           this._renderRadiusGroupsTab();
           this._loadList();
-        } catch (err) { toast(err.message || 'Link failed', 'error'); }
+        } catch (err) {
+          toast(err.message || 'Link failed', 'error');
+        }
       });
     } catch (err) {
       tc.innerHTML = `<div class="empty-msg">Failed: ${escHtml(err.message)}</div>`;
@@ -1448,7 +1629,12 @@ class NasGroupsView extends HTMLElement {
   async _deleteSelected() {
     if (!this._selectedId) return;
     const name = this._selectedGroup?.name || 'this group';
-    if (!(await confirmDialog(`Delete NAS group "${name}"? All device and RADIUS group links will be removed.`, { title: 'Delete NAS group', danger: true }))) return;
+    if (
+      !(await confirmDialog(
+        `Delete NAS group "${name}"? All device and RADIUS group links will be removed.`,
+        { title: 'Delete NAS group', danger: true },
+      ))
+    ) return;
     try {
       await api.delete(`/nas/groups/${this._selectedId}`);
       toast(`Group "${name}" deleted`, 'success');
@@ -1472,13 +1658,18 @@ class NasGroupsView extends HTMLElement {
     this.$('#ng-m-name').focus();
   }
 
-  _closeModal() { this.$('#ng-modal').classList.add('hidden'); }
+  _closeModal() {
+    this.$('#ng-modal').classList.add('hidden');
+  }
 
   async _submitCreate() {
     clearFieldErrors(this.shadowRoot);
     const nameInput = this.$('#ng-m-name');
     const name = nameInput.value.trim();
-    if (!name) { setFieldError(nameInput, 'Group name is required'); return; }
+    if (!name) {
+      setFieldError(nameInput, 'Group name is required');
+      return;
+    }
     const desc = this.$('#ng-m-desc').value.trim() || null;
     const btn = this.$('#ng-modal-submit');
     btn.disabled = true;

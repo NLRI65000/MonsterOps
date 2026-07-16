@@ -1,3 +1,4 @@
+
 from __future__ import annotations
 
 import asyncio
@@ -86,7 +87,11 @@ def _send_disconnect_sync(
             "message": f"{base}{extra}",
         }
     except client.Timeout:
-        return {"success": False, "code": None, "message": "Timeout — NAS did not respond on port 3799"}
+        return {
+            "success": False,
+            "code": None,
+            "message": "Timeout — NAS did not respond on port 3799",
+        }
     except Exception as exc:  # noqa: BLE001
         return {"success": False, "code": None, "message": str(exc)}
 
@@ -131,7 +136,11 @@ def _send_coa_sync(
             "message": f"{base}{extra}",
         }
     except client.Timeout:
-        return {"success": False, "code": None, "message": "Timeout — NAS did not respond on port 3799"}
+        return {
+            "success": False,
+            "code": None,
+            "message": "Timeout — NAS did not respond on port 3799",
+        }
     except Exception as exc:  # noqa: BLE001
         return {"success": False, "code": None, "message": str(exc)}
 

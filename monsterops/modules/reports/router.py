@@ -11,17 +11,22 @@ from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from monsterops.database import get_db
-from monsterops.modules.auth.utils import get_current_user
 from monsterops.modules.accounting.models import Radacct
+from monsterops.modules.auth.utils import get_current_user
 from monsterops.modules.auth_logs.models import Radpostauth
 from monsterops.modules.nas.models import Nas
+
 from .schemas import (
-    BandwidthPoint, NasTraffic, OnlineTimeEntry, PeriodPoint, TopUser,
+    BandwidthPoint,
+    NasTraffic,
+    OnlineTimeEntry,
+    PeriodPoint,
+    TopUser,
 )
 
 router = APIRouter(prefix="/api/reports", tags=["reports"])
 
-_RANGE_RE = re.compile(r'^(\d+)(h|d)$')
+_RANGE_RE = re.compile(r"^(\d+)(h|d)$")
 
 
 def _since(range_str: str) -> datetime:
@@ -29,12 +34,13 @@ def _since(range_str: str) -> datetime:
     if not m:
         raise HTTPException(422, "Invalid range. Use e.g. '24h', '7d', '30d'.")
     n, unit = int(m.group(1)), m.group(2)
-    delta = timedelta(hours=n) if unit == 'h' else timedelta(days=n)
+    delta = timedelta(hours=n) if unit == "h" else timedelta(days=n)
     return datetime.now(tz=timezone.utc) - delta
 
 
 def _trunc(col, bucket: str):
     return func.date_trunc(bucket, col)
+
 
 
 
@@ -50,15 +56,22 @@ async def login_frequency(
     q = await db.execute(
         select(
             trunc.label("period"),
-            func.sum(case((Radpostauth.reply == "Access-Accept", 1), else_=0)).label("accept_count"),
-            func.sum(case((Radpostauth.reply != "Access-Accept", 1), else_=0)).label("reject_count"),
+            func.sum(case((Radpostauth.reply == "Access-Accept", 1), else_=0)).label(
+                "accept_count"
+            ),
+            func.sum(case((Radpostauth.reply != "Access-Accept", 1), else_=0)).label(
+                "reject_count"
+            ),
         )
         .where(Radpostauth.authdate >= since)
         .group_by(trunc)
         .order_by(trunc)
     )
-    return [PeriodPoint(period=r.period, accept_count=r.accept_count, reject_count=r.reject_count)
-            for r in q.all()]
+    return [
+        PeriodPoint(period=r.period, accept_count=r.accept_count, reject_count=r.reject_count)
+        for r in q.all()
+    ]
+
 
 
 
@@ -86,8 +99,11 @@ async def bandwidth_over_time(
         .group_by(trunc)
         .order_by(trunc)
     )
-    return [BandwidthPoint(period=r.period, input_bytes=r.input_bytes, output_bytes=r.output_bytes)
-            for r in q.all()]
+    return [
+        BandwidthPoint(period=r.period, input_bytes=r.input_bytes, output_bytes=r.output_bytes)
+        for r in q.all()
+    ]
+
 
 
 
@@ -113,8 +129,11 @@ async def top_users(
         .order_by(
             func.sum(Radacct.acctinputoctets + Radacct.acctoutputoctets).desc()
             if metric == "bandwidth"
-            else (func.count().desc() if metric == "sessions"
-                  else func.sum(Radacct.acctsessiontime).desc())
+            else (
+                func.count().desc()
+                if metric == "sessions"
+                else func.sum(Radacct.acctsessiontime).desc()
+            )
         )
         .limit(limit)
     )
@@ -128,6 +147,7 @@ async def top_users(
         )
         for r in q.all()
     ]
+
 
 
 
@@ -146,8 +166,10 @@ async def failed_trend(
         .group_by(trunc)
         .order_by(trunc)
     )
-    return [PeriodPoint(period=r.period, accept_count=0, reject_count=r.reject_count)
-            for r in q.all()]
+    return [
+        PeriodPoint(period=r.period, accept_count=0, reject_count=r.reject_count) for r in q.all()
+    ]
+
 
 
 
@@ -190,6 +212,7 @@ async def nas_traffic(
 
 
 
+
 @router.get("/online-time", response_model=list[OnlineTimeEntry])
 async def online_time(
     range: str = Query("30d"),
@@ -209,14 +232,21 @@ async def online_time(
         .order_by(func.sum(Radacct.acctsessiontime).desc())
         .limit(limit)
     )
-    return [OnlineTimeEntry(username=r.username, total_seconds=r.total_seconds, session_count=r.session_count)
-            for r in q.all()]
+    return [
+        OnlineTimeEntry(
+            username=r.username, total_seconds=r.total_seconds, session_count=r.session_count
+        )
+        for r in q.all()
+    ]
+
 
 
 
 @router.get("/export")
 async def export_report(
-    report: str = Query(..., pattern="^(login-frequency|bandwidth|top-users|failed-trend|nas-traffic|online-time)$"),
+    report: str = Query(
+        ..., pattern="^(login-frequency|bandwidth|top-users|failed-trend|nas-traffic|online-time)$"
+    ),
     range: str = Query("30d"),
     bucket: str = Query("day", pattern="^(hour|day)$"),
     db: AsyncSession = Depends(get_db),
@@ -241,7 +271,9 @@ async def export_report(
         data = await top_users(range=range, metric="bandwidth", limit=50, db=db, _user=_user)
         writer.writerow(["Username", "Sessions", "Input Bytes", "Output Bytes", "Online Seconds"])
         for r in data:
-            writer.writerow([r.username, r.session_count, r.input_bytes, r.output_bytes, r.online_seconds])
+            writer.writerow(
+                [r.username, r.session_count, r.input_bytes, r.output_bytes, r.online_seconds]
+            )
 
     elif report == "failed-trend":
         data = await failed_trend(range=range, bucket=bucket, db=db, _user=_user)
@@ -253,7 +285,9 @@ async def export_report(
         data = await nas_traffic(range=range, db=db, _user=_user)
         writer.writerow(["NAS IP", "NAS Name", "Sessions", "Input Bytes", "Output Bytes"])
         for r in data:
-            writer.writerow([r.nas_ip, r.nas_name or "", r.session_count, r.input_bytes, r.output_bytes])
+            writer.writerow(
+                [r.nas_ip, r.nas_name or "", r.session_count, r.input_bytes, r.output_bytes]
+            )
 
     elif report == "online-time":
         data = await online_time(range=range, limit=100, db=db, _user=_user)

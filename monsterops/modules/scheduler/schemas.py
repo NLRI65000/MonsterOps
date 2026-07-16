@@ -8,7 +8,10 @@ from pydantic import BaseModel, Field
 
 class JobCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=128)
-    job_type: str = Field(..., pattern="^(daily_summary|weekly_summary|expired_user_cleanup|stale_session_sweep|log_retention)$")
+    job_type: str = Field(
+        ...,
+        pattern="^(daily_summary|weekly_summary|expired_user_cleanup|stale_session_sweep|log_retention)$",
+    )
     cron_hour: int = Field(0, ge=0, le=23)
     cron_minute: int = Field(0, ge=0, le=59)
     cron_weekday: int | None = Field(None, ge=0, le=6)

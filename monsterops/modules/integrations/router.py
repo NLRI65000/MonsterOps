@@ -58,6 +58,7 @@ async def _first_enabled(db: AsyncSession, itype: str) -> Integration:
 
 
 
+
 @router.get("/status", tags=["integrations"])
 async def integration_status(
     db: AsyncSession = Depends(get_db),
@@ -68,6 +69,7 @@ async def integration_status(
         {"id": r.id, "name": str(r.name), "type": str(r.type), "enabled": bool(r.enabled)}
         for r in rows
     ]
+
 
 
 
@@ -114,6 +116,7 @@ async def graylog_session_logs(
 
 
 
+
 @router.get("/zabbix/host-problems", tags=["integrations"])
 async def zabbix_host_problems(
     nas_ip: str,
@@ -151,6 +154,7 @@ async def zabbix_problems_summary(
         return summary
     except Exception as exc:
         return {"total": 0, "by_severity": {}, "configured": True, "error": str(exc)}
+
 
 
 

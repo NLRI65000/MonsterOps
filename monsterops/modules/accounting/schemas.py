@@ -33,13 +33,13 @@ class RadacctOut(BaseModel):
 
     model_config = {"from_attributes": True}
 
-    @field_validator('nasipaddress', 'framedipaddress', mode='before')
+    @field_validator("nasipaddress", "framedipaddress", mode="before")
     @classmethod
     def coerce_ip(cls, v: object) -> str | None:
         if v is None:
             return None
         s = str(v)
-        return s.split('/')[0] if '/' in s else s
+        return s.split("/")[0] if "/" in s else s
 
 
 class SessionListParams(BaseModel):

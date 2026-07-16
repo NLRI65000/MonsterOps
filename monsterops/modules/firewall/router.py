@@ -40,6 +40,7 @@ def _guard_ips(request: Request) -> list[str]:
 
 
 
+
 @router.get("/config", response_model=ConfigOut)
 async def get_config(_: AdminUser = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     return await service.get_config(db)
@@ -58,19 +59,33 @@ async def update_config(
     await db.refresh(cfg)
 
     if body.autoblock_enabled:
-        has_target = (await db.execute(
-            select(MrFirewallSet).where(MrFirewallSet.auto_ban == True)  # noqa: E712
-        )).scalar_one_or_none()
+        has_target = (
+            await db.execute(
+                select(MrFirewallSet).where(MrFirewallSet.auto_ban == True)  # noqa: E712
+            )
+        ).scalar_one_or_none()
         if has_target is None:
-            db.add(MrFirewallSet(name="mr_autoblock", family="ipv4_addr",
-                                 kind="block", auto_ban=True,
-                                 comment="Auto-managed by brute-force protection"))
+            db.add(
+                MrFirewallSet(
+                    name="mr_autoblock",
+                    family="ipv4_addr",
+                    kind="block",
+                    auto_ban=True,
+                    comment="Auto-managed by brute-force protection",
+                )
+            )
             await db.commit()
 
     await service.persist_boot_ruleset(db)
-    await audit(db, user_id=current.id, username=current.username,
-                action="firewall.config", detail=body.model_dump())
+    await audit(
+        db,
+        user_id=current.id,
+        username=current.username,
+        action="firewall.config",
+        detail=body.model_dump(),
+    )
     return cfg
+
 
 
 
@@ -90,8 +105,13 @@ async def create_rule(
     db.add(rule)
     await db.commit()
     await db.refresh(rule)
-    await audit(db, user_id=current.id, username=current.username,
-                action="firewall.rule_create", target=str(rule.id))
+    await audit(
+        db,
+        user_id=current.id,
+        username=current.username,
+        action="firewall.rule_create",
+        target=str(rule.id),
+    )
     return rule
 
 
@@ -109,8 +129,13 @@ async def update_rule(
         setattr(rule, field, value)
     await db.commit()
     await db.refresh(rule)
-    await audit(db, user_id=current.id, username=current.username,
-                action="firewall.rule_update", target=str(rule_id))
+    await audit(
+        db,
+        user_id=current.id,
+        username=current.username,
+        action="firewall.rule_update",
+        target=str(rule_id),
+    )
     return rule
 
 
@@ -125,8 +150,13 @@ async def delete_rule(
         raise HTTPException(404, "rule not found")
     await db.delete(rule)
     await db.commit()
-    await audit(db, user_id=current.id, username=current.username,
-                action="firewall.rule_delete", target=str(rule_id))
+    await audit(
+        db,
+        user_id=current.id,
+        username=current.username,
+        action="firewall.rule_delete",
+        target=str(rule_id),
+    )
 
 
 @router.post("/rules/reorder")
@@ -144,13 +174,23 @@ async def reorder_rules(
 
 
 
+
 def _set_out(s: MrFirewallSet) -> dict:
     return {
-        "id": s.id, "name": s.name, "family": s.family, "kind": s.kind,
-        "auto_ban": s.auto_ban, "managed_source": s.managed_source, "comment": s.comment,
+        "id": s.id,
+        "name": s.name,
+        "family": s.family,
+        "kind": s.kind,
+        "auto_ban": s.auto_ban,
+        "managed_source": s.managed_source,
+        "comment": s.comment,
         "entries": [
-            {"id": e.id, "element": e.element, "comment": e.comment,
-             "expires_at": e.expires_at.isoformat() if e.expires_at else None}
+            {
+                "id": e.id,
+                "element": e.element,
+                "comment": e.comment,
+                "expires_at": e.expires_at.isoformat() if e.expires_at else None,
+            }
             for e in s.entries
         ],
     }
@@ -167,15 +207,22 @@ async def create_set(
     current: AdminUser = Depends(_WRITE),
     db: AsyncSession = Depends(get_db),
 ):
-    exists = (await db.execute(select(MrFirewallSet).where(MrFirewallSet.name == body.name))).scalar_one_or_none()
+    exists = (
+        await db.execute(select(MrFirewallSet).where(MrFirewallSet.name == body.name))
+    ).scalar_one_or_none()
     if exists:
         raise HTTPException(409, "a set with that name already exists")
     fset = MrFirewallSet(**body.model_dump())
     db.add(fset)
     await db.commit()
     await db.refresh(fset, ["entries"])
-    await audit(db, user_id=current.id, username=current.username,
-                action="firewall.set_create", target=body.name)
+    await audit(
+        db,
+        user_id=current.id,
+        username=current.username,
+        action="firewall.set_create",
+        target=body.name,
+    )
     return _set_out(fset)
 
 
@@ -190,8 +237,13 @@ async def delete_set(
         raise HTTPException(404, "set not found")
     await db.delete(fset)
     await db.commit()
-    await audit(db, user_id=current.id, username=current.username,
-                action="firewall.set_delete", target=str(set_id))
+    await audit(
+        db,
+        user_id=current.id,
+        username=current.username,
+        action="firewall.set_delete",
+        target=str(set_id),
+    )
 
 
 @router.post("/sets/{set_id}/entries")
@@ -201,28 +253,46 @@ async def add_entry(
     current: AdminUser = Depends(_WRITE),
     db: AsyncSession = Depends(get_db),
 ):
-    fset = (await db.execute(
-        select(MrFirewallSet).options(selectinload(MrFirewallSet.entries))
-        .where(MrFirewallSet.id == set_id)
-    )).scalar_one_or_none()
+    fset = (
+        await db.execute(
+            select(MrFirewallSet)
+            .options(selectinload(MrFirewallSet.entries))
+            .where(MrFirewallSet.id == set_id)
+        )
+    ).scalar_one_or_none()
     if fset is None:
         raise HTTPException(404, "set not found")
     if fset.managed_source:
-        raise HTTPException(409, "this set is auto-managed — manual entries would be lost on refresh")
+        raise HTTPException(
+            409, "this set is auto-managed — manual entries would be lost on refresh"
+        )
     if any(e.element == body.element for e in fset.entries):
         raise HTTPException(409, "element already in set")
 
     from datetime import datetime, timedelta, timezone
-    expires = (datetime.now(timezone.utc) + timedelta(seconds=body.ttl_seconds)) if body.ttl_seconds else None
-    entry = MrFirewallSetEntry(set_id=set_id, element=body.element, comment=body.comment, expires_at=expires)
+
+    expires = (
+        (datetime.now(timezone.utc) + timedelta(seconds=body.ttl_seconds))
+        if body.ttl_seconds
+        else None
+    )
+    entry = MrFirewallSetEntry(
+        set_id=set_id, element=body.element, comment=body.comment, expires_at=expires
+    )
     db.add(entry)
     await db.commit()
     live_err = None
     if nft.nft_available():
         ok, err = await nft.add_element(fset.name, body.element)
         live_err = None if ok else err
-    await audit(db, user_id=current.id, username=current.username,
-                action="firewall.set_add_element", target=fset.name, detail={"element": body.element})
+    await audit(
+        db,
+        user_id=current.id,
+        username=current.username,
+        action="firewall.set_add_element",
+        target=fset.name,
+        detail={"element": body.element},
+    )
     return {"ok": True, "live_error": live_err}
 
 
@@ -238,7 +308,9 @@ async def delete_entry(
         raise HTTPException(404, "entry not found")
     fset = await db.get(MrFirewallSet, set_id)
     if fset is not None and fset.managed_source:
-        raise HTTPException(409, "this set is auto-managed — remove the whole country block instead")
+        raise HTTPException(
+            409, "this set is auto-managed — remove the whole country block instead"
+        )
     element = entry.element
     await db.delete(entry)
     await db.commit()
@@ -247,9 +319,15 @@ async def delete_entry(
     if fset is not None and await service.mark_block_override(
         db, element=element, set_name=fset.name, username=current.username
     ):
-        await audit(db, user_id=current.id, username=current.username,
-                    action="firewall.autoblock_override", target=fset.name,
-                    detail={"element": element})
+        await audit(
+            db,
+            user_id=current.id,
+            username=current.username,
+            action="firewall.autoblock_override",
+            target=fset.name,
+            detail={"element": element},
+        )
+
 
 
 
@@ -266,11 +344,19 @@ async def country_block(
     except geoblock.CountryBlockError as exc:
         raise HTTPException(400, str(exc))
     await service.persist_boot_ruleset(db)
-    await audit(db, user_id=current.id, username=current.username,
-                action="firewall.country_block", target=result["country"],
-                detail={"set": result["name"], "networks": result["count"]})
-    return {**result, "applied": False,
-            "hint": "Apply the firewall on the Preview & Apply tab to activate the block."}
+    await audit(
+        db,
+        user_id=current.id,
+        username=current.username,
+        action="firewall.country_block",
+        target=result["country"],
+        detail={"set": result["name"], "networks": result["count"]},
+    )
+    return {
+        **result,
+        "applied": False,
+        "hint": "Apply the firewall on the Preview & Apply tab to activate the block.",
+    }
 
 
 @router.delete("/country-block/{cc}", status_code=204)
@@ -285,14 +371,22 @@ async def country_unblock(
         name = geoblock.set_name_for(geoblock.normalize_cc(cc))
     except geoblock.CountryBlockError as exc:
         raise HTTPException(400, str(exc))
-    fset = (await db.execute(select(MrFirewallSet).where(MrFirewallSet.name == name))).scalar_one_or_none()
+    fset = (
+        await db.execute(select(MrFirewallSet).where(MrFirewallSet.name == name))
+    ).scalar_one_or_none()
     if fset is None:
         raise HTTPException(404, "no country block for that code")
     await db.delete(fset)
     await db.commit()
     await service.persist_boot_ruleset(db)
-    await audit(db, user_id=current.id, username=current.username,
-                action="firewall.country_unblock", target=geoblock.normalize_cc(cc))
+    await audit(
+        db,
+        user_id=current.id,
+        username=current.username,
+        action="firewall.country_unblock",
+        target=geoblock.normalize_cc(cc),
+    )
+
 
 
 
@@ -317,21 +411,35 @@ async def country_allow_only(
     await db.commit()
 
     await service.persist_boot_ruleset(db)
-    await audit(db, user_id=current.id, username=current.username,
-                action="firewall.country_allow_only", target=result["country"],
-                detail={"set": result["name"], "networks": result["count"],
-                        "nas_guard": guard["count"], "nas_skipped": guard["skipped"],
-                        "prev_input_policy": prev_policy})
+    await audit(
+        db,
+        user_id=current.id,
+        username=current.username,
+        action="firewall.country_allow_only",
+        target=result["country"],
+        detail={
+            "set": result["name"],
+            "networks": result["count"],
+            "nas_guard": guard["count"],
+            "nas_skipped": guard["skipped"],
+            "prev_input_policy": prev_policy,
+        },
+    )
     return {
-        **result, "applied": False,
+        **result,
+        "applied": False,
         "nas_guard": guard,
         "input_policy": "drop",
         "warning": (
             "Allow-only sets the input policy to DROP. Management stays reachable "
             "(SSH/web guard ports, your admin IP, established connections) and the "
             f"{guard['count']} known NAS client(s) keep RADIUS access"
-            + (f"; {guard['skipped']} NAS client(s) were skipped (hostname or IPv6) — "
-               "add their IPs manually if they must reach RADIUS" if guard["skipped"] else "")
+            + (
+                f"; {guard['skipped']} NAS client(s) were skipped (hostname or IPv6) — "
+                "add their IPs manually if they must reach RADIUS"
+                if guard["skipped"]
+                else ""
+            )
             + ". Review the Preview & Apply diff before applying; the apply arms a "
             "60s auto-rollback."
         ),
@@ -351,21 +459,28 @@ async def country_allow_only_remove(
         name = geoblock.set_name_for_allow(geoblock.normalize_cc(cc))
     except geoblock.CountryBlockError as exc:
         raise HTTPException(400, str(exc))
-    fset = (await db.execute(select(MrFirewallSet).where(MrFirewallSet.name == name))).scalar_one_or_none()
+    fset = (
+        await db.execute(select(MrFirewallSet).where(MrFirewallSet.name == name))
+    ).scalar_one_or_none()
     if fset is None:
         raise HTTPException(404, "no allow-only block for that code")
     await db.delete(fset)
     await db.commit()
 
-    remaining = (await db.execute(
-        select(func.count()).select_from(MrFirewallSet)
-        .where(MrFirewallSet.managed_source.like("country_allow:%"))
-    )).scalar() or 0
+    remaining = (
+        await db.execute(
+            select(func.count())
+            .select_from(MrFirewallSet)
+            .where(MrFirewallSet.managed_source.like("country_allow:%"))
+        )
+    ).scalar() or 0
     reverted = False
     if remaining == 0:
-        guard = (await db.execute(
-            select(MrFirewallSet).where(MrFirewallSet.name == service.NAS_GUARD_SET)
-        )).scalar_one_or_none()
+        guard = (
+            await db.execute(
+                select(MrFirewallSet).where(MrFirewallSet.name == service.NAS_GUARD_SET)
+            )
+        ).scalar_one_or_none()
         if guard is not None:
             await db.delete(guard)
         cfg = await service.get_config(db)
@@ -374,10 +489,15 @@ async def country_allow_only_remove(
         reverted = True
 
     await service.persist_boot_ruleset(db)
-    await audit(db, user_id=current.id, username=current.username,
-                action="firewall.country_allow_only_remove",
-                target=geoblock.normalize_cc(cc),
-                detail={"policy_reverted_to_accept": reverted})
+    await audit(
+        db,
+        user_id=current.id,
+        username=current.username,
+        action="firewall.country_allow_only_remove",
+        target=geoblock.normalize_cc(cc),
+        detail={"policy_reverted_to_accept": reverted},
+    )
+
 
 
 
@@ -392,9 +512,12 @@ async def block_preflight(
     if isinstance(elements, str):
         elements = [elements]
     return await service.find_lockout_ips(
-        db, elements or [], current_ip=client_ip(request),
+        db,
+        elements or [],
+        current_ip=client_ip(request),
         country_code=body.get("country_code"),
     )
+
 
 
 
@@ -405,6 +528,7 @@ async def list_block_events(
     db: AsyncSession = Depends(get_db),
 ):
     return await service.list_block_events(db, limit)
+
 
 
 
@@ -427,8 +551,13 @@ async def apply(
         result = await service.apply_with_rollback(db, current.username, _guard_ips(request))
     except (ValueError, RuntimeError) as exc:
         raise HTTPException(400, str(exc))
-    await audit(db, user_id=current.id, username=current.username,
-                action="firewall.apply", detail={"confirm_timeout": result["confirm_timeout"]})
+    await audit(
+        db,
+        user_id=current.id,
+        username=current.username,
+        action="firewall.apply",
+        detail={"confirm_timeout": result["confirm_timeout"]},
+    )
     return result
 
 
@@ -458,20 +587,25 @@ async def rollback(
 
 
 
+
 @router.get("/status")
 async def status(_: AdminUser = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     return await service.status(db)
 
 
 @router.get("/counters")
-async def get_counters(_: AdminUser = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def get_counters(
+    _: AdminUser = Depends(get_current_user), db: AsyncSession = Depends(get_db)
+):
     return await service.counters(db)
 
 
 @router.get("/presets")
 async def list_presets(_: AdminUser = Depends(get_current_user)):
-    return [{"name": k, "label": v["label"], "description": v["description"]}
-            for k, v in presets.PRESETS.items()]
+    return [
+        {"name": k, "label": v["label"], "description": v["description"]}
+        for k, v in presets.PRESETS.items()
+    ]
 
 
 @router.post("/presets/{name}")
@@ -493,17 +627,39 @@ async def apply_preset(
         db.add(rule)
         created += 1
     await db.commit()
-    await audit(db, user_id=current.id, username=current.username,
-                action="firewall.preset", target=name, detail={"rules_added": created})
+    await audit(
+        db,
+        user_id=current.id,
+        username=current.username,
+        action="firewall.preset",
+        target=name,
+        detail={"rules_added": created},
+    )
     return {"ok": True, "rules_added": created}
 
 
 @router.get("/snapshots")
-async def list_snapshots(_: AdminUser = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def list_snapshots(
+    _: AdminUser = Depends(get_current_user), db: AsyncSession = Depends(get_db)
+):
     from monsterops.modules.firewall.models import MrFirewallSnapshot
-    rows = (await db.execute(
-        select(MrFirewallSnapshot).order_by(MrFirewallSnapshot.id.desc()).limit(50)
-    )).scalars().all()
-    return [{"id": s.id, "note": s.note, "actor": s.actor,
-             "created_at": s.created_at.isoformat() if s.created_at else None,
-             "size": len(s.nft_text)} for s in rows]
+
+    rows = (
+        (
+            await db.execute(
+                select(MrFirewallSnapshot).order_by(MrFirewallSnapshot.id.desc()).limit(50)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    return [
+        {
+            "id": s.id,
+            "note": s.note,
+            "actor": s.actor,
+            "created_at": s.created_at.isoformat() if s.created_at else None,
+            "size": len(s.nft_text),
+        }
+        for s in rows
+    ]

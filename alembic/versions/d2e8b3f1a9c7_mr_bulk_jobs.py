@@ -1,9 +1,10 @@
+
 from __future__ import annotations
 
 from alembic import op
 
-revision = 'd2e8b3f1a9c7'
-down_revision = 'c2a8f4e71b93'
+revision = "d2e8b3f1a9c7"
+down_revision = "c2a8f4e71b93"
 branch_labels = None
 depends_on = None
 
@@ -22,7 +23,9 @@ def upgrade() -> None:
             detail      jsonb
         )
     """)
-    op.execute("CREATE INDEX IF NOT EXISTS mr_bulk_jobs_created_at ON mr_bulk_jobs (created_at DESC)")
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS mr_bulk_jobs_created_at ON mr_bulk_jobs (created_at DESC)"
+    )
 
 
 def downgrade() -> None:

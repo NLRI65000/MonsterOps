@@ -4,6 +4,7 @@ All interpolated values are validated at the API boundary (schemas.py) AND
 re-checked here as defence in depth — a value that could close a stanza or
 start a new directive must never reach the file.
 """
+
 from __future__ import annotations
 
 import re
@@ -69,12 +70,16 @@ async def generate_proxy_conf(db: AsyncSession) -> str:
     servers = (await db.execute(select(HomeServer).order_by(HomeServer.name))).scalars().all()
     pools = (await db.execute(select(HomeServerPool).order_by(HomeServerPool.name))).scalars().all()
     members = (
-        await db.execute(
-            select(HomeServerPoolMember).order_by(
-                HomeServerPoolMember.pool_id, HomeServerPoolMember.position
+        (
+            await db.execute(
+                select(HomeServerPoolMember).order_by(
+                    HomeServerPoolMember.pool_id, HomeServerPoolMember.position
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     realms = (await db.execute(select(Realm).order_by(Realm.name))).scalars().all()
 
     by_id = {s.id: s for s in servers}
@@ -86,6 +91,7 @@ async def generate_proxy_conf(db: AsyncSession) -> str:
 
     parts: list[str] = [HEADER]
 
+    # home_server stanzas — a "both" server becomes two stanzas (auth + acct)
     for s in servers:
         names = _server_stanza_names(s)
         if "auth" in names:
@@ -93,6 +99,7 @@ async def generate_proxy_conf(db: AsyncSession) -> str:
         if "acct" in names:
             parts.append(_home_server_stanza(s, "acct", names["acct"], s.acct_port))
 
+    # home_server_pool stanzas — one per traffic kind present among members
     pool_kind_names: dict[int, dict[str, str]] = {}
     for p in pools:
         pid = int(p.id)
@@ -112,6 +119,7 @@ async def generate_proxy_conf(db: AsyncSession) -> str:
             lines.append("}\n")
             parts.append("\n".join(lines))
 
+    # realm stanzas
     for r in realms:
         lines = [f"realm {_token(r.name, 'realm name')} {{"]
         kind_names = pool_kind_names.get(r.pool_id or -1, {})

@@ -1,3 +1,4 @@
+
 from __future__ import annotations
 
 import asyncio
@@ -49,7 +50,10 @@ async def _try_cmds(cmds: list[list[str]], label: str) -> bool:
 
             logger.warning(
                 "FreeRADIUS %s via %r exited %d: %s",
-                label, cmd, proc.returncode, stderr.decode().strip(),
+                label,
+                cmd,
+                proc.returncode,
+                stderr.decode().strip(),
             )
         except FileNotFoundError:
             continue
@@ -59,7 +63,8 @@ async def _try_cmds(cmds: list[list[str]], label: str) -> bool:
     logger.error(
         "FreeRADIUS %s failed — all commands exhausted. "
         "Check sudoers: monsterops needs NOPASSWD for systemctl %s freeradius",
-        label, label,
+        label,
+        label,
     )
     return False
 
@@ -76,7 +81,8 @@ async def reload_freeradius() -> bool:
         if now - _last_reload_at < _COOLDOWN:
             logger.debug(
                 "FreeRADIUS reload skipped — last reload was %.1fs ago (cooldown %ss)",
-                now - _last_reload_at, _COOLDOWN,
+                now - _last_reload_at,
+                _COOLDOWN,
             )
             return True
 
@@ -98,7 +104,8 @@ async def restart_freeradius() -> bool:
         if now - _last_restart_at < _COOLDOWN:
             logger.debug(
                 "FreeRADIUS restart skipped — last restart was %.1fs ago (cooldown %ss)",
-                now - _last_restart_at, _COOLDOWN,
+                now - _last_restart_at,
+                _COOLDOWN,
             )
             return True
 

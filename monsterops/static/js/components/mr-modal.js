@@ -123,7 +123,9 @@ export const MODAL_CSS = `
 // Open a modal with the shared shell. `bodyHTML` is the caller's form markup
 // (caller is responsible for escaping any user-supplied values in it).
 // Returns handles so the caller can wire validation/submit and close on success.
-export function openModal({ title, subtitle = '', bodyHTML = '', submitLabel = 'Save', cancelLabel = 'Cancel' }) {
+export function openModal(
+  { title, subtitle = '', bodyHTML = '', submitLabel = 'Save', cancelLabel = 'Cancel' },
+) {
   const overlay = document.createElement('div');
   overlay.className = 'mrm-overlay';
   overlay.innerHTML = `
@@ -144,13 +146,17 @@ export function openModal({ title, subtitle = '', bodyHTML = '', submitLabel = '
     </div>
   `;
 
-  const onKey = (e) => { if (e.key === 'Escape') close(); };
+  const onKey = (e) => {
+    if (e.key === 'Escape') close();
+  };
   const close = () => {
     overlay.remove();
     document.removeEventListener('keydown', onKey);
   };
 
-  overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) close();
+  });
   overlay.querySelectorAll('[data-mrm-close]').forEach((b) => b.addEventListener('click', close));
   document.addEventListener('keydown', onKey);
   document.body.appendChild(overlay);

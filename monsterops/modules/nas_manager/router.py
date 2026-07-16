@@ -12,8 +12,8 @@ from sqlalchemy.orm import selectinload
 
 from monsterops.config import settings
 from monsterops.database import SessionLocal, get_db
-from monsterops.modules.auth.utils import audit, get_current_user, require_roles
 from monsterops.modules.auth.models import AdminUser
+from monsterops.modules.auth.utils import audit, get_current_user, require_roles
 from monsterops.modules.nas.models import Nas
 from monsterops.modules.nas_manager.crypto import decrypt, encrypt
 from monsterops.modules.nas_manager.history import (
@@ -53,6 +53,7 @@ router = APIRouter(prefix="/api/nas-manager", tags=["nas-manager"])
 
 
 
+
 async def _get_nm(nas_id: int, db: AsyncSession) -> MrNasManager:
     result = await db.execute(
         select(MrNasManager)
@@ -73,6 +74,7 @@ def _decrypt_or_raise(nm: MrNasManager) -> str:
 
 
 
+
 @router.get("/vendor-types")
 async def get_vendor_types(
     _: AdminUser = Depends(get_current_user),
@@ -88,15 +90,19 @@ async def get_vendor_types(
 
 
 
+
 @router.get("")
 async def list_managed(
     _: AdminUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> list[NasManagerOut]:
-    rows = (await db.execute(
-        select(MrNasManager).options(selectinload(MrNasManager.nas))
-    )).scalars().all()
+    rows = (
+        (await db.execute(select(MrNasManager).options(selectinload(MrNasManager.nas))))
+        .scalars()
+        .all()
+    )
     return [NasManagerOut.from_model(r) for r in rows]
+
 
 
 
@@ -108,6 +114,7 @@ async def get_managed(
 ) -> NasManagerOut:
     nm = await _get_nm(nas_id, db)
     return NasManagerOut.from_model(nm)
+
 
 
 
@@ -168,7 +175,13 @@ async def upsert_managed(
         await db.commit()
         await db.refresh(nm)
         await db.refresh(nm, ["nas"])
-        await audit(db, user_id=current_user.id, username=current_user.username, action="nas_manager.create", target=str(nas_id))
+        await audit(
+            db,
+            user_id=current_user.id,
+            username=current_user.username,
+            action="nas_manager.create",
+            target=str(nas_id),
+        )
     else:
         nm.enabled = body.enabled
         nm.conn_type = body.conn_type
@@ -181,11 +194,18 @@ async def upsert_managed(
         await db.commit()
         await db.refresh(nm)
         await db.refresh(nm, ["nas"])
-        await audit(db, user_id=current_user.id, username=current_user.username, action="nas_manager.update", target=str(nas_id))
+        await audit(
+            db,
+            user_id=current_user.id,
+            username=current_user.username,
+            action="nas_manager.update",
+            target=str(nas_id),
+        )
 
     asyncio.create_task(_bg_test(nm.id, nm.nas_id))
 
     return NasManagerOut.from_model(nm)
+
 
 
 
@@ -198,7 +218,14 @@ async def delete_managed(
     nm = await _get_nm(nas_id, db)
     await db.delete(nm)
     await db.commit()
-    await audit(db, user_id=current_user.id, username=current_user.username, action="nas_manager.delete", target=str(nas_id))
+    await audit(
+        db,
+        user_id=current_user.id,
+        username=current_user.username,
+        action="nas_manager.delete",
+        target=str(nas_id),
+    )
+
 
 
 
@@ -210,7 +237,13 @@ async def trigger_test(
 ) -> dict:
     nm = await _get_nm(nas_id, db)
     asyncio.create_task(_bg_test(nm.id, nas_id))
-    await audit(db, user_id=current_user.id, username=current_user.username, action="nas_manager.test", target=str(nas_id))
+    await audit(
+        db,
+        user_id=current_user.id,
+        username=current_user.username,
+        action="nas_manager.test",
+        target=str(nas_id),
+    )
     return {"ok": True, "detail": "Connection test started in background"}
 
 
@@ -245,6 +278,7 @@ async def _bg_test(nm_id: int, nas_id: int) -> None:
 
 
 
+
 @router.post("/{nas_id}/pull-config")
 async def trigger_pull(
     nas_id: int,
@@ -253,7 +287,13 @@ async def trigger_pull(
 ) -> dict:
     nm = await _get_nm(nas_id, db)
     asyncio.create_task(_bg_pull(nm.id, nas_id))
-    await audit(db, user_id=current_user.id, username=current_user.username, action="nas_manager.pull_config", target=str(nas_id))
+    await audit(
+        db,
+        user_id=current_user.id,
+        username=current_user.username,
+        action="nas_manager.pull_config",
+        target=str(nas_id),
+    )
     return {"ok": True, "detail": "Config pull started in background"}
 
 
@@ -305,6 +345,7 @@ async def _bg_pull(nm_id: int, nas_id: int, source: str = "manual") -> None:
 
 
 
+
 @router.post("/{nas_id}/push-config")
 async def push_config_endpoint(
     nas_id: int,
@@ -330,8 +371,15 @@ async def push_config_endpoint(
         await store_version(db, nm, config_text, source="push")
         await apply_retention(db, nm)
     await db.commit()
-    await audit(db, user_id=current_user.id, username=current_user.username, action="nas_manager.push_config", target=str(nas_id))
+    await audit(
+        db,
+        user_id=current_user.id,
+        username=current_user.username,
+        action="nas_manager.push_config",
+        target=str(nas_id),
+    )
     return {"ok": True}
+
 
 
 
@@ -352,8 +400,11 @@ async def update_history_settings(
     await db.refresh(nm)
     await db.refresh(nm, ["nas"])
     await audit(
-        db, user_id=current_user.id, username=current_user.username,
-        action="nas_manager.history_settings", target=str(nas_id),
+        db,
+        user_id=current_user.id,
+        username=current_user.username,
+        action="nas_manager.history_settings",
+        target=str(nas_id),
         detail={
             "history_enabled": body.history_enabled,
             "fetch_interval_hours": body.fetch_interval_hours,
@@ -370,27 +421,35 @@ async def list_config_versions(
     _: AdminUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> list[ConfigVersionOut]:
-    rows = (await db.execute(
-        select(MrNasConfigVersion)
-        .where(MrNasConfigVersion.nas_id == nas_id)
-        .order_by(MrNasConfigVersion.created_at.asc())
-        .limit(min(limit, 500))
-    )).scalars().all()
+    rows = (
+        (
+            await db.execute(
+                select(MrNasConfigVersion)
+                .where(MrNasConfigVersion.nas_id == nas_id)
+                .order_by(MrNasConfigVersion.created_at.asc())
+                .limit(min(limit, 500))
+            )
+        )
+        .scalars()
+        .all()
+    )
 
     out: list[ConfigVersionOut] = []
     prev_config = ""
     for v in rows:
         added, removed = diff_stats(prev_config, v.config)
-        out.append(ConfigVersionOut(
-            id=int(v.id),
-            created_at=v.created_at,
-            source=v.source,
-            byte_size=int(v.byte_size),
-            line_count=int(v.line_count),
-            sha256_short=v.sha256[:12],
-            added=added,
-            removed=removed,
-        ))
+        out.append(
+            ConfigVersionOut(
+                id=int(v.id),
+                created_at=v.created_at,
+                source=v.source,
+                byte_size=int(v.byte_size),
+                line_count=int(v.line_count),
+                sha256_short=v.sha256[:12],
+                added=added,
+                removed=removed,
+            )
+        )
         prev_config = v.config
     out.reverse()
     return out
@@ -403,12 +462,14 @@ async def get_config_version(
     _: AdminUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
-    v = (await db.execute(
-        select(MrNasConfigVersion).where(
-            MrNasConfigVersion.id == version_id,
-            MrNasConfigVersion.nas_id == nas_id,
+    v = (
+        await db.execute(
+            select(MrNasConfigVersion).where(
+                MrNasConfigVersion.id == version_id,
+                MrNasConfigVersion.nas_id == nas_id,
+            )
         )
-    )).scalar_one_or_none()
+    ).scalar_one_or_none()
     if v is None:
         raise HTTPException(404, "Config version not found")
     return {
@@ -429,19 +490,24 @@ async def delete_config_version(
     current_user: AdminUser = Depends(require_roles("admin", "superadmin")),
     db: AsyncSession = Depends(get_db),
 ) -> None:
-    v = (await db.execute(
-        select(MrNasConfigVersion).where(
-            MrNasConfigVersion.id == version_id,
-            MrNasConfigVersion.nas_id == nas_id,
+    v = (
+        await db.execute(
+            select(MrNasConfigVersion).where(
+                MrNasConfigVersion.id == version_id,
+                MrNasConfigVersion.nas_id == nas_id,
+            )
         )
-    )).scalar_one_or_none()
+    ).scalar_one_or_none()
     if v is None:
         raise HTTPException(404, "Config version not found")
     await db.delete(v)
     await db.commit()
     await audit(
-        db, user_id=current_user.id, username=current_user.username,
-        action="nas_manager.delete_version", target=str(nas_id),
+        db,
+        user_id=current_user.id,
+        username=current_user.username,
+        action="nas_manager.delete_version",
+        target=str(nas_id),
         detail={"version_id": version_id},
     )
 
@@ -453,12 +519,14 @@ async def _resolve_snapshot(db: AsyncSession, nm: MrNasManager, ref: str) -> tup
         vid = int(ref)
     except ValueError:
         raise HTTPException(422, f"invalid version reference: {ref!r}")
-    v = (await db.execute(
-        select(MrNasConfigVersion).where(
-            MrNasConfigVersion.id == vid,
-            MrNasConfigVersion.nas_id == nm.nas_id,
+    v = (
+        await db.execute(
+            select(MrNasConfigVersion).where(
+                MrNasConfigVersion.id == vid,
+                MrNasConfigVersion.nas_id == nm.nas_id,
+            )
         )
-    )).scalar_one_or_none()
+    ).scalar_one_or_none()
     if v is None:
         raise HTTPException(404, f"Config version {vid} not found")
     return str(v.config), f"v{vid} @ {v.created_at.isoformat()}"
@@ -484,6 +552,7 @@ async def config_diff(
         "identical": added == 0 and removed == 0,
         "diff": unified_diff(old_text, new_text, old_label, new_label),
     }
+
 
 
 
@@ -516,20 +585,25 @@ async def command_stream(
         output = "".join(chunks).strip()
         try:
             async with SessionLocal() as ldb:
-                ldb.add(MrNasDispatchLog(
-                    nas_id=target_nas_id,
-                    command=command,
-                    output=None if had_error else (output or None),
-                    error=output if had_error else None,
-                    status="error" if had_error else "ok",
-                    executed_at=datetime.now(timezone.utc),
-                    actor=actor,
-                ))
+                ldb.add(
+                    MrNasDispatchLog(
+                        nas_id=target_nas_id,
+                        command=command,
+                        output=None if had_error else (output or None),
+                        error=output if had_error else None,
+                        status="error" if had_error else "ok",
+                        executed_at=datetime.now(timezone.utc),
+                        actor=actor,
+                    )
+                )
                 await ldb.commit()
         except Exception:
-            logger.exception("NAS Manager: failed to record command log for nas_id=%s", target_nas_id)
+            logger.exception(
+                "NAS Manager: failed to record command log for nas_id=%s", target_nas_id
+            )
 
     return StreamingResponse(_sse(), media_type="text/event-stream")
+
 
 
 
@@ -539,22 +613,36 @@ async def dispatch_command(
     current_user: AdminUser = Depends(require_roles("admin", "superadmin")),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
-    rows = (await db.execute(
-        select(MrNasManager)
-        .where(MrNasManager.nas_id.in_([int(i) for i in body.nas_ids]))
-        .where(MrNasManager.enabled == True)  # noqa: E712
-        .options(selectinload(MrNasManager.nas))
-    )).scalars().all()
+    rows = (
+        (
+            await db.execute(
+                select(MrNasManager)
+                .where(MrNasManager.nas_id.in_([int(i) for i in body.nas_ids]))
+                .where(MrNasManager.enabled == True)  # noqa: E712
+                .options(selectinload(MrNasManager.nas))
+            )
+        )
+        .scalars()
+        .all()
+    )
 
     if not rows:
         raise HTTPException(404, "No enabled managed NAS devices found for the given IDs")
 
-    await audit(db, user_id=current_user.id, username=current_user.username, action="nas_manager.dispatch", detail={"devices": len(rows), "command": body.command[:60]})
-    asyncio.create_task(_bg_dispatch(
-        [int(r.id) for r in rows],
-        body.command,
-        current_user.username,
-    ))
+    await audit(
+        db,
+        user_id=current_user.id,
+        username=current_user.username,
+        action="nas_manager.dispatch",
+        detail={"devices": len(rows), "command": body.command[:60]},
+    )
+    asyncio.create_task(
+        _bg_dispatch(
+            [int(r.id) for r in rows],
+            body.command,
+            current_user.username,
+        )
+    )
 
     return {"ok": True, "detail": f"Command dispatched to {len(rows)} device(s)"}
 
@@ -599,6 +687,7 @@ async def _bg_dispatch(nm_ids: list[int], command: str, actor: str) -> None:
 
 
 
+
 @router.get("/{nas_id}/dispatch-log")
 async def get_dispatch_log(
     nas_id: int,
@@ -606,12 +695,18 @@ async def get_dispatch_log(
     _: AdminUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> list[dict]:
-    rows = (await db.execute(
-        select(MrNasDispatchLog)
-        .where(MrNasDispatchLog.nas_id == nas_id)
-        .order_by(MrNasDispatchLog.id.desc())
-        .limit(min(limit, 200))
-    )).scalars().all()
+    rows = (
+        (
+            await db.execute(
+                select(MrNasDispatchLog)
+                .where(MrNasDispatchLog.nas_id == nas_id)
+                .order_by(MrNasDispatchLog.id.desc())
+                .limit(min(limit, 200))
+            )
+        )
+        .scalars()
+        .all()
+    )
     return [
         {
             "id": r.id,

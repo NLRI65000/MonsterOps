@@ -13,15 +13,15 @@ from sqlalchemy import and_, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from monsterops.database import SessionLocal, get_db
-from monsterops.pagination import decode_cursor, encode_cursor
 from monsterops.geo import lookup_calling_station as geo_lookup_cs
-from monsterops.modules.auth.utils import get_current_user, require_roles
 from monsterops.modules.accounting.coa import send_coa, send_disconnect
 from monsterops.modules.accounting.models import Radacct
 from monsterops.modules.accounting.schemas import CoABody, CoAResult, RadacctOut
+from monsterops.modules.auth.utils import get_current_user, require_roles
 from monsterops.modules.auth_logs.models import Radpostauth
 from monsterops.modules.auth_logs.schemas import GeoInfo
 from monsterops.modules.nas.models import Nas
+from monsterops.pagination import decode_cursor, encode_cursor
 
 router = APIRouter(prefix="/api/accounting", tags=["accounting"])
 
@@ -52,6 +52,7 @@ def _enrich_sessions(rows: list[Radacct], auth_events: list[Radpostauth]) -> lis
 
 
 
+
 @router.get("", response_model=list[RadacctOut])
 async def list_sessions(
     response: Response,
@@ -73,17 +74,18 @@ async def list_sessions(
     if active_only:
         filters.append(Radacct.acctstoptime.is_(None))
 
-    stmt = select(Radacct).where(*filters).order_by(
-        Radacct.acctstarttime.desc(), Radacct.radacctid.desc()
-    ).limit(limit)
+    stmt = (
+        select(Radacct)
+        .where(*filters)
+        .order_by(Radacct.acctstarttime.desc(), Radacct.radacctid.desc())
+        .limit(limit)
+    )
     if before:
         try:
             bt, bid = decode_cursor(before)
         except ValueError:
             raise HTTPException(400, "invalid cursor")
-        stmt = stmt.where(
-            tuple_(Radacct.acctstarttime, Radacct.radacctid) < tuple_(bt, bid)
-        )
+        stmt = stmt.where(tuple_(Radacct.acctstarttime, Radacct.radacctid) < tuple_(bt, bid))
     else:
         stmt = stmt.offset(offset)
 
@@ -113,6 +115,7 @@ async def list_sessions(
             auth_events = aq.scalars().all()
 
     return _enrich_sessions(rows, auth_events)
+
 
 
 
@@ -150,6 +153,7 @@ async def stream_sessions(_user=Depends(get_current_user)):
 
 
 
+
 @router.get("/export")
 async def export_csv(
     username: str | None = Query(None),
@@ -165,43 +169,55 @@ async def export_csv(
         filters.append(Radacct.acctstoptime.is_(None))
 
     q = await db.execute(
-        select(Radacct)
-        .where(*filters)
-        .order_by(Radacct.acctstarttime.desc())
-        .limit(limit)
+        select(Radacct).where(*filters).order_by(Radacct.acctstarttime.desc()).limit(limit)
     )
     rows = q.scalars().all()
 
     buf = io.StringIO()
     writer = csv.writer(buf)
-    writer.writerow([
-        "Session ID", "Unique ID", "Username", "NAS IP", "NAS Port",
-        "Port Type", "Start", "Stop", "Duration (s)",
-        "Input Octets", "Output Octets",
-        "Framed IP", "Calling Station", "Called Station",
-        "Terminate Cause", "Active",
-    ])
+    writer.writerow(
+        [
+            "Session ID",
+            "Unique ID",
+            "Username",
+            "NAS IP",
+            "NAS Port",
+            "Port Type",
+            "Start",
+            "Stop",
+            "Duration (s)",
+            "Input Octets",
+            "Output Octets",
+            "Framed IP",
+            "Calling Station",
+            "Called Station",
+            "Terminate Cause",
+            "Active",
+        ]
+    )
     for r in rows:
         nas_ip = str(r.nasipaddress).split("/")[0] if r.nasipaddress else ""
         framed = str(r.framedipaddress).split("/")[0] if r.framedipaddress else ""
-        writer.writerow([
-            r.acctsessionid,
-            r.acctuniqueid,
-            r.username or "",
-            nas_ip,
-            r.nasportid or "",
-            r.nasporttype or "",
-            r.acctstarttime.isoformat() if r.acctstarttime else "",
-            r.acctstoptime.isoformat() if r.acctstoptime else "",
-            r.acctsessiontime or "",
-            r.acctinputoctets or 0,
-            r.acctoutputoctets or 0,
-            framed,
-            r.callingstationid or "",
-            r.calledstationid or "",
-            r.acctterminatecause or "",
-            "yes" if r.acctstoptime is None else "no",
-        ])
+        writer.writerow(
+            [
+                r.acctsessionid,
+                r.acctuniqueid,
+                r.username or "",
+                nas_ip,
+                r.nasportid or "",
+                r.nasporttype or "",
+                r.acctstarttime.isoformat() if r.acctstarttime else "",
+                r.acctstoptime.isoformat() if r.acctstoptime else "",
+                r.acctsessiontime or "",
+                r.acctinputoctets or 0,
+                r.acctoutputoctets or 0,
+                framed,
+                r.callingstationid or "",
+                r.calledstationid or "",
+                r.acctterminatecause or "",
+                "yes" if r.acctstoptime is None else "no",
+            ]
+        )
 
     filename = "sessions-active.csv" if active_only else "sessions.csv"
     return Response(
@@ -209,6 +225,7 @@ async def export_csv(
         media_type="text/csv",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
 
 
 
@@ -236,6 +253,7 @@ async def _resolve_session_and_nas(acctuniqueid: str, db: AsyncSession) -> tuple
 
 
 
+
 @router.post("/{acctuniqueid}/disconnect", response_model=CoAResult)
 async def disconnect_session(
     acctuniqueid: str,
@@ -253,6 +271,7 @@ async def disconnect_session(
         calling_station=session.callingstationid or None,
     )
     return CoAResult(**result)
+
 
 
 

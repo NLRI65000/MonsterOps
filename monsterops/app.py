@@ -86,12 +86,12 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
 @asynccontextmanager
 async def _lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    from monsterops.events import register_handler
+    from monsterops.modules.automation.engine import automation_handler
+    from monsterops.modules.health.router import setup_app_log_handler
     from monsterops.modules.notifications.worker import notification_worker
     from monsterops.modules.scheduler.service import get_scheduler, load_jobs_from_db
     from monsterops.modules.webhooks.handler import register_all as register_event_handlers
-    from monsterops.modules.automation.engine import automation_handler
-    from monsterops.modules.health.router import setup_app_log_handler
-    from monsterops.events import register_handler
 
     setup_app_log_handler()
     register_event_handlers()
@@ -102,16 +102,19 @@ async def _lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     probe_task = None
     if "realms" in settings.module_list:
         from monsterops.modules.realms.probe import realm_probe_worker
+
         probe_task = asyncio.create_task(realm_probe_worker())
 
     vpn_task = None
     if "vpn" in settings.module_list:
         from monsterops.modules.vpn.worker import vpn_status_worker
+
         vpn_task = asyncio.create_task(vpn_status_worker())
 
     nm_task = None
     if "nas_manager" in settings.module_list:
         from monsterops.modules.nas_manager.worker import nas_manager_sync_worker
+
         nm_task = asyncio.create_task(nas_manager_sync_worker())
 
     fw_task = None
@@ -121,12 +124,17 @@ async def _lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             brute_force_autoblock_worker,
             firewall_ban_reaper,
         )
+
         fw_task = asyncio.create_task(firewall_ban_reaper())
         ab_task = asyncio.create_task(brute_force_autoblock_worker())
 
     sched = get_scheduler()
     sched.start()
     await load_jobs_from_db()
+    if "realms" in settings.module_list:
+        from monsterops.modules.scheduler.service import load_domain_syncs_from_db
+
+        await load_domain_syncs_from_db()
 
     try:
         yield
@@ -193,6 +201,7 @@ def create_app() -> FastAPI:
         try:
             from monsterops.modules.apikeys.router import _ext
             from monsterops.modules.apikeys.v1 import router as _v1
+
             app.include_router(_ext)
             app.include_router(_v1)
         except Exception:

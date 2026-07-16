@@ -1,3 +1,4 @@
+
 from __future__ import annotations
 
 from typing import Any
@@ -9,17 +10,24 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from monsterops.database import get_db
 from monsterops.radius_reload import restart_freeradius
+
 from .models import ApiKey
 from .router import _check_scope, require_api_key
 
 router = APIRouter(prefix="/api/v1", tags=["v1"])
 
-_PWD_TYPES = frozenset({
-    "Cleartext-Password", "MD5-Password", "NT-Password",
-    "SHA-Password", "Crypt-Password",
-})
+_PWD_TYPES = frozenset(
+    {
+        "Cleartext-Password",
+        "MD5-Password",
+        "NT-Password",
+        "SHA-Password",
+        "Crypt-Password",
+    }
+)
 _DISABLED_ATTR = "Auth-Type"
 _DISABLED_VALUE = "Reject"
+
 
 
 
@@ -121,20 +129,35 @@ class V1NasUpdate(BaseModel):
 
 
 
+
 async def _user_or_404(username: str, db: AsyncSession) -> None:
     from monsterops.modules.users.models import Radcheck, Radusergroup
+
     for table in (Radcheck, Radusergroup):
-        if await db.scalar(select(func.count()).select_from(table).where(table.username == username)):
+        if await db.scalar(
+            select(func.count()).select_from(table).where(table.username == username)
+        ):
             return
     raise HTTPException(404, f"User '{username}' not found")
 
 
 async def _build_user(username: str, db: AsyncSession) -> V1User:
     from monsterops.modules.users.models import Radcheck, Radusergroup
-    checks = (await db.execute(select(Radcheck).where(Radcheck.username == username))).scalars().all()
-    groups = (await db.execute(
-        select(Radusergroup).where(Radusergroup.username == username).order_by(Radusergroup.priority)
-    )).scalars().all()
+
+    checks = (
+        (await db.execute(select(Radcheck).where(Radcheck.username == username))).scalars().all()
+    )
+    groups = (
+        (
+            await db.execute(
+                select(Radusergroup)
+                .where(Radusergroup.username == username)
+                .order_by(Radusergroup.priority)
+            )
+        )
+        .scalars()
+        .all()
+    )
     enabled = not any(c.attribute == _DISABLED_ATTR and c.value == _DISABLED_VALUE for c in checks)
     expiration = next((c.value for c in checks if c.attribute == "Expiration"), None)
     sim_use: int | None = None
@@ -144,8 +167,14 @@ async def _build_user(username: str, db: AsyncSession) -> V1User:
                 sim_use = int(c.value)
             except ValueError:
                 pass
-    return V1User(username=username, enabled=enabled, groups=[str(g.groupname) for g in groups],
-                  expiration=expiration, simultaneous_use=sim_use)
+    return V1User(
+        username=username,
+        enabled=enabled,
+        groups=[str(g.groupname) for g in groups],
+        expiration=expiration,
+        simultaneous_use=sim_use,
+    )
+
 
 
 
@@ -159,6 +188,7 @@ async def v1_list_users(
 ) -> Any:
     _check_scope(key, "users.read")
     from monsterops.modules.users.models import Radcheck, Radusergroup
+
     sub = union(
         select(Radcheck.username.label("username")).distinct(),
         select(Radusergroup.username.label("username")).distinct(),
@@ -167,9 +197,9 @@ async def v1_list_users(
     if search:
         base = base.where(sub.c.username.ilike(f"%{search}%"))
     total = await db.scalar(select(func.count()).select_from(base.subquery())) or 0
-    rows = (await db.execute(
-        base.order_by(sub.c.username).limit(size).offset((page - 1) * size)
-    )).all()
+    rows = (
+        await db.execute(base.order_by(sub.c.username).limit(size).offset((page - 1) * size))
+    ).all()
     items = [await _build_user(r[0], db) for r in rows]
     return V1UserList(total=total, page=page, size=size, items=items)
 
@@ -186,6 +216,7 @@ async def v1_get_user(
 
 
 
+
 @router.post("/users", response_model=V1User, status_code=201)
 async def v1_create_user(
     body: V1UserCreate,
@@ -194,17 +225,35 @@ async def v1_create_user(
 ) -> Any:
     _check_scope(key, "users.write")
     from monsterops.modules.users.models import Radcheck, Radusergroup
+
     if body.password_type not in _PWD_TYPES:
         raise HTTPException(400, f"Invalid password_type. Valid: {', '.join(sorted(_PWD_TYPES))}")
-    if await db.scalar(select(func.count()).select_from(Radcheck).where(Radcheck.username == body.username)):
+    if await db.scalar(
+        select(func.count()).select_from(Radcheck).where(Radcheck.username == body.username)
+    ):
         raise HTTPException(409, f"User '{body.username}' already exists")
-    db.add(Radcheck(username=body.username, attribute=body.password_type, op=":=", value=body.password))
+    db.add(
+        Radcheck(username=body.username, attribute=body.password_type, op=":=", value=body.password)
+    )
     if not body.enabled:
-        db.add(Radcheck(username=body.username, attribute=_DISABLED_ATTR, op=":=", value=_DISABLED_VALUE))
+        db.add(
+            Radcheck(
+                username=body.username, attribute=_DISABLED_ATTR, op=":=", value=_DISABLED_VALUE
+            )
+        )
     if body.expiration:
-        db.add(Radcheck(username=body.username, attribute="Expiration", op=":=", value=body.expiration))
+        db.add(
+            Radcheck(username=body.username, attribute="Expiration", op=":=", value=body.expiration)
+        )
     if body.simultaneous_use:
-        db.add(Radcheck(username=body.username, attribute="Simultaneous-Use", op=":=", value=str(body.simultaneous_use)))
+        db.add(
+            Radcheck(
+                username=body.username,
+                attribute="Simultaneous-Use",
+                op=":=",
+                value=str(body.simultaneous_use),
+            )
+        )
     for i, g in enumerate(body.groups):
         db.add(Radusergroup(username=body.username, groupname=g, priority=i + 1))
     await db.commit()
@@ -220,30 +269,60 @@ async def v1_update_user(
 ) -> Any:
     _check_scope(key, "users.write")
     from monsterops.modules.users.models import Radcheck, Radusergroup
+
     await _user_or_404(username, db)
 
     if body.password is not None:
         pwd_type = body.password_type or "Cleartext-Password"
         if pwd_type not in _PWD_TYPES:
-            raise HTTPException(400, f"Invalid password_type. Valid: {', '.join(sorted(_PWD_TYPES))}")
+            raise HTTPException(
+                400, f"Invalid password_type. Valid: {', '.join(sorted(_PWD_TYPES))}"
+            )
         for attr in _PWD_TYPES:
-            await db.execute(delete(Radcheck).where(Radcheck.username == username, Radcheck.attribute == attr))
+            await db.execute(
+                delete(Radcheck).where(Radcheck.username == username, Radcheck.attribute == attr)
+            )
         db.add(Radcheck(username=username, attribute=pwd_type, op=":=", value=body.password))
 
     if body.enabled is not None:
-        await db.execute(delete(Radcheck).where(Radcheck.username == username, Radcheck.attribute == _DISABLED_ATTR))
+        await db.execute(
+            delete(Radcheck).where(
+                Radcheck.username == username, Radcheck.attribute == _DISABLED_ATTR
+            )
+        )
         if not body.enabled:
-            db.add(Radcheck(username=username, attribute=_DISABLED_ATTR, op=":=", value=_DISABLED_VALUE))
+            db.add(
+                Radcheck(
+                    username=username, attribute=_DISABLED_ATTR, op=":=", value=_DISABLED_VALUE
+                )
+            )
 
     if body.expiration is not None:
-        await db.execute(delete(Radcheck).where(Radcheck.username == username, Radcheck.attribute == "Expiration"))
+        await db.execute(
+            delete(Radcheck).where(
+                Radcheck.username == username, Radcheck.attribute == "Expiration"
+            )
+        )
         if body.expiration:
-            db.add(Radcheck(username=username, attribute="Expiration", op=":=", value=body.expiration))
+            db.add(
+                Radcheck(username=username, attribute="Expiration", op=":=", value=body.expiration)
+            )
 
     if body.simultaneous_use is not None:
-        await db.execute(delete(Radcheck).where(Radcheck.username == username, Radcheck.attribute == "Simultaneous-Use"))
+        await db.execute(
+            delete(Radcheck).where(
+                Radcheck.username == username, Radcheck.attribute == "Simultaneous-Use"
+            )
+        )
         if body.simultaneous_use > 0:
-            db.add(Radcheck(username=username, attribute="Simultaneous-Use", op=":=", value=str(body.simultaneous_use)))
+            db.add(
+                Radcheck(
+                    username=username,
+                    attribute="Simultaneous-Use",
+                    op=":=",
+                    value=str(body.simultaneous_use),
+                )
+            )
 
     if body.groups is not None:
         await db.execute(delete(Radusergroup).where(Radusergroup.username == username))
@@ -262,11 +341,13 @@ async def v1_delete_user(
 ) -> None:
     _check_scope(key, "users.write")
     from monsterops.modules.users.models import Radcheck, Radreply, Radusergroup
+
     await _user_or_404(username, db)
     await db.execute(delete(Radcheck).where(Radcheck.username == username))
     await db.execute(delete(Radreply).where(Radreply.username == username))
     await db.execute(delete(Radusergroup).where(Radusergroup.username == username))
     await db.commit()
+
 
 
 
@@ -279,12 +360,22 @@ async def v1_user_sessions(
     _check_scope(key, "sessions.read")
     from monsterops.modules.accounting.models import Radacct
     from monsterops.modules.accounting.schemas import RadacctOut
-    rows = (await db.execute(
-        select(Radacct).where(Radacct.username == username)
-        .order_by(Radacct.acctstarttime.desc()).limit(200)
-    )).scalars().all()
+
+    rows = (
+        (
+            await db.execute(
+                select(Radacct)
+                .where(Radacct.username == username)
+                .order_by(Radacct.acctstarttime.desc())
+                .limit(200)
+            )
+        )
+        .scalars()
+        .all()
+    )
     result = [RadacctOut.model_validate(r).model_dump(mode="json") for r in rows]
     return {"sessions": result, "count": len(result)}
+
 
 
 
@@ -299,6 +390,7 @@ async def v1_list_groups(
     _check_scope(key, "groups.read")
     from monsterops.modules.groups.models import Radgroupcheck
     from monsterops.modules.users.models import Radusergroup
+
     sub = union(
         select(Radgroupcheck.groupname.label("name")).distinct(),
         select(Radusergroup.groupname.label("name")).distinct(),
@@ -307,14 +399,15 @@ async def v1_list_groups(
     if search:
         base = base.where(sub.c.name.ilike(f"%{search}%"))
     total = await db.scalar(select(func.count()).select_from(base.subquery())) or 0
-    rows = (await db.execute(
-        base.order_by(sub.c.name).limit(size).offset((page - 1) * size)
-    )).all()
+    rows = (await db.execute(base.order_by(sub.c.name).limit(size).offset((page - 1) * size))).all()
     items = []
     for (name,) in rows:
-        cnt = await db.scalar(
-            select(func.count()).select_from(Radusergroup).where(Radusergroup.groupname == name)
-        ) or 0
+        cnt = (
+            await db.scalar(
+                select(func.count()).select_from(Radusergroup).where(Radusergroup.groupname == name)
+            )
+            or 0
+        )
         items.append(V1GroupSummary(name=name, member_count=cnt))
     return V1GroupList(total=total, page=page, size=size, items=items)
 
@@ -328,16 +421,28 @@ async def v1_get_group(
     _check_scope(key, "groups.read")
     from monsterops.modules.groups.models import Radgroupcheck, Radgroupreply
     from monsterops.modules.users.models import Radusergroup
-    checks = (await db.execute(
-        select(Radgroupcheck).where(Radgroupcheck.groupname == groupname)
-    )).scalars().all()
-    replies = (await db.execute(
-        select(Radgroupreply).where(Radgroupreply.groupname == groupname)
-    )).scalars().all()
-    members = (await db.execute(
-        select(Radusergroup.username).where(Radusergroup.groupname == groupname)
-        .order_by(Radusergroup.username)
-    )).scalars().all()
+
+    checks = (
+        (await db.execute(select(Radgroupcheck).where(Radgroupcheck.groupname == groupname)))
+        .scalars()
+        .all()
+    )
+    replies = (
+        (await db.execute(select(Radgroupreply).where(Radgroupreply.groupname == groupname)))
+        .scalars()
+        .all()
+    )
+    members = (
+        (
+            await db.execute(
+                select(Radusergroup.username)
+                .where(Radusergroup.groupname == groupname)
+                .order_by(Radusergroup.username)
+            )
+        )
+        .scalars()
+        .all()
+    )
     if not checks and not replies and not members:
         raise HTTPException(404, f"Group '{groupname}' not found")
     return V1GroupDetail(
@@ -346,6 +451,7 @@ async def v1_get_group(
         reply_attrs=[{"attribute": r.attribute, "op": r.op, "value": r.value} for r in replies],
         members=list(members),
     )
+
 
 
 
@@ -358,8 +464,11 @@ async def v1_create_group(
     _check_scope(key, "groups.write")
     from monsterops.modules.groups.models import Radgroupcheck
     from monsterops.modules.users.models import Radusergroup
+
     for table in (Radgroupcheck, Radusergroup):
-        if await db.scalar(select(func.count()).select_from(table).where(table.groupname == body.name)):
+        if await db.scalar(
+            select(func.count()).select_from(table).where(table.groupname == body.name)
+        ):
             raise HTTPException(409, f"Group '{body.name}' already exists")
     db.add(Radgroupcheck(groupname=body.name, attribute="Fall-Through", op=":=", value="No"))
     await db.commit()
@@ -375,6 +484,7 @@ async def v1_delete_group(
     _check_scope(key, "groups.write")
     from monsterops.modules.groups.models import GroupAccessType, Radgroupcheck, Radgroupreply
     from monsterops.modules.users.models import Radusergroup
+
     await db.execute(delete(Radgroupcheck).where(Radgroupcheck.groupname == groupname))
     await db.execute(delete(Radgroupreply).where(Radgroupreply.groupname == groupname))
     await db.execute(delete(Radusergroup).where(Radusergroup.groupname == groupname))
@@ -391,9 +501,12 @@ async def v1_add_group_member(
 ) -> Any:
     _check_scope(key, "groups.write")
     from monsterops.modules.users.models import Radusergroup
-    if await db.scalar(select(func.count()).select_from(Radusergroup).where(
-        Radusergroup.groupname == groupname, Radusergroup.username == body.username
-    )):
+
+    if await db.scalar(
+        select(func.count())
+        .select_from(Radusergroup)
+        .where(Radusergroup.groupname == groupname, Radusergroup.username == body.username)
+    ):
         raise HTTPException(409, f"'{body.username}' is already a member of '{groupname}'")
     db.add(Radusergroup(username=body.username, groupname=groupname, priority=body.priority))
     await db.commit()
@@ -409,12 +522,17 @@ async def v1_remove_group_member(
 ) -> None:
     _check_scope(key, "groups.write")
     from monsterops.modules.users.models import Radusergroup
-    result = await db.execute(delete(Radusergroup).where(
-        Radusergroup.groupname == groupname, Radusergroup.username == username,
-    ))
+
+    result = await db.execute(
+        delete(Radusergroup).where(
+            Radusergroup.groupname == groupname,
+            Radusergroup.username == username,
+        )
+    )
     if result.rowcount == 0:
         raise HTTPException(404, f"'{username}' is not a member of '{groupname}'")
     await db.commit()
+
 
 
 
@@ -428,15 +546,24 @@ async def v1_list_nas(
 ) -> Any:
     _check_scope(key, "nas.read")
     from monsterops.modules.nas.models import Nas
+
     base = select(Nas)
     if search:
         term = f"%{search}%"
         base = base.where(Nas.nasname.ilike(term) | Nas.shortname.ilike(term))
     total = await db.scalar(select(func.count()).select_from(base.subquery())) or 0
-    rows = (await db.execute(
-        base.order_by(Nas.shortname, Nas.nasname).limit(size).offset((page - 1) * size)
-    )).scalars().all()
-    return V1NasList(total=total, page=page, size=size, items=[V1NasSummary.model_validate(r) for r in rows])
+    rows = (
+        (
+            await db.execute(
+                base.order_by(Nas.shortname, Nas.nasname).limit(size).offset((page - 1) * size)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    return V1NasList(
+        total=total, page=page, size=size, items=[V1NasSummary.model_validate(r) for r in rows]
+    )
 
 
 @router.get("/nas/{nas_id}", response_model=V1NasSummary)
@@ -447,10 +574,12 @@ async def v1_get_nas(
 ) -> Any:
     _check_scope(key, "nas.read")
     from monsterops.modules.nas.models import Nas
+
     row = await db.scalar(select(Nas).where(Nas.id == nas_id))
     if not row:
         raise HTTPException(404, "NAS not found")
     return V1NasSummary.model_validate(row)
+
 
 
 
@@ -463,11 +592,19 @@ async def v1_create_nas(
 ) -> Any:
     _check_scope(key, "nas.write")
     from monsterops.modules.nas.models import Nas
+
     if await db.scalar(select(func.count()).select_from(Nas).where(Nas.nasname == body.nasname)):
         raise HTTPException(409, f"NAS '{body.nasname}' already exists")
-    row = Nas(nasname=body.nasname, shortname=body.shortname, type=body.type,
-              ports=body.ports, secret=body.secret, server=body.server,
-              community=body.community, description=body.description)
+    row = Nas(
+        nasname=body.nasname,
+        shortname=body.shortname,
+        type=body.type,
+        ports=body.ports,
+        secret=body.secret,
+        server=body.server,
+        community=body.community,
+        description=body.description,
+    )
     db.add(row)
     await db.commit()
     await db.refresh(row)
@@ -485,13 +622,17 @@ async def v1_update_nas(
 ) -> Any:
     _check_scope(key, "nas.write")
     from monsterops.modules.nas.models import Nas
+
     row = await db.scalar(select(Nas).where(Nas.id == nas_id))
     if not row:
         raise HTTPException(404, "NAS not found")
     changed = False
     if body.nasname is not None and body.nasname != row.nasname:
-        if await db.scalar(select(func.count()).select_from(Nas)
-                           .where(Nas.nasname == body.nasname, Nas.id != nas_id)):
+        if await db.scalar(
+            select(func.count())
+            .select_from(Nas)
+            .where(Nas.nasname == body.nasname, Nas.id != nas_id)
+        ):
             raise HTTPException(409, f"NAS '{body.nasname}' already exists")
         row.nasname = body.nasname
         changed = True
@@ -516,12 +657,14 @@ async def v1_delete_nas(
 ) -> None:
     _check_scope(key, "nas.write")
     from monsterops.modules.nas.models import Nas
+
     row = await db.scalar(select(Nas).where(Nas.id == nas_id))
     if not row:
         raise HTTPException(404, "NAS not found")
     await db.delete(row)
     await db.commit()
     background_tasks.add_task(restart_freeradius)
+
 
 
 
@@ -533,16 +676,26 @@ async def v1_sessions(
     _check_scope(key, "sessions.read")
     from monsterops.modules.accounting.models import Radacct
     from monsterops.modules.accounting.schemas import RadacctOut
-    rows = (await db.execute(
-        select(Radacct).where(Radacct.acctstoptime.is_(None))
-        .order_by(Radacct.acctstarttime.desc()).limit(500)
-    )).scalars().all()
+
+    rows = (
+        (
+            await db.execute(
+                select(Radacct)
+                .where(Radacct.acctstoptime.is_(None))
+                .order_by(Radacct.acctstarttime.desc())
+                .limit(500)
+            )
+        )
+        .scalars()
+        .all()
+    )
     result = []
     for r in rows:
         obj = RadacctOut.model_validate(r)
         obj.active = True
         result.append(obj.model_dump(mode="json"))
     return {"sessions": result, "count": len(result)}
+
 
 
 
@@ -555,6 +708,7 @@ async def v1_auth_logs(
 ) -> Any:
     _check_scope(key, "auth_logs.read")
     from monsterops.modules.auth_logs.models import Radpostauth
+
     q = select(Radpostauth).order_by(Radpostauth.authdate.desc()).limit(limit)
     if username:
         q = q.where(Radpostauth.username == username)
@@ -575,6 +729,7 @@ async def v1_auth_logs(
 
 
 
+
 @router.post("/coa/disconnect")
 async def v1_coa_disconnect(
     body: dict[str, str],
@@ -585,12 +740,14 @@ async def v1_coa_disconnect(
     acctuniqueid = body.get("acctuniqueid") or ""
     if not acctuniqueid:
         raise HTTPException(400, "acctuniqueid is required")
-    from monsterops.modules.accounting.router import _resolve_session_and_nas
     from monsterops.modules.accounting.coa import send_disconnect
+    from monsterops.modules.accounting.router import _resolve_session_and_nas
+
     session, nas = await _resolve_session_and_nas(acctuniqueid, db)
     nas_ip = str(session.nasipaddress).split("/")[0]
     return await send_disconnect(
-        nas_ip=nas_ip, secret=nas.secret,
+        nas_ip=nas_ip,
+        secret=nas.secret,
         username=session.username or "",
         session_id=session.acctsessionid,
         calling_station=session.callingstationid or None,

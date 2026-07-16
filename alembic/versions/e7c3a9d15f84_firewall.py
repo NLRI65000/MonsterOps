@@ -1,7 +1,9 @@
+
 from __future__ import annotations
 
-from alembic import op
 import sqlalchemy as sa
+
+from alembic import op
 
 revision = "e7c3a9d15f84"
 down_revision = "d4b2f6c81e93"
@@ -60,8 +62,12 @@ def upgrade() -> None:
     op.create_table(
         "mr_firewall_set_entry",
         sa.Column("id", sa.Integer(), primary_key=True),
-        sa.Column("set_id", sa.Integer(),
-                  sa.ForeignKey("mr_firewall_set.id", ondelete="CASCADE"), nullable=False),
+        sa.Column(
+            "set_id",
+            sa.Integer(),
+            sa.ForeignKey("mr_firewall_set.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
         sa.Column("element", sa.String(64), nullable=False),
         sa.Column("comment", sa.String(120), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=True),

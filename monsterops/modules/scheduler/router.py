@@ -22,7 +22,9 @@ async def list_jobs(
     db: AsyncSession = Depends(get_db),
     _user=Depends(require_roles("superadmin", "admin")),
 ):
-    rows = (await db.execute(select(SchedulerJob).order_by(SchedulerJob.created_at))).scalars().all()
+    rows = (
+        (await db.execute(select(SchedulerJob).order_by(SchedulerJob.created_at))).scalars().all()
+    )
     return rows
 
 
@@ -36,10 +38,13 @@ async def create_job(
         raise HTTPException(409, "A job with that name already exists")
 
     row = SchedulerJob(
-        name=body.name, job_type=body.job_type,
-        cron_hour=body.cron_hour, cron_minute=body.cron_minute,
+        name=body.name,
+        job_type=body.job_type,
+        cron_hour=body.cron_hour,
+        cron_minute=body.cron_minute,
         cron_weekday=body.cron_weekday,
-        recipients=body.recipients, enabled=body.enabled,
+        recipients=body.recipients,
+        enabled=body.enabled,
     )
     db.add(row)
     await db.commit()
@@ -47,10 +52,13 @@ async def create_job(
 
     if row.enabled:
         schedule_job(
-            job_id=row.id, job_type=str(row.job_type),
-            cron_hour=int(row.cron_hour), cron_minute=int(row.cron_minute),
+            job_id=row.id,
+            job_type=str(row.job_type),
+            cron_hour=int(row.cron_hour),
+            cron_minute=int(row.cron_minute),
             cron_weekday=row.cron_weekday,
-            job_name=str(row.name), recipients=list(row.recipients or []),
+            job_name=str(row.name),
+            recipients=list(row.recipients or []),
         )
     return row
 
@@ -82,10 +90,13 @@ async def update_job(
 
     if row.enabled:
         schedule_job(
-            job_id=row.id, job_type=str(row.job_type),
-            cron_hour=int(row.cron_hour), cron_minute=int(row.cron_minute),
+            job_id=row.id,
+            job_type=str(row.job_type),
+            cron_hour=int(row.cron_hour),
+            cron_minute=int(row.cron_minute),
             cron_weekday=row.cron_weekday,
-            job_name=str(row.name), recipients=list(row.recipients or []),
+            job_name=str(row.name),
+            recipients=list(row.recipients or []),
         )
     else:
         unschedule_job(row.id)
@@ -129,9 +140,11 @@ async def list_reports(
     db: AsyncSession = Depends(get_db),
     _user=Depends(require_roles("superadmin", "admin")),
 ):
-    rows = (await db.execute(
-        select(ReportRun).order_by(ReportRun.run_at.desc()).limit(limit)
-    )).scalars().all()
+    rows = (
+        (await db.execute(select(ReportRun).order_by(ReportRun.run_at.desc()).limit(limit)))
+        .scalars()
+        .all()
+    )
     return rows
 
 

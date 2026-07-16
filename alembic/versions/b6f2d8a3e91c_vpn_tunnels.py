@@ -1,7 +1,9 @@
+
 from __future__ import annotations
 
-from alembic import op
 import sqlalchemy as sa
+
+from alembic import op
 
 revision = "b6f2d8a3e91c"
 down_revision = "a9d4e7f2c1b5"
@@ -39,7 +41,12 @@ def upgrade() -> None:
         sa.Column("last_handshake_at", sa.TIMESTAMP(timezone=True), nullable=True),
         sa.Column("last_error", sa.Text(), nullable=True),
         sa.Column("last_status_at", sa.TIMESTAMP(timezone=True), nullable=True),
-        sa.Column("created_at", sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("now()")),
+        sa.Column(
+            "created_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
     )
 
 

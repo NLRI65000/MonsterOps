@@ -1,10 +1,11 @@
+
 from __future__ import annotations
 
 import asyncio
 import logging
-from monsterops.modules.nas_manager.models import MrNasManager
-
 from typing import AsyncGenerator
+
+from monsterops.modules.nas_manager.models import MrNasManager
 
 logger = logging.getLogger(__name__)
 
@@ -112,7 +113,9 @@ async def run_command(nm: MrNasManager, password: str, command: str) -> tuple[st
         return "", str(exc)
 
 
-async def run_command_stream(nm: MrNasManager, password: str, command: str) -> AsyncGenerator[str, None]:
+async def run_command_stream(
+    nm: MrNasManager, password: str, command: str
+) -> AsyncGenerator[str, None]:
     output, error = await run_command(nm, password, command)
     if error:
         yield f"ERROR: {error}\n"

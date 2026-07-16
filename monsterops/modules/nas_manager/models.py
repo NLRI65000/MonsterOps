@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-
 from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import relationship
 
@@ -46,10 +45,13 @@ class MrNasManager(Base):
 
 
 class MrNasConfigVersion(Base):
+
     __tablename__ = "mr_nas_config_version"
 
     id = Column(Integer, primary_key=True)
-    manager_id = Column(Integer, ForeignKey("mr_nas_manager.id", ondelete="CASCADE"), nullable=False)
+    manager_id = Column(
+        Integer, ForeignKey("mr_nas_manager.id", ondelete="CASCADE"), nullable=False
+    )
     nas_id = Column(Integer, ForeignKey("nas.id", ondelete="CASCADE"), nullable=False)
 
     config = Column(Text, nullable=False)
@@ -61,12 +63,11 @@ class MrNasConfigVersion(Base):
 
     manager = relationship("MrNasManager", back_populates="versions")
 
-    __table_args__ = (
-        Index("ix_nas_config_version_nas_created", "nas_id", "created_at"),
-    )
+    __table_args__ = (Index("ix_nas_config_version_nas_created", "nas_id", "created_at"),)
 
 
 class MrNasDispatchLog(Base):
+
     __tablename__ = "mr_nas_dispatch_log"
 
     id = Column(Integer, primary_key=True)

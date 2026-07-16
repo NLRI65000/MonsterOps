@@ -18,8 +18,18 @@ from monsterops.modules.auth.utils import get_current_user, require_roles
 router = APIRouter(prefix="/api/system", tags=["system"])
 
 _ALL_MODULES = [
-    "auth", "dashboard", "users", "groups", "nas", "ip_pools",
-    "accounting", "auth_logs", "reports", "radius_logs", "system", "health",
+    "auth",
+    "dashboard",
+    "users",
+    "groups",
+    "nas",
+    "ip_pools",
+    "accounting",
+    "auth_logs",
+    "reports",
+    "radius_logs",
+    "system",
+    "health",
 ]
 
 
@@ -31,6 +41,7 @@ def _redact_url(url: str) -> str:
     except Exception:
         pass
     return url
+
 
 
 
@@ -47,6 +58,7 @@ async def get_settings(_user=Depends(require_roles("superadmin", "admin"))):
         "enabled_modules": settings.module_list,
         "all_modules": _ALL_MODULES,
     }
+
 
 
 
@@ -70,7 +82,15 @@ async def backup_db(_user=Depends(require_roles("superadmin"))):
             "PATH": "/usr/bin:/usr/local/bin:/bin",
         }
         proc = await asyncio.create_subprocess_exec(
-            "pg_dump", "-U", user, "-h", host, "-p", port, "--no-password", dbname,
+            "pg_dump",
+            "-U",
+            user,
+            "-h",
+            host,
+            "-p",
+            port,
+            "--no-password",
+            dbname,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             env=env,
@@ -89,6 +109,7 @@ async def backup_db(_user=Depends(require_roles("superadmin"))):
         media_type="application/octet-stream",
         headers={"Content-Disposition": f'attachment; filename="monsterops-{ts}.sql"'},
     )
+
 
 
 
@@ -118,7 +139,17 @@ async def create_backup(_user=Depends(require_roles("superadmin"))):
     env = {"PGPASSWORD": password, "PATH": "/usr/bin:/usr/local/bin:/bin"}
     sql_path = str(snap_dir / "db.sql")
     proc = await asyncio.create_subprocess_exec(
-        "pg_dump", "-U", user, "-h", host, "-p", port, "--no-password", "-f", sql_path, dbname,
+        "pg_dump",
+        "-U",
+        user,
+        "-h",
+        host,
+        "-p",
+        port,
+        "--no-password",
+        "-f",
+        sql_path,
+        dbname,
         stderr=asyncio.subprocess.PIPE,
         env=env,
     )
@@ -130,7 +161,9 @@ async def create_backup(_user=Depends(require_roles("superadmin"))):
     if os.path.isdir(fr_conf):
         tar_path = snap_dir / "freeradius-config.tar.gz"
         loop = asyncio.get_running_loop()
-        await loop.run_in_executor(None, lambda: tarfile.open(str(tar_path), "w:gz").add(fr_conf, arcname="freeradius"))
+        await loop.run_in_executor(
+            None, lambda: tarfile.open(str(tar_path), "w:gz").add(fr_conf, arcname="freeradius")
+        )
 
     meta = {"timestamp": ts, "db": dbname, "freeradius_config": fr_conf}
     (snap_dir / "metadata.json").write_text(json.dumps(meta, indent=2))
@@ -169,6 +202,7 @@ async def delete_backup(snapshot: str, _user=Depends(require_roles("superadmin")
     if not snap_dir.exists():
         raise HTTPException(404, "Snapshot not found")
     import shutil
+
     shutil.rmtree(str(snap_dir))
     return {"deleted": snapshot}
 
@@ -202,6 +236,7 @@ async def download_backup_config(snapshot: str, _user=Depends(require_roles("sup
 
 
 
+
 @router.get("/plugins")
 async def list_plugins(_user=Depends(require_roles("superadmin", "admin"))):
     eps = importlib.metadata.entry_points(group="monsterops.plugins")
@@ -216,12 +251,14 @@ async def list_plugins(_user=Depends(require_roles("superadmin", "admin"))):
         except importlib.metadata.PackageNotFoundError:
             version = ""
             home = ""
-        result.append({
-            "name": ep.name,
-            "value": ep.value,
-            "version": version,
-            "home": home.split(", ")[-1] if ", " in home else home,
-        })
+        result.append(
+            {
+                "name": ep.name,
+                "value": ep.value,
+                "version": version,
+                "home": home.split(", ")[-1] if ", " in home else home,
+            }
+        )
     return result
 
 
@@ -239,11 +276,16 @@ async def get_changelog(_user=Depends(get_current_user)):
     current: dict | None = None
 
     for line in text.splitlines():
-        m = re.match(r'^## \[(.+?)\]\s*[—-]\s*(.+)', line)
+        m = re.match(r"^## \[(.+?)\]\s*[—-]\s*(.+)", line)
         if m:
             if current:
                 releases.append(current)
-            current = {"version": m.group(1), "date": m.group(2).strip(), "sections": {}, "_section": None}
+            current = {
+                "version": m.group(1),
+                "date": m.group(2).strip(),
+                "sections": {},
+                "_section": None,
+            }
             continue
         if current is None:
             continue

@@ -1,3 +1,4 @@
+
 from __future__ import annotations
 
 import asyncio
@@ -13,11 +14,17 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-_VALID_ACTIONS = frozenset({
-    "log", "notify_webhook", "disable_user",
-    "add_to_group", "remove_from_group", "send_email",
-    "firewall_ban",
-})
+_VALID_ACTIONS = frozenset(
+    {
+        "log",
+        "notify_webhook",
+        "disable_user",
+        "add_to_group",
+        "remove_from_group",
+        "send_email",
+        "firewall_ban",
+    }
+)
 
 
 def _condition_match(event: "Any", conditions: list[dict]) -> bool:
@@ -57,7 +64,9 @@ async def _run_action(action_type: str, config: dict, event: "Any") -> None:
     if action_type == "log":
         logger.info(
             "[Automation] rule matched: event=%s actor=%s entity=%s",
-            event.type, event.actor, event.entity_id,
+            event.type,
+            event.actor,
+            event.entity_id,
         )
 
     elif action_type == "notify_webhook":
@@ -73,6 +82,7 @@ async def _run_action(action_type: str, config: dict, event: "Any") -> None:
             headers["X-MonsterOps-Signature"] = f"sha256={sig}"
         try:
             import httpx
+
             async with httpx.AsyncClient(timeout=10) as client:
                 resp = await client.post(url, content=payload, headers=headers)
             if resp.status_code >= 400:
@@ -85,19 +95,28 @@ async def _run_action(action_type: str, config: dict, event: "Any") -> None:
         if not username:
             return
         try:
+            from sqlalchemy import and_, select
+
             from monsterops.database import SessionLocal
-            from sqlalchemy import select, and_
+
             async with SessionLocal() as db:
                 from monsterops.modules.users.models import RadCheck
-                existing = (await db.execute(
-                    select(RadCheck).where(
-                        and_(RadCheck.username == username,
-                             RadCheck.attribute == "Auth-Type",
-                             RadCheck.value == "Reject")
+
+                existing = (
+                    await db.execute(
+                        select(RadCheck).where(
+                            and_(
+                                RadCheck.username == username,
+                                RadCheck.attribute == "Auth-Type",
+                                RadCheck.value == "Reject",
+                            )
+                        )
                     )
-                )).scalar_one_or_none()
+                ).scalar_one_or_none()
                 if not existing:
-                    db.add(RadCheck(username=username, attribute="Auth-Type", op=":=", value="Reject"))
+                    db.add(
+                        RadCheck(username=username, attribute="Auth-Type", op=":=", value="Reject")
+                    )
                     await db.commit()
                     logger.info("[Automation] disabled user %s", username)
         except Exception as exc:
@@ -109,17 +128,25 @@ async def _run_action(action_type: str, config: dict, event: "Any") -> None:
         if not username or not group:
             return
         try:
+            from sqlalchemy import and_, select
+            from sqlalchemy import delete as sql_delete
+
             from monsterops.database import SessionLocal
-            from sqlalchemy import select, and_, delete as sql_delete
+
             async with SessionLocal() as db:
                 from monsterops.modules.users.models import RadUserGroup
+
                 if action_type == "add_to_group":
-                    existing = (await db.execute(
-                        select(RadUserGroup).where(
-                            and_(RadUserGroup.username == username,
-                                 RadUserGroup.groupname == group)
+                    existing = (
+                        await db.execute(
+                            select(RadUserGroup).where(
+                                and_(
+                                    RadUserGroup.username == username,
+                                    RadUserGroup.groupname == group,
+                                )
+                            )
                         )
-                    )).scalar_one_or_none()
+                    ).scalar_one_or_none()
                     if not existing:
                         db.add(RadUserGroup(username=username, groupname=group, priority=1))
                         await db.commit()
@@ -127,8 +154,7 @@ async def _run_action(action_type: str, config: dict, event: "Any") -> None:
                 else:
                     await db.execute(
                         sql_delete(RadUserGroup).where(
-                            and_(RadUserGroup.username == username,
-                                 RadUserGroup.groupname == group)
+                            and_(RadUserGroup.username == username, RadUserGroup.groupname == group)
                         )
                     )
                     await db.commit()
@@ -144,6 +170,7 @@ async def _run_action(action_type: str, config: dict, event: "Any") -> None:
         try:
             from monsterops.database import SessionLocal
             from monsterops.modules.firewall import service as fw_service
+
             ttl = config.get("ttl_seconds")
             async with SessionLocal() as db:
                 await fw_service.add_ban(db, ip, int(ttl) if ttl else None, config.get("set"))
@@ -156,6 +183,7 @@ async def _run_action(action_type: str, config: dict, event: "Any") -> None:
         if not to_addr:
             return
         from monsterops.config import settings
+
         if not settings.smtp_host:
             logger.warning("[Automation] send_email: SMTP not configured")
             return
@@ -182,6 +210,7 @@ async def _run_action(action_type: str, config: dict, event: "Any") -> None:
 
 def _send_smtp(msg: EmailMessage) -> None:
     from monsterops.config import settings
+
     if settings.smtp_tls:
         with smtplib.SMTP_SSL(settings.smtp_host, settings.smtp_port) as s:
             if settings.smtp_user:
@@ -198,9 +227,10 @@ def _send_smtp(msg: EmailMessage) -> None:
 
 async def automation_handler(event: "Any") -> None:
     try:
+        from sqlalchemy import select
+
         from monsterops.database import SessionLocal
         from monsterops.modules.automation.models import MrAutomationRule
-        from sqlalchemy import select
 
         async with SessionLocal() as db:
             result = await db.execute(
@@ -230,9 +260,11 @@ async def _run_and_record(rule_id: int, action_type: str, config: dict, event: "
         logger.warning("[Automation] action %s (rule %d) failed: %s", action_type, rule_id, exc)
     finally:
         try:
+            from sqlalchemy import update
+
             from monsterops.database import SessionLocal
             from monsterops.modules.automation.models import MrAutomationRule
-            from sqlalchemy import update
+
             async with SessionLocal() as db:
                 await db.execute(
                     update(MrAutomationRule)
