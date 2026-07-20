@@ -196,6 +196,28 @@ class NasManagerView extends HTMLElement {
   .empty { text-align: center; padding: 3rem 1rem; color: var(--color-muted); font-size: .85rem; }
   .notice { background: var(--color-bg); border: 1px solid var(--color-border); border-radius: 8px;
     padding: 1rem 1.25rem; font-size: .82rem; color: var(--color-muted); line-height: 1.6; }
+
+  /* RADIUS Setup (one-click config deploy) */
+  .rd-intro { font-size: .82rem; color: var(--color-muted); line-height: 1.6; margin: 0 0 .9rem; }
+  .rd-warn { border-color: var(--color-danger); color: var(--color-text); margin-bottom: .9rem; }
+  .rd-form { display: flex; flex-direction: column; gap: .9rem; max-width: 560px; }
+  .rd-field { display: flex; flex-direction: column; gap: .3rem; }
+  .rd-field > label { font-size: .72rem; font-weight: 600; color: var(--color-muted);
+    text-transform: uppercase; letter-spacing: .04em; }
+  .rd-field input, .rd-field select { padding: .45rem .6rem; border: 1px solid var(--color-border);
+    border-radius: 6px; background: var(--color-bg); color: var(--color-text); font-size: .82rem; }
+  .rd-ports { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
+  .rd-svcs { display: flex; flex-direction: column; gap: .4rem; }
+  .rd-svc { display: flex; align-items: center; gap: .5rem; font-size: .82rem; cursor: pointer; }
+  .rd-svc input { width: auto; }
+  .rd-actions { display: flex; gap: .5rem; margin-top: .25rem; }
+  .rd-preview-head { font-size: .78rem; color: var(--color-muted); margin: 1.1rem 0 .4rem; }
+  .rd-lines { background: #0f0f0f; color: #d4d4d4; border-radius: 8px; padding: .75rem 1rem;
+    font-family: 'IBM Plex Mono', monospace; font-size: .78rem; line-height: 1.55;
+    white-space: pre-wrap; overflow: auto; margin: 0; }
+  .rd-notes { margin: .6rem 0 0; padding-left: 1.1rem; font-size: .78rem; color: var(--color-muted);
+    line-height: 1.55; }
+  .rd-notes li { margin-bottom: .3rem; }
 </style>
 
 <!-- Left: every NAS in the DB -->
@@ -395,6 +417,7 @@ class NasManagerView extends HTMLElement {
     const ALL_TABS = [
       ['overview', 'Overview'],
       ['config', 'Configuration'],
+      ['radius', 'RADIUS Setup'],
       ['history', 'History'],
       ['console', 'Console'],
       ['dispatch', 'Command Log'],
@@ -441,6 +464,7 @@ class NasManagerView extends HTMLElement {
     const tab = this._activeTab || 'overview';
     if (tab === 'overview') this._renderOverview();
     else if (tab === 'config') this._renderConfig();
+    else if (tab === 'radius') this._renderRadiusDeploy();
     else if (tab === 'history') this._renderHistory();
     else if (tab === 'console') this._renderConsole();
     else if (tab === 'dispatch') this._renderDispatchLog();
@@ -634,6 +658,154 @@ class NasManagerView extends HTMLElement {
         : ''
     }
     `;
+  }
+
+  // ── RADIUS Setup (one-click config deploy) ───────────────────────────────────
+
+  async _renderRadiusDeploy() {
+    const tc = this.shadowRoot.getElementById('tab-content');
+    const nasId = this._selectedNasId;
+    tc.innerHTML = `<div style="color:var(--color-muted);font-size:.8rem;">Loading…</div>`;
+    let opts;
+    try {
+      opts = await api.get(`/nas-manager/${nasId}/radius-deploy/options`);
+    } catch (err) {
+      tc.innerHTML = `<div style="color:var(--color-danger)">${escHtml(err.message)}</div>`;
+      return;
+    }
+
+    const svcRows = opts.services.map((s) => `
+      <label class="rd-svc">
+        <input type="checkbox" class="rd-svc-cb" value="${escHtml(s.key)}" ${
+      s.default ? 'checked' : ''
+    }>
+        <span>${escHtml(s.label)}</span>
+      </label>`).join('');
+
+    const secretWarn = opts.secret_present ? '' : `
+      <div class="notice rd-warn">This NAS has no RADIUS shared secret stored, so the generated
+        config would not authenticate. Set a secret on the
+        <a href="#/nas" style="color:var(--color-accent)">NAS Devices</a> page first.</div>`;
+
+    const genericWarn = opts.pushable ? '' : `
+      <div class="notice rd-warn">Vendor <code>${
+      escHtml(opts.vendor)
+    }</code> has no pushable template — this preview is a reference to copy into the device by hand.</div>`;
+
+    const variantField = (opts.variants && opts.variants.length)
+      ? `
+          <div class="rd-field">
+            <label>Device CLI version</label>
+            <select id="rd-variant">${
+        opts.variants.map((v) => `<option value="${escHtml(v.key)}">${escHtml(v.label)}</option>`)
+          .join('')
+      }</select>
+          </div>`
+      : '';
+
+    tc.innerHTML = `
+      <div class="rd-wrap">
+        <p class="rd-intro">Point this NAS at <strong>this RADIUS server</strong>. Tick the services
+          that should authenticate against RADIUS, review the exact lines, then deploy — the running
+          config is snapshotted first for rollback.</p>
+        ${secretWarn}${genericWarn}
+        <div class="rd-form">
+          <div class="rd-field">
+            <label>RADIUS server address</label>
+            <input id="rd-ip" value="${escHtml(opts.suggested_server_ip || '')}"
+              placeholder="enter this server's IP">
+          </div>
+          ${variantField}
+          <div class="rd-ports">
+            <div class="rd-field"><label>Auth port</label>
+              <input id="rd-authp" type="number" value="${escHtml(opts.auth_port)}"></div>
+            <div class="rd-field"><label>Acct port</label>
+              <input id="rd-acctp" type="number" value="${escHtml(opts.acct_port)}"></div>
+          </div>
+          <div class="rd-field">
+            <label>Services</label>
+            <div class="rd-svcs">${
+      svcRows || '<span style="color:var(--color-muted)">No services</span>'
+    }</div>
+          </div>
+          <div class="rd-actions">
+            <button class="btn btn-secondary btn-sm" id="rd-preview">Preview</button>
+            ${
+      opts.pushable
+        ? `<button class="btn btn-primary btn-sm" id="rd-deploy" ${
+          opts.secret_present ? '' : 'disabled'
+        }>Deploy to device</button>`
+        : ''
+    }
+          </div>
+        </div>
+        <div id="rd-output"></div>
+      </div>`;
+
+    tc.querySelector('#rd-preview').addEventListener('click', () => this._radiusPreview());
+    tc.querySelector('#rd-deploy')?.addEventListener('click', () => this._radiusDeploy());
+  }
+
+  _radiusBody() {
+    const tc = this.shadowRoot.getElementById('tab-content');
+    const services = Array.from(tc.querySelectorAll('.rd-svc-cb'))
+      .filter((c) => c.checked).map((c) => c.value);
+    const variantSel = tc.querySelector('#rd-variant');
+    return {
+      services,
+      server_ip: tc.querySelector('#rd-ip').value.trim() || null,
+      auth_port: parseInt(tc.querySelector('#rd-authp').value, 10) || 1812,
+      acct_port: parseInt(tc.querySelector('#rd-acctp').value, 10) || 1813,
+      variant: variantSel ? variantSel.value : null,
+    };
+  }
+
+  _renderRadiusOutput(data) {
+    const out = this.shadowRoot.getElementById('rd-output');
+    if (!out) return;
+    const linesBlock = data.lines.length
+      ? `<pre class="rd-lines">${escHtml(data.lines.join('\n'))}</pre>`
+      : `<div style="color:var(--color-muted);font-size:.8rem;">No pushable lines for this vendor — see notes below.</div>`;
+    const notesBlock = data.notes.length
+      ? `<ul class="rd-notes">${data.notes.map((n) => `<li>${escHtml(n)}</li>`).join('')}</ul>`
+      : '';
+    out.innerHTML = `
+      <div class="rd-preview-head">Config for <code>${escHtml(data.vendor)}</code> → ${
+      escHtml(data.server_ip)
+    }</div>
+      ${linesBlock}${notesBlock}`;
+  }
+
+  async _radiusPreview() {
+    try {
+      const data = await api.post(
+        `/nas-manager/${this._selectedNasId}/radius-deploy/preview`,
+        this._radiusBody(),
+      );
+      this._renderRadiusOutput(data);
+    } catch (err) {
+      toast(err.message ?? 'Preview failed', 'error');
+    }
+  }
+
+  async _radiusDeploy() {
+    const body = this._radiusBody();
+    if (!body.services.length) {
+      toast('Select at least one service', 'error');
+      return;
+    }
+    if (
+      !(await confirmDialog(
+        'Push the generated RADIUS config to this device now? The running config is snapshotted first for rollback.',
+        { title: 'Deploy RADIUS config' },
+      ))
+    ) return;
+    try {
+      const r = await api.post(`/nas-manager/${this._selectedNasId}/radius-deploy`, body);
+      toast(`Deployed ${r.pushed} line(s)${r.snapshotted ? ' · snapshot saved' : ''}`, 'success');
+    } catch (err) {
+      toast(err.message ?? 'Deploy failed', 'error');
+    }
   }
 
   // ── Configuration ────────────────────────────────────────────────────────────

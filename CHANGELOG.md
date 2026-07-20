@@ -2,6 +2,54 @@
 
 ## Unreleased
 
+## v1.12.0 — 2026-07-20
+
+### Added
+
+- **Point a NAS at this RADIUS server in one click.** A new **RADIUS Setup** tab
+  in NAS Manager generates the vendor-specific RADIUS-client config for a managed
+  device — you tick which services should authenticate (PPP/PPPoE, hotspot, admin
+  login, 802.1X), preview the exact commands, then push them over SSH. The running
+  config is snapshotted first for rollback. MikroTik (RouterOS v6 and v7) and
+  Huawei produce real, pushable config; other vendors get a preview-only reference
+  block. The generated MikroTik config also enables CoA/Disconnect so you can drop
+  a live session from the UI.
+- **Automation can run a command on a NAS.** A new **Run NAS command** rule action
+  runs a single CLI command on a managed NAS over SSH when a matching event fires,
+  using the credentials NAS Manager already stores. Commands can reference the
+  triggering event (`{entity_id}`, `{actor}`, `{type}`, `{data.<key>}`) — for
+  example, kicking a user's live session the moment they're disabled.
+- **Secret-key rotation.** A new `monsterops rotate-secret-key` command re-encrypts
+  every stored credential (NAS Manager SSH secrets and directory bind passwords)
+  when you change `MONSTEROPS_SECRET_KEY`, so rotating the key no longer orphans
+  them. It is abort-safe and supports a `--dry-run`.
+- **Server Console command history.** The console's command palette now keeps a
+  "Recent runs" list — each command with its result and a timestamp — that persists
+  across page reloads.
+
+### Changed
+
+- **The Server Console is now off by default.** Because its palette restarts
+  FreeRADIUS and runs migrations from the browser, it is opt-in: set
+  `MONSTEROPS_CONSOLE_ENABLED=true` to enable it. Installs that relied on the
+  console will need to set this.
+
+## v1.11.1 — 2026-07-16
+
+### Added
+
+- **NAS reachability monitoring.** A background ICMP probe reports a true
+  reachable/unreachable state per NAS on the dashboard, distinct from the existing
+  activity-based "idle" — so a quiet device is shown *idle but up*, while one that
+  has genuinely dropped off the network is shown *down*. Subnet/wildcard clients
+  are marked *skipped*. Configurable via `MONSTEROPS_NAS_PROBE_ENABLED`.
+
+### Fixed
+
+- **Delegated Active Directory logins after wiring the host.** The AD provisioning
+  script now restarts FreeRADIUS instead of reloading it, so the newly added
+  authentication module is loaded and delegated (live-AD-password) logins succeed.
+
 ## v1.11.0 — 2026-07-16
 
 ### Added

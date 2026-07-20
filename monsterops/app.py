@@ -117,6 +117,12 @@ async def _lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
         nm_task = asyncio.create_task(nas_manager_sync_worker())
 
+    nasr_task = None
+    if "nas" in settings.module_list and settings.nas_probe_enabled:
+        from monsterops.modules.nas.probe import nas_reachability_worker
+
+        nasr_task = asyncio.create_task(nas_reachability_worker())
+
     fw_task = None
     ab_task = None
     if "firewall" in settings.module_list:
@@ -140,7 +146,7 @@ async def _lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         yield
     finally:
         sched.shutdown(wait=False)
-        for task in (notif_task, probe_task, vpn_task, nm_task, fw_task, ab_task):
+        for task in (notif_task, probe_task, vpn_task, nm_task, nasr_task, fw_task, ab_task):
             if task is None:
                 continue
             task.cancel()

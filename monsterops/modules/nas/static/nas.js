@@ -590,7 +590,7 @@ class NasView extends HTMLElement {
       mgr.embedTabs = ['console'];
       mgr.initialTab = 'console';
     } else {
-      mgr.embedTabs = ['overview', 'config', 'dispatch', 'credentials'];
+      mgr.embedTabs = ['overview', 'config', 'radius', 'dispatch', 'credentials'];
       mgr.initialTab = 'overview';
     }
     mgr.style.cssText = 'flex:1; min-height:0; width:100%;';

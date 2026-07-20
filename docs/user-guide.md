@@ -194,20 +194,36 @@ All variables use the prefix `MONSTEROPS_`. Set them in `/opt/monsterops/.env` (
 | Variable | Required | Default | Description |
 |---|---|---|---|
 | `MONSTEROPS_DATABASE_URL` | Yes | — | Async SQLAlchemy URL: `postgresql+asyncpg://user:pass@host/dbname` |
-| `MONSTEROPS_SECRET_KEY` | Yes | `change-me-before-production` | JWT signing key — **must be changed before exposing to a network** |
+| `MONSTEROPS_SECRET_KEY` | Yes | `change-me-before-production` | Signs session tokens **and** derives the key that encrypts stored credentials (NAS Manager SSH secrets, directory bind passwords) — **must be changed before exposing to a network**. To change it later without orphaning those credentials, see [Rotating the secret key](#rotating-the-secret-key) |
 | `MONSTEROPS_DEBUG` | No | `false` | Enables OpenAPI docs at `/api/docs` and verbose logging |
 | `MONSTEROPS_ALLOWED_ORIGINS` | No | `""` | Comma-separated CORS origins (leave empty to disable CORS) |
 | `MONSTEROPS_MODULE_LIST` | No | all modules | Comma-separated list of enabled modules |
 | `MONSTEROPS_RADIUS_LOG_FILES` | No | `/var/log/freeradius/radius.log` | Comma-separated FreeRADIUS log file paths shown in Health → Logs |
 | `MONSTEROPS_GEOIP_DB` | No | `""` | Path to MaxMind GeoLite2-City `.mmdb` file |
 | `MONSTEROPS_VPN_CONFIG_DIR` | No | `/etc/monsterops/vpn` | Directory for WireGuard config files written by the VPN module |
-| `MONSTEROPS_CONSOLE_ENABLED` | No | `false` | Show the server console panel (superadmin only) |
+| `MONSTEROPS_RADIUS_SERVER_IP` | No | `""` (auto) | Advertised address of this server, written into generated NAS config by the RADIUS Setup deploy. Blank auto-detects the egress IP toward each NAS; set it when the server is behind NAT |
+| `MONSTEROPS_NAS_PROBE_ENABLED` | No | `true` | Background ICMP probe that gives the dashboard a true reachable/unreachable state per NAS. Tune with `MONSTEROPS_NAS_PROBE_INTERVAL_SECONDS` (60) and `MONSTEROPS_NAS_PROBE_TIMEOUT_SECONDS` (3) |
+| `MONSTEROPS_CONSOLE_ENABLED` | No | `false` | Turn on the Server Console (superadmin only). Off by default because its command palette reloads/restarts FreeRADIUS and runs migrations straight from the browser — set to `true` to enable it |
 
 Restart the service after changing any variable:
 
 ```bash
 sudo systemctl restart monsterops
 ```
+
+### Rotating the secret key
+
+`MONSTEROPS_SECRET_KEY` does double duty: it signs session tokens **and** derives the key that encrypts credentials at rest — NAS Manager SSH/Telnet secrets and directory (AD/LDAP) bind passwords. So you can't just change it: the old ciphertext would no longer decrypt, and NAS Manager logins plus directory-delegated auth would break. Rotate it with the CLI **while the old key is still configured**:
+
+```bash
+# Dry run first — reports how many credentials would be re-encrypted, writes nothing
+monsterops rotate-secret-key --new-key "<new-key>" --dry-run
+
+# Then rotate for real (old key read from the current MONSTEROPS_SECRET_KEY)
+monsterops rotate-secret-key --new-key "<new-key>"
+```
+
+It re-encrypts every stored credential from the old key to the new one in one pass, and is **abort-safe**: if any value fails to decrypt with the old key it stops and changes nothing. Pass the new key with `--new-key`, via `MONSTEROPS_NEW_SECRET_KEY`, or answer the prompt; add `--yes` to skip the confirmation. When it finishes, set `MONSTEROPS_SECRET_KEY` to the new value and restart.
 
 ---
 
@@ -223,7 +239,7 @@ The sidebar on the left is the main nav. It collapses to rail mode (icons only) 
 | **Users** | Create, search, edit, enable/disable, expire, and bulk-manage RADIUS users. Click a row to open the user detail panel with Sessions, Auth History, Timeline, and Attributes tabs. |
 | **Groups** | Manage RADIUS groups (`radusergroup`/`radgroupcheck`/`radgroupreply`). Assign reply attributes per vendor and link groups to NAS groups for access control. |
 | **NAS** | Add and edit NAS clients. Vendor presets auto-fill the type and community fields. NAS Groups tab lets you cluster devices for realm routing and access control. |
-| **NAS Manager** | SSH/Telnet into your NAS devices (Netmiko). Pull and store running config, keep version history with scheduled fetch + retention + diff, edit and push config back, run commands from a per-device console, and dispatch to many devices. Credentials are AES-256-GCM encrypted. |
+| **NAS Manager** | SSH/Telnet into your NAS devices (Netmiko). Pull and store running config, keep version history with scheduled fetch + retention + diff, edit and push config back, run commands from a per-device console, dispatch to many devices, and one-click **point a NAS at this RADIUS server** (RADIUS Setup tab). Credentials are AES-256-GCM encrypted. |
 | **IP Pools** | Manage `radippool` allocations. See occupancy per pool, release stuck IPs, add CIDR ranges. |
 | **Accounting** | Active sessions (with CoA disconnect) and full session history. |
 | **Auth Logs** | `radpostauth` viewer with Accept/Reject filtering, latency, geo, and anomaly banners. |
@@ -242,11 +258,11 @@ The sidebar on the left is the main nav. It collapses to rail mode (icons only) 
 
 ### Server console
 
-Superadmins see a terminal icon in the bottom-left corner (and can press backtick `` ` `` anywhere). This opens a slide-in panel with:
+The Server Console is **off by default** — enable it by setting `MONSTEROPS_CONSOLE_ENABLED=true`, since its command palette acts on the host straight from the browser. Once enabled, superadmins see a terminal icon in the bottom-left corner (and can press backtick `` ` `` anywhere). This opens a slide-in panel with:
 
 - **App Log** — live-tails the MonsterOps Python process log
 - **RADIUS Log** — live-tails FreeRADIUS log files
-- **Commands** — reload FreeRADIUS config, restart FreeRADIUS, run pending Alembic migrations
+- **Commands** — reload FreeRADIUS config, restart FreeRADIUS, run pending Alembic migrations. A **Recent runs** list records each command you run (with its result and a timestamp) and persists across page reloads, so you can see what was last run.
 
 ### "What's New" drawer
 
@@ -288,6 +304,26 @@ These are two different things that are easy to conflate:
 
 You can use either without the other.
 
+### NAS reachability vs. "idle"
+
+The dashboard's **NAS Status** widget shows two independent things:
+
+- **Activity** (`active` / `idle`) — whether the device has live sessions or has sent any RADIUS traffic in the last 15 minutes. A quiet NAS at 3 a.m. is *idle*; that says nothing about whether it's up.
+- **Reachability** (`up` / `down`) — a background ICMP probe pings each NAS on an interval (default 60s) and reports whether it actually answers on the network. A device shown **down** (red) has genuinely stopped responding; an *idle but up* device is simply quiet.
+
+Only a single, individually addressable NAS can be probed — client entries that are a subnet or wildcard (`10.0.0.0/24`, `*`) are marked **skipped**. Turn the probe off with `MONSTEROPS_NAS_PROBE_ENABLED=false`, or force an immediate check from the NAS row.
+
+### Point a NAS at this RADIUS server
+
+Once a device is under **NAS Manager** (SSH/Telnet reachable, credentials stored), the **RADIUS Setup** tab writes the RADIUS-client config *for* you instead of you typing it into the router by hand.
+
+1. Tick the services that should authenticate against RADIUS — **PPP/PPPoE**, **hotspot**, **device admin login**, **802.1X**. The list is vendor-aware, so you only see what the device supports.
+2. Confirm the **RADIUS server address** (pre-filled from `MONSTEROPS_RADIUS_SERVER_IP`, or auto-detected as the egress IP toward the device) and the auth/acct ports.
+3. Press **Preview** to see the exact commands. The shared secret is taken from the NAS's own entry, so both ends match automatically. Anything device-specific that can't be known (interface names, hotspot profile names) appears as **notes** to apply by hand, never pushed.
+4. Press **Deploy to device**. The running config is **snapshotted first** (for rollback from Config History), then the generated lines are pushed over SSH.
+
+**MikroTik** and **Huawei** generate real, pushable config; every other vendor gets a **preview-only** reference block to copy manually. For MikroTik, pick the **RouterOS version** (v6 or v7) — the syntax differs — and the generated config enables `/radius incoming set accept=yes` so the router accepts **CoA / Disconnect-Message**, which is what lets MonsterOps drop a live session from the UI.
+
 ### Firewall — read this before you Apply
 
 The Firewall module manages exactly one nftables table, **`table inet monsterops`**, as a **host input filter**. It never reads or writes any other nftables table you may already run. Two things follow from "host input filter" that catch people out:
@@ -318,6 +354,8 @@ MonsterOps dials **out** to remote sites over **WireGuard** or **L2TP/IPsec** so
 ### Automation & scheduling
 
 **Automation** is event-driven ("when a user is disabled → do X"); **Scheduler** is time-driven (stale-IP sweep, expired-user cleanup, log retention, scheduled reports). Both are safe to start small — a single rule or job — and expand once you trust the behaviour.
+
+An automation rule matches an event (plus optional conditions) and runs one action: logging, webhooks, email, enabling/disabling users, group membership, `firewall_ban`, or **Run NAS command** — a single CLI command run on a managed NAS over SSH, using the credentials NAS Manager already stores. The command can reference the triggering event through `{entity_id}`, `{actor}`, `{type}` and `{data.<key>}` placeholders, so a rule can act on the entity that fired it — for example, pairing **`user.disabled`** with `/ppp active remove [find name="{entity_id}"]` kicks that user's live session off a MikroTik BRAS the moment they're disabled.
 
 ---
 

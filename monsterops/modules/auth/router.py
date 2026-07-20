@@ -86,7 +86,7 @@ def _clear_session(response: Response) -> None:
 @router.get("/status", response_model=StatusResponse, summary="Check if first-run setup is needed")
 async def auth_status(db: AsyncSession = Depends(get_db)):
     count = await db.scalar(select(func.count()).select_from(AdminUser))
-    return StatusResponse(first_run=(count == 0))
+    return StatusResponse(first_run=(count == 0), console_enabled=settings.console_enabled)
 
 
 @router.post(

@@ -56,6 +56,7 @@ class SessionResponse(BaseModel):
 
 class StatusResponse(BaseModel):
     first_run: bool
+    console_enabled: bool = False
 
 
 class AuditLogOut(BaseModel):

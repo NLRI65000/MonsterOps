@@ -10,7 +10,7 @@ from monsterops.modules.auth.utils import audit, get_current_user, require_roles
 from monsterops.modules.nas.radius_attr_hints import get_hints
 from monsterops.radius_reload import restart_freeradius
 
-from .models import Nas, NasGroup, NasGroupMember, RadiusGroupNasGroup
+from .models import Nas, NasGroup, NasGroupMember, NasReachability, RadiusGroupNasGroup
 from .schemas import (
     NasCreate,
     NasGroupCreate,
@@ -22,6 +22,7 @@ from .schemas import (
     NasListItem,
     NasListResponse,
     NasOut,
+    NasReachabilityOut,
     NasSessionOut,
     NasUpdate,
     RadiusGroupLink,
@@ -132,6 +133,61 @@ async def create_nas(
     )
     background_tasks.add_task(restart_freeradius)
     return NasOut.model_validate(row)
+
+
+
+
+@router.get("/reachability", response_model=list[NasReachabilityOut])
+async def list_reachability(
+    db: AsyncSession = Depends(get_db),
+    _user=Depends(get_current_user),
+):
+    rows = (
+        await db.execute(
+            select(NasReachability, Nas.shortname, Nas.nasname)
+            .join(Nas, Nas.id == NasReachability.nas_id)
+            .order_by(Nas.shortname)
+        )
+    ).all()
+    return [
+        NasReachabilityOut(
+            nas_id=r.nas_id,
+            shortname=shortname or nasname,
+            nasname=nasname,
+            status=r.status,
+            method=r.method,
+            last_rtt_ms=r.last_rtt_ms,
+            last_seen_at=r.last_seen_at,
+            last_probe_at=r.last_probe_at,
+            detail=r.detail,
+        )
+        for r, shortname, nasname in rows
+    ]
+
+
+@router.post("/{nas_id}/probe", response_model=NasReachabilityOut)
+async def probe_nas(
+    nas_id: int,
+    db: AsyncSession = Depends(get_db),
+    _user=Depends(get_current_user),
+):
+    from monsterops.modules.nas.probe import probe_nas_now
+
+    nas = await _nas_or_404(nas_id, db)
+    row = await probe_nas_now(nas_id)
+    if row is None:
+        raise HTTPException(404, "NAS not found")
+    return NasReachabilityOut(
+        nas_id=nas_id,
+        shortname=nas.shortname or nas.nasname,
+        nasname=nas.nasname,
+        status=row.status,
+        method=row.method,
+        last_rtt_ms=row.last_rtt_ms,
+        last_seen_at=row.last_seen_at,
+        last_probe_at=row.last_probe_at,
+        detail=row.detail,
+    )
 
 
 @router.get("/{nas_id}", response_model=NasOut)

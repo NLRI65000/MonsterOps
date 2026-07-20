@@ -20,8 +20,8 @@ Full feature list, configuration, architecture, and project reference. New here?
 | Area | Capabilities |
 |------|-------------|
 | **RADIUS Users & Groups** | Full `radcheck`/`radreply`/`radusergroup` CRUD, bulk CSV import/export, enable/disable, expiration, simultaneous-use, per-user session and auth history |
-| **NAS Device Management** | Create/edit NAS entries with vendor presets (Cisco, Huawei, MikroTik), NAS groups, link groups to RADIUS groups for access control, auto-reload FreeRADIUS after changes |
-| **NAS Manager (SSH/Telnet)** | Connect to NAS devices via Netmiko (SSH or Telnet); pull and store running config; version history with scheduled fetch, retention and diff; edit and push changes back; per-device SSE command console; multi-NAS command dispatch with audit log; AES-256-GCM credential storage |
+| **NAS Device Management** | Create/edit NAS entries with vendor presets (Cisco, Huawei, MikroTik), NAS groups, link groups to RADIUS groups for access control, auto-reload FreeRADIUS after changes; background ICMP reachability probe giving a true up/down state per device, distinct from activity-based idle |
+| **NAS Manager (SSH/Telnet)** | Connect to NAS devices via Netmiko (SSH or Telnet); pull and store running config; version history with scheduled fetch, retention and diff; edit and push changes back; per-device SSE command console; multi-NAS command dispatch with audit log; one-click "point a NAS at this RADIUS server" config deploy (MikroTik v6/v7 + Huawei push, Generic preview, snapshot-before-deploy, CoA enablement); AES-256-GCM credential storage |
 | **Firewall Manager (nftables)** | Manage a dedicated `table inet monsterops` (operator tables untouched); rule builder with RADIUS presets; named sets/blocklists with live add/remove; preview `.nft` + diff vs active; safe apply with snapshot + auto-rollback so you can't lock yourself out; per-rule counters; `firewall_ban` automation action |
 | **IP Pool Management** | CIDR/range allocation, per-pool usage view, stale IP release, occupancy counters |
 | **Session Monitoring** | Live active sessions, accounting history, CoA disconnect and change-of-authorization, bandwidth tracking |
@@ -29,11 +29,11 @@ Full feature list, configuration, architecture, and project reference. New here?
 | **Reports** | Bandwidth, login frequency, top-N users by traffic or sessions, failure trends — all exportable to CSV |
 | **RADIUS Proxy & Realms** | Home server + pool + realm CRUD, NAS group → realm routing, `proxy.conf` generation and hot-apply, realm health monitoring via Status-Server probes |
 | **VPN Tunnel Management** | Create and operate **WireGuard** and **L2TP/IPsec** tunnels from the UI; host dials out to reach remote NAS sites; live status (handshake, rx/tx); keys never leave the server |
-| **Automation & Scheduling** | Event-driven rules engine ("when user disabled → do X"), scheduled jobs (stale IP sweep, expired user cleanup, log retention), `monsterops` CLI for scripting |
+| **Automation & Scheduling** | Event-driven rules engine ("when user disabled → do X") with actions including webhooks, email, group membership, `firewall_ban`, and **run a CLI command on a managed NAS** (with event-field templating); scheduled jobs (stale IP sweep, expired user cleanup, log retention); `monsterops` CLI for scripting |
 | **Webhooks & Event Bus** | Subscribe external systems to any event pattern (`user.*`, `nas.created`, `*`); HMAC-signed payloads; SSE live event stream; Graylog GELF forwarding |
 | **External REST API** | Full CRUD at `/api/v1/` with scoped API keys; versioned OpenAPI spec |
 | **Integrations** | Zabbix sender, Graylog GELF, MaxMind GeoIP2 (local mmdb, no API calls at query time) |
-| **Server Console** | Slide-in panel (superadmin only): live app log, live FreeRADIUS log, command palette (reload FreeRADIUS, run migrations) |
+| **Server Console** | Optional slide-in panel (superadmin only, off by default via `MONSTEROPS_CONSOLE_ENABLED`): live app log, live FreeRADIUS log, command palette (reload/restart FreeRADIUS, run migrations) with a persistent command-run history |
 | **Health & Operations** | FreeRADIUS service status and controls, database health, log viewer with live SSE streaming |
 | **Security** | Argon2id passwords, JWT with refresh rotation, rate limiting, CSP/HSTS/X-Frame-Options, role-based access (`superadmin`/`admin`/`readonly`), full audit log |
 
@@ -48,7 +48,7 @@ All settings are environment variables prefixed `MONSTEROPS_`, read from `.env` 
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `MONSTEROPS_DATABASE_URL` | `postgresql+asyncpg://radius:radius@localhost/radius` | Async SQLAlchemy DSN — must use the `+asyncpg` driver |
-| `MONSTEROPS_SECRET_KEY` | `change-me-before-production` | JWT signing key — **change this** |
+| `MONSTEROPS_SECRET_KEY` | `change-me-before-production` | Signs JWTs **and** derives the key that encrypts stored credentials at rest — **change this**; rotate later with `monsterops rotate-secret-key` |
 | `MONSTEROPS_ACCESS_TOKEN_EXPIRE_MINUTES` | `30` | Access-token lifetime; the refresh cookie rotates a new one silently |
 | `MONSTEROPS_COOKIE_SECURE` | _(auto)_ | Force the `Secure` flag on session cookies. Unset = derive from the request scheme (`X-Forwarded-Proto` aware) — `Secure` over HTTPS, off over plain http |
 | `MONSTEROPS_DEBUG` | `false` | Enables `/api/docs` and verbose errors — never on in production |
@@ -76,6 +76,16 @@ All settings are environment variables prefixed `MONSTEROPS_`, read from `.env` 
 | `MONSTEROPS_FREERADIUS_PROXY_CONF` | `/etc/freeradius/3.0/proxy.conf` | Where Realms writes generated proxy config |
 | `MONSTEROPS_VPN_CONFIG_DIR` | `/etc/monsterops/vpn` | Where the VPN module writes `wg-quick` configs (0600) |
 | `MONSTEROPS_FIREWALL_RULESET_PATH` | `/etc/monsterops/firewall.nft` | Confirmed ruleset re-applied at boot by the firewall unit |
+| `MONSTEROPS_RADIUS_SERVER_IP` | `""` (auto) | Advertised address of this server for the NAS RADIUS Setup deploy; blank auto-detects the egress IP toward each NAS |
+
+### NAS reachability & Server Console
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `MONSTEROPS_NAS_PROBE_ENABLED` | `true` | Background ICMP probe for the dashboard up/down state |
+| `MONSTEROPS_NAS_PROBE_INTERVAL_SECONDS` | `60` | Seconds between probe sweeps |
+| `MONSTEROPS_NAS_PROBE_TIMEOUT_SECONDS` | `3` | Per-probe timeout |
+| `MONSTEROPS_CONSOLE_ENABLED` | `false` | Enable the Server Console (its palette restarts FreeRADIUS / runs migrations from the browser, so it is opt-in) |
 
 ### Log retention
 
@@ -139,6 +149,15 @@ monsterops nas list
 ```
 
 Add `--format json` to any read command for machine-readable output.
+
+Most subcommands talk to the REST API, but **`rotate-secret-key`** runs locally against the database (it re-encrypts stored credentials from the old key to a new one, so it must read the ciphertext directly):
+
+```bash
+monsterops rotate-secret-key --new-key "<new-key>" --dry-run   # report only
+monsterops rotate-secret-key --new-key "<new-key>"             # rotate for real
+```
+
+It is abort-safe (nothing is written if any value fails to decrypt with the old key). When it finishes, set `MONSTEROPS_SECRET_KEY` to the new value and restart.
 
 ---
 

@@ -11,7 +11,7 @@ Built with **FastAPI + PostgreSQL** and a **vanilla-JS Web Components** frontend
 ## Highlights
 
 - **RADIUS users & groups** — full `radcheck`/`radreply`/`radusergroup` CRUD, bulk CSV, per-user session & auth history
-- **NAS management** — vendor presets and NAS groups, plus an SSH/Telnet **NAS Manager** (pull, version, diff, and push config; encrypted credentials)
+- **NAS management** — vendor presets and NAS groups, ICMP reachability monitoring, plus an SSH/Telnet **NAS Manager** (pull, version, diff, and push config; one-click "point a NAS at RADIUS" deploy; encrypted credentials)
 - **Firewall manager** — a dedicated nftables table with staged apply, snapshot + auto-rollback, and adaptive access control (brute-force / country blocking) built to keep you from locking yourself out
 - **Sessions & analytics** — live sessions with CoA disconnect, accounting history, and auth logs with geo-location + anomaly detection
 - **And more** — RADIUS proxy & realms, WireGuard / L2TP-IPsec VPN tunnels, automation & scheduling, webhooks, a scoped REST API, and integrations (Zabbix, Graylog, GeoIP2)

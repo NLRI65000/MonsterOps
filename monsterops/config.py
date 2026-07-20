@@ -20,6 +20,14 @@ class Settings(BaseSettings):
     retention_notification_days: int = 90
     retention_dispatch_log_days: int = 180
 
+    nas_probe_enabled: bool = True
+    nas_probe_interval_seconds: int = 60
+    nas_probe_timeout_seconds: int = 3
+
+    console_enabled: bool = False
+
+    radius_server_ip: str = ""
+
     secret_key: str = "change-me-before-production"
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 30

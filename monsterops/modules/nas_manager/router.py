@@ -27,12 +27,23 @@ from monsterops.modules.nas_manager.models import (
     MrNasDispatchLog,
     MrNasManager,
 )
+from monsterops.modules.nas_manager.radius_deploy import (
+    available_services,
+    build_plan,
+    detect_server_ip,
+    variants_for,
+)
 from monsterops.modules.nas_manager.schemas import (
     ConfigVersionOut,
     DispatchRequest,
     HistorySettingsIn,
     NasManagerCreate,
     NasManagerOut,
+    RadiusDeployIn,
+    RadiusDeployOptionsOut,
+    RadiusDeployPreviewOut,
+    RadiusDeployServiceOut,
+    RadiusDeployVariantOut,
     VendorTypesOut,
 )
 from monsterops.modules.nas_manager.service import (
@@ -379,6 +390,147 @@ async def push_config_endpoint(
         target=str(nas_id),
     )
     return {"ok": True}
+
+
+
+
+def _resolve_server_ip(nm: MrNasManager, override: str | None) -> str:
+    if override:
+        return override
+    if settings.radius_server_ip:
+        return settings.radius_server_ip
+    return detect_server_ip(nm.host)
+
+
+@router.get("/{nas_id}/radius-deploy/options")
+async def radius_deploy_options(
+    nas_id: int,
+    _: AdminUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> RadiusDeployOptionsOut:
+    nm = await _get_nm(nas_id, db)
+    vendor = nm.nas.type if nm.nas else None
+    plan = build_plan(vendor, "", "")
+    return RadiusDeployOptionsOut(
+        vendor=plan.vendor,
+        pushable=plan.pushable,
+        services=[RadiusDeployServiceOut(**s) for s in available_services(vendor)],
+        variants=[RadiusDeployVariantOut(**v) for v in variants_for(vendor)],
+        suggested_server_ip=_resolve_server_ip(nm, None),
+        secret_present=bool(nm.nas and nm.nas.secret),
+    )
+
+
+def _build_for(nm: MrNasManager, body: RadiusDeployIn):
+    secret = (nm.nas.secret if nm.nas else "") or ""
+    server_ip = _resolve_server_ip(nm, body.server_ip)
+    if not server_ip:
+        raise HTTPException(
+            422,
+            "Could not determine this RADIUS server's address — set radius_server_ip "
+            "or supply server_ip.",
+        )
+    vendor = nm.nas.type if nm.nas else None
+    plan = build_plan(
+        vendor,
+        server_ip,
+        secret,
+        auth_port=body.auth_port,
+        acct_port=body.acct_port,
+        services=body.services,
+        variant=body.variant,
+    )
+    return plan, server_ip
+
+
+@router.post("/{nas_id}/radius-deploy/preview")
+async def radius_deploy_preview(
+    nas_id: int,
+    body: RadiusDeployIn,
+    _: AdminUser = Depends(require_roles("admin", "superadmin")),
+    db: AsyncSession = Depends(get_db),
+) -> RadiusDeployPreviewOut:
+    nm = await _get_nm(nas_id, db)
+    plan, server_ip = _build_for(nm, body)
+    return RadiusDeployPreviewOut(
+        vendor=plan.vendor,
+        pushable=plan.pushable,
+        variant=plan.variant,
+        lines=plan.lines,
+        notes=plan.notes,
+        config_text=plan.config_text,
+        server_ip=server_ip,
+        services=plan.services,
+        secret_present=bool(nm.nas and nm.nas.secret),
+    )
+
+
+@router.post("/{nas_id}/radius-deploy")
+async def radius_deploy(
+    nas_id: int,
+    body: RadiusDeployIn,
+    current_user: AdminUser = Depends(require_roles("admin", "superadmin")),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    nm = await _get_nm(nas_id, db)
+    plan, server_ip = _build_for(nm, body)
+
+    if not plan.pushable:
+        raise HTTPException(
+            422,
+            f"Vendor '{plan.vendor}' has no pushable RADIUS template — use the preview "
+            "and apply the settings manually.",
+        )
+    if not plan.lines:
+        raise HTTPException(422, "Nothing to deploy — select at least one service.")
+    if not (nm.nas and nm.nas.secret):
+        raise HTTPException(422, "This NAS has no RADIUS shared secret to deploy.")
+
+    password = _decrypt_or_raise(nm)
+
+    pre_config, pull_err = await pull_config(nm, password)
+    snapshotted = False
+    if not pull_err and pre_config.strip():
+        nm.raw_config = pre_config
+        nm.config_pulled_at = datetime.now(timezone.utc)
+        await store_version(db, nm, pre_config, source="pre-deploy")
+        await apply_retention(db, nm)
+        snapshotted = True
+
+    ok, err = await push_config(nm, password, plan.lines)
+    if not ok:
+        await db.commit()
+        raise HTTPException(500, f"Deploy failed: {err}")
+
+    nm.config_pushed_at = datetime.now(timezone.utc)
+    nm.test_status = "connected"
+    nm.test_error = None
+    await db.commit()
+
+    await audit(
+        db,
+        user_id=current_user.id,
+        username=current_user.username,
+        action="nas_manager.radius_deploy",
+        target=str(nas_id),
+        detail={
+            "vendor": plan.vendor,
+            "variant": plan.variant,
+            "server_ip": server_ip,
+            "services": plan.services,
+            "lines": len(plan.lines),
+        },
+    )
+
+    asyncio.create_task(_bg_pull(nm.id, nas_id, source="deploy"))
+
+    return {
+        "ok": True,
+        "pushed": len(plan.lines),
+        "snapshotted": snapshotted,
+        "server_ip": server_ip,
+        "services": plan.services,
+    }
 
 
 

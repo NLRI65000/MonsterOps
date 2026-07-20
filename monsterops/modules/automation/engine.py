@@ -23,8 +23,22 @@ _VALID_ACTIONS = frozenset(
         "remove_from_group",
         "send_email",
         "firewall_ban",
+        "run_nas_command",
     }
 )
+
+
+def _render_nas_command(command: str, event: "Any") -> str:
+    for token, val in (
+        ("{type}", event.type),
+        ("{actor}", event.actor),
+        ("{entity_type}", event.entity_type),
+        ("{entity_id}", event.entity_id),
+    ):
+        command = command.replace(token, str(val or ""))
+    for key, val in (event.data or {}).items():
+        command = command.replace("{data.%s}" % key, str(val))
+    return command
 
 
 def _condition_match(event: "Any", conditions: list[dict]) -> bool:
@@ -177,6 +191,48 @@ async def _run_action(action_type: str, config: dict, event: "Any") -> None:
             logger.info("[Automation] firewall_ban: banned %s", ip)
         except Exception as exc:
             logger.warning("[Automation] firewall_ban failed for %s: %s", ip, exc)
+
+    elif action_type == "run_nas_command":
+        raw_cmd = str(config.get("command", "")).strip()
+        nas_id = config.get("nas_id")
+        if not nas_id or not raw_cmd:
+            logger.warning("[Automation] run_nas_command: nas_id and command are required")
+            return
+        try:
+            from sqlalchemy import select
+
+            from monsterops.config import settings
+            from monsterops.database import SessionLocal
+            from monsterops.modules.nas_manager import service as nm_service
+            from monsterops.modules.nas_manager.crypto import decrypt
+            from monsterops.modules.nas_manager.models import MrNasManager
+
+            async with SessionLocal() as db:
+                nm = (
+                    await db.execute(select(MrNasManager).where(MrNasManager.nas_id == int(nas_id)))
+                ).scalar_one_or_none()
+            if nm is None:
+                logger.warning("[Automation] run_nas_command: no NAS Manager for nas_id=%s", nas_id)
+                return
+            if not nm.enabled:
+                logger.warning(
+                    "[Automation] run_nas_command: NAS Manager for nas_id=%s is disabled", nas_id
+                )
+                return
+            if not nm.secret_enc:
+                logger.warning(
+                    "[Automation] run_nas_command: no stored credentials for nas_id=%s", nas_id
+                )
+                return
+            password = decrypt(nm.secret_enc, settings.secret_key)
+            command = _render_nas_command(raw_cmd, event)
+            _output, err = await nm_service.run_command(nm, password, command)
+            if err:
+                logger.warning("[Automation] run_nas_command on nas_id=%s failed: %s", nas_id, err)
+            else:
+                logger.info("[Automation] run_nas_command on nas_id=%s ran: %s", nas_id, command)
+        except Exception as exc:
+            logger.warning("[Automation] run_nas_command failed: %s", exc)
 
     elif action_type == "send_email":
         to_addr = config.get("to", "")

@@ -11,7 +11,21 @@ const ACTION_LABELS = {
   add_to_group: 'Add user to group',
   remove_from_group: 'Remove user from group',
   send_email: 'Send email',
+  firewall_ban: 'Ban IP in firewall',
+  run_nas_command: 'Run NAS command',
 };
+
+// Load the managed-NAS list for the run_nas_command picker: value = nas_id,
+// label = friendly name + management IP.
+async function loadManagedNas() {
+  const rows = await api.get('/nas-manager');
+  return rows.map((r) => ({
+    value: r.nas_id,
+    label: `${r.nas_name || r.host || `NAS #${r.nas_id}`}${r.nas_ip ? ` (${r.nas_ip})` : ''}${
+      r.enabled ? '' : ' — disabled'
+    }`,
+  }));
+}
 
 const ACTION_CONFIGS = {
   log: [],
@@ -28,6 +42,22 @@ const ACTION_CONFIGS = {
     label: 'Subject (optional)',
     placeholder: 'MonsterOps alert',
   }],
+  firewall_ban: [
+    { key: 'ip_field', label: 'Event field holding the IP', placeholder: 'ip' },
+    { key: 'set', label: 'nftables set (optional)', placeholder: 'defaults to the auto-ban set' },
+    { key: 'ttl_seconds', label: 'Ban TTL, seconds (optional)', placeholder: 'blank = permanent' },
+  ],
+  run_nas_command: [
+    { key: 'nas_id', label: 'Target NAS', type: 'select', load: loadManagedNas },
+    {
+      key: 'command',
+      label: 'Command to run',
+      mono: true,
+      placeholder: '/ppp active remove [find name="{entity_id}"]',
+      help:
+        'Runs one CLI command over SSH. Use {entity_id}, {actor}, {type} or {data.<key>} to insert fields from the triggering event.',
+    },
+  ],
 };
 
 const KNOWN_EVENTS = [
@@ -266,6 +296,14 @@ class AutomationPage extends HTMLElement {
     if (r.action_type === 'send_email' && cfg.to) {
       return `<div class="au-sub-text">${esc(cfg.to)}</div>`;
     }
+    if (r.action_type === 'firewall_ban') {
+      return `<div class="au-sub-text">field: <code>${esc(cfg.ip_field || 'ip')}</code></div>`;
+    }
+    if (r.action_type === 'run_nas_command' && cfg.command) {
+      return `<div class="au-sub-text" style="font-family:var(--font-mono,monospace);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${
+        esc(cfg.command)
+      }">${esc(cfg.command)}</div>`;
+    }
     return '';
   }
 
@@ -374,8 +412,9 @@ class AutomationPage extends HTMLElement {
     this._modal = m;
     const overlay = m.overlay;
 
-    // Action config: re-render whenever action changes; do NOT carry over old config
-    const renderActionConfig = (preserveValues = false) => {
+    // Action config: re-render whenever action changes; do NOT carry over old config.
+    // Async because some fields (e.g. the NAS picker) load their options over the API.
+    const renderActionConfig = async (preserveValues = false) => {
       const action = overlay.querySelector('#au-f-action').value;
       const fields = ACTION_CONFIGS[action] || [];
       const cfg = preserveValues
@@ -386,14 +425,42 @@ class AutomationPage extends HTMLElement {
         area.innerHTML = '';
         return;
       }
-      area.innerHTML = fields.map((f) => `
-        <div class="mrm-field">
-          <label class="mrm-label">${esc(f.label)}</label>
-          <input class="mrm-input" data-cfg-key="${esc(f.key)}" value="${
-        esc(cfg[f.key] || '')
-      }" placeholder="${esc(f.placeholder || '')}">
-        </div>
-      `).join('');
+      const help = (f) => (f.help ? `<div class="mrm-help">${esc(f.help)}</div>` : '');
+      const parts = [];
+      for (const f of fields) {
+        const cur = cfg[f.key] != null ? String(cfg[f.key]) : '';
+        if (f.type === 'select') {
+          let opts = [];
+          try {
+            opts = await f.load();
+          } catch (_e) {
+            opts = [];
+          }
+          const optHtml = opts.length
+            ? opts.map((o) =>
+              `<option value="${esc(String(o.value))}" ${
+                String(o.value) === cur ? 'selected' : ''
+              }>${esc(o.label)}</option>`
+            ).join('')
+            : '<option value="">— none available —</option>';
+          parts.push(`
+            <div class="mrm-field">
+              <label class="mrm-label">${esc(f.label)}</label>
+              <select class="mrm-select" data-cfg-key="${esc(f.key)}">${optHtml}</select>
+              ${help(f)}
+            </div>`);
+        } else {
+          parts.push(`
+            <div class="mrm-field">
+              <label class="mrm-label">${esc(f.label)}</label>
+              <input class="mrm-input${f.mono ? ' mrm-mono' : ''}" data-cfg-key="${
+            esc(f.key)
+          }" value="${esc(cur)}" placeholder="${esc(f.placeholder || '')}">
+              ${help(f)}
+            </div>`);
+        }
+      }
+      area.innerHTML = parts.join('');
     };
 
     overlay.querySelector('#au-f-action').addEventListener(

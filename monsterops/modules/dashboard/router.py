@@ -13,7 +13,7 @@ from monsterops.modules.accounting.models import Radacct
 from monsterops.modules.auth.utils import get_current_user
 from monsterops.modules.auth_logs.models import Radpostauth
 from monsterops.modules.auth_logs.schemas import GeoInfo
-from monsterops.modules.nas.models import Nas
+from monsterops.modules.nas.models import Nas, NasReachability
 from monsterops.modules.users.models import Radcheck
 
 from .schemas import DashboardStats, NasStatus, OnlineUser, RecentAuth, SessionType, TopUser
@@ -199,10 +199,14 @@ async def get_nas_status(
     nas_q = await db.execute(select(Nas).order_by(Nas.shortname))
     all_nas = nas_q.scalars().all()
 
+    reach_q = await db.execute(select(NasReachability))
+    reach = {r.nas_id: r for r in reach_q.scalars().all()}
+
     result = []
     for n in all_nas:
         session_count = active_counts.get(n.nasname, 0)
         online = session_count > 0 or n.nasname in recent_ips
+        r = reach.get(n.id)
         result.append(
             NasStatus(
                 id=n.id,
@@ -211,6 +215,9 @@ async def get_nas_status(
                 type=n.type or "other",
                 online=online,
                 session_count=session_count,
+                reachable=r.status if r else None,
+                last_rtt_ms=r.last_rtt_ms if r else None,
+                last_probe_at=r.last_probe_at if r else None,
             )
         )
     return result

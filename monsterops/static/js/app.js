@@ -55,6 +55,9 @@ async function boot() {
   // 1. Check first-run before anything else
   try {
     const status = await fetch('/api/auth/status').then((r) => r.json());
+    // Remember whether the Server Console is enabled server-side so initConsole()
+    // can skip mounting the panel when it's turned off ('0' = disabled).
+    localStorage.setItem('mr_console_enabled', status.console_enabled === false ? '0' : '1');
     if (status.first_run) {
       enterUnauthMode();
       router.navigate('/setup');

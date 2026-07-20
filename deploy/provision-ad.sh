@@ -245,18 +245,27 @@ else
   warn "logins select MS-CHAP instead of NTLM-Auth, move 'sql' below 'mschap'."
 fi
 
-# ── 8. Validate + reload FreeRADIUS ──────────────────────────────────────────
-step "Reload FreeRADIUS"
+# ── 8. Validate + restart FreeRADIUS ─────────────────────────────────────────
+# A full RESTART (not reload/SIGHUP) is required here. This step added a NEW
+# module (mschap_ntlm) and a new `Auth-Type NTLM-Auth` block. FreeRADIUS's HUP
+# reload only re-reads modules it already loaded — it cannot instantiate a
+# newly-added module or register a new Auth-Type value. A reload therefore
+# leaves the server running its OLD config, and delegated logins keep failing
+# with: sql: Error parsing value: Unknown or invalid value "NTLM-Auth" for
+# attribute Auth-Type. The restart also lets the freeradius process pick up its
+# new winbindd_priv group membership (needed to read the winbind pipe that
+# ntlm_auth talks to). Do NOT downgrade this to `systemctl reload`.
+step "Restart FreeRADIUS"
 if freeradius -Cx >/dev/null 2>&1 || freeradius -C >/dev/null 2>&1; then
   ok "FreeRADIUS config validates."
 else
   warn "freeradius -C reported problems — review before relying on delegated auth:"
   warn "  freeradius -CX 2>&1 | tail -40"
 fi
-if systemctl reload freeradius 2>/dev/null || systemctl restart freeradius; then
-  ok "FreeRADIUS reloaded."
+if systemctl restart freeradius; then
+  ok "FreeRADIUS restarted."
 else
-  warn "FreeRADIUS reload failed — check: journalctl -u freeradius -n 30"
+  warn "FreeRADIUS restart failed — check: journalctl -u freeradius -n 30"
 fi
 
 # ── Done ─────────────────────────────────────────────────────────────────────

@@ -16,6 +16,55 @@ function _esc(s) {
   return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+// ── command history (persisted in localStorage) ───────────────────────────────
+
+const HISTORY_KEY = 'mr_console_cmd_history';
+const HISTORY_MAX = 50;
+
+function _loadHistory() {
+  try {
+    const raw = localStorage.getItem(HISTORY_KEY);
+    const arr = raw ? JSON.parse(raw) : [];
+    return Array.isArray(arr) ? arr : [];
+  } catch {
+    return [];
+  }
+}
+
+function _recordHistory(entry) {
+  const hist = _loadHistory();
+  hist.unshift(entry); // newest first
+  if (hist.length > HISTORY_MAX) hist.length = HISTORY_MAX;
+  try {
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(hist));
+  } catch { /* quota exceeded or storage disabled — history is best-effort */ }
+  _renderHistory();
+}
+
+function _clearHistory() {
+  try {
+    localStorage.removeItem(HISTORY_KEY);
+  } catch { /* ignore */ }
+  _renderHistory();
+}
+
+function _renderHistory() {
+  const box = _panel?.querySelector('#cmd-history');
+  if (!box) return;
+  const hist = _loadHistory();
+  if (!hist.length) {
+    box.innerHTML = '<div class="cmd-history-empty">No commands run yet.</div>';
+    return;
+  }
+  box.innerHTML = hist.map((h) =>
+    `<div class="cmd-history-row">` +
+    `<span class="cmd-history-status ${h.success ? 'ok' : 'err'}">${h.success ? '✓' : '✕'}</span>` +
+    `<span class="cmd-history-label">${_esc(h.label)}</span>` +
+    `<span class="cmd-history-ts">${_esc(h.ts)}</span>` +
+    `</div>`
+  ).join('');
+}
+
 const LEVEL_COLORS = {
   ERROR: '#ef5350',
   CRITICAL: '#ef5350',
@@ -214,6 +263,34 @@ function _buildPanel() {
       .cmd-result.visible { display: block; }
       .cmd-result.ok { color: #56d364; }
       .cmd-result.err { color: #ef5350; }
+      .cmd-history-section { max-width: 540px; margin-top: 1.1rem; }
+      .cmd-history-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        color: #8b949e;
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        border-bottom: 1px solid #30363d;
+        padding-bottom: 0.3rem;
+        margin-bottom: 0.4rem;
+      }
+      .cmd-history-head .console-ctrl { padding: 0 0.3rem; font-size: 0.72rem; }
+      .cmd-history-empty { color: #6e7681; font-size: 0.75rem; padding: 0.3rem 0; }
+      .cmd-history-row {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        padding: 0.22rem 0.1rem;
+        font-size: 0.75rem;
+        border-bottom: 1px solid #21262d;
+      }
+      .cmd-history-status { flex-shrink: 0; width: 1em; text-align: center; }
+      .cmd-history-status.ok { color: #56d364; }
+      .cmd-history-status.err { color: #ef5350; }
+      .cmd-history-label { flex: 1; color: #c9d1d9; }
+      .cmd-history-ts { color: #6e7681; flex-shrink: 0; font-size: 0.72rem; }
       #console-resize-handle {
         height: 4px;
         background: transparent;
@@ -232,7 +309,16 @@ function _buildPanel() {
       <button class="console-ctrl" id="console-close" title="Close (\` key)">↓ Close</button>
     </div>
     <div id="console-log-area"></div>
-    <div id="console-cmd-area"><div class="cmd-list" id="cmd-list">Loading…</div></div>
+    <div id="console-cmd-area">
+      <div class="cmd-list" id="cmd-list">Loading…</div>
+      <div class="cmd-history-section">
+        <div class="cmd-history-head">
+          <span>Recent runs</span>
+          <button class="console-ctrl" id="cmd-history-clear" title="Clear history">✕ Clear</button>
+        </div>
+        <div id="cmd-history"></div>
+      </div>
+    </div>
   `;
 
   // Tab switching
@@ -247,6 +333,7 @@ function _buildPanel() {
     const area = _getLogArea();
     if (area) area.innerHTML = '';
   });
+  el.querySelector('#cmd-history-clear').addEventListener('click', _clearHistory);
 
   // Resize by dragging top edge
   const handle = el.querySelector('#console-resize-handle');
@@ -289,6 +376,7 @@ function _switchTab(name) {
     logArea.style.display = 'none';
     cmdArea.style.display = 'block';
     _loadCommands();
+    _renderHistory();
   } else {
     logArea.style.display = 'block';
     cmdArea.style.display = 'none';
@@ -316,13 +404,16 @@ async function _loadCommands() {
       item.addEventListener('click', async () => {
         result.textContent = 'Running…';
         result.className = 'cmd-result visible';
+        const ts = new Date().toLocaleString();
         try {
           const res = await api.post(`/health/console/run/${cmd.id}`, {});
           result.textContent = res.message || (res.success ? 'Done.' : 'Failed.');
           result.className = `cmd-result visible ${res.success ? 'ok' : 'err'}`;
+          _recordHistory({ id: cmd.id, label: cmd.label, ts, success: !!res.success });
         } catch (err) {
           result.textContent = err.message || 'Error';
           result.className = 'cmd-result visible err';
+          _recordHistory({ id: cmd.id, label: cmd.label, ts, success: false });
         }
       });
       list.appendChild(item);
@@ -407,6 +498,10 @@ function _buildTrigger() {
 // ── keyboard shortcut ─────────────────────────────────────────────────────────
 
 export function initConsole() {
+  // Server-side kill switch (MONSTEROPS_CONSOLE_ENABLED). '0' means disabled;
+  // absent is treated as enabled so a stale cache never hides the console.
+  if (localStorage.getItem('mr_console_enabled') === '0') return;
+
   const role = localStorage.getItem('mr_role') || '';
   if (role !== 'superadmin' && role !== 'admin') return;
 

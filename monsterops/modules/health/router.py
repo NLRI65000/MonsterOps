@@ -380,9 +380,15 @@ _CONSOLE_COMMANDS = {
 }
 
 
+def _require_console_enabled() -> None:
+    if not settings.console_enabled:
+        raise HTTPException(403, "Server Console is disabled (MONSTEROPS_CONSOLE_ENABLED=false)")
+
+
 @router.get("/console/commands")
 async def list_console_commands(
     _user=Depends(require_roles("superadmin")),
+    _enabled=Depends(_require_console_enabled),
 ) -> dict:
     return {"commands": [{"id": k, "label": v} for k, v in _CONSOLE_COMMANDS.items()]}
 
@@ -391,6 +397,7 @@ async def list_console_commands(
 async def run_console_command(
     command_id: str,
     _user=Depends(require_roles("superadmin")),
+    _enabled=Depends(_require_console_enabled),
 ) -> dict:
     if command_id not in _CONSOLE_COMMANDS:
         raise HTTPException(400, f"Unknown command: {command_id}")

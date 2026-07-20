@@ -160,6 +160,84 @@ class VendorTypesOut(BaseModel):
     supported: bool
 
 
+class RadiusDeployIn(BaseModel):
+
+    services: list[str] = []
+    server_ip: Optional[str] = None
+    auth_port: int = 1812
+    acct_port: int = 1813
+    variant: Optional[str] = None
+
+    @field_validator("services")
+    @classmethod
+    def _services(cls, v: list[str]) -> list[str]:
+        if len(v) > 8:
+            raise ValueError("too many services")
+        for s in v:
+            if not re.match(r"^[a-z0-9_]{1,16}$", s):
+                raise ValueError(f"invalid service key: {s!r}")
+        return v
+
+    @field_validator("variant")
+    @classmethod
+    def _variant(cls, v: Optional[str]) -> Optional[str]:
+        if v is None or v == "":
+            return None
+        if not re.match(r"^[a-z0-9_]{1,16}$", v):
+            raise ValueError("invalid variant")
+        return v
+
+    @field_validator("server_ip")
+    @classmethod
+    def _server_ip(cls, v: Optional[str]) -> Optional[str]:
+        if v is None or v == "":
+            return None
+        if not _HOST_RE.match(v):
+            raise ValueError("invalid server_ip")
+        return v
+
+    @field_validator("auth_port", "acct_port")
+    @classmethod
+    def _ports(cls, v: int) -> int:
+        if not (1 <= v <= 65535):
+            raise ValueError("port out of range")
+        return v
+
+
+class RadiusDeployServiceOut(BaseModel):
+    key: str
+    label: str
+    default: bool = False
+
+
+class RadiusDeployVariantOut(BaseModel):
+    key: str
+    label: str
+
+
+class RadiusDeployOptionsOut(BaseModel):
+    vendor: str
+    pushable: bool
+    services: list[RadiusDeployServiceOut]
+    variants: list[RadiusDeployVariantOut] = []
+    suggested_server_ip: str
+    auth_port: int = 1812
+    acct_port: int = 1813
+    secret_present: bool
+
+
+class RadiusDeployPreviewOut(BaseModel):
+    vendor: str
+    pushable: bool
+    variant: Optional[str] = None
+    lines: list[str]
+    notes: list[str]
+    config_text: str
+    server_ip: str
+    services: list[str]
+    secret_present: bool
+
+
 class DispatchRequest(BaseModel):
     nas_ids: list[int]
     command: str

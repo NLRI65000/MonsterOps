@@ -249,6 +249,8 @@ class DashboardView extends HTMLElement {
         .nas-type { color: var(--mr-text-muted); font-size: 0.66rem; font-family: var(--mr-font-data); }
         .nas-sessions { color: var(--mr-action); font-size: 0.72rem; font-family: var(--mr-font-data); }
         .nas-offline-txt { color: var(--mr-text-muted); font-size: 0.72rem; }
+        .nas-reach { color: var(--mr-text-muted); font-size: 0.68rem; font-family: var(--mr-font-data); display: inline-flex; align-items: center; gap: 0.25rem; white-space: nowrap; }
+        .nas-reach.down { color: var(--mr-reject); font-weight: 600; }
         .status-summary { display: flex; gap: 0.9rem; margin-bottom: 0.55rem; align-items: center; }
         .status-summary span { display: inline-flex; align-items: center; gap: 0.35rem; font-family: var(--mr-font-data); font-size: 0.66rem; font-weight: 600; letter-spacing: 0.04em; }
 
@@ -866,8 +868,27 @@ class DashboardView extends HTMLElement {
     }
     const active = rows.filter((r) => r.online).length;
     const idle = rows.length - active;
-    // "idle" == no RADIUS traffic in the last 15 min, NOT a reachability check —
-    // so it's shown muted (grey), never as a red "offline"/down state.
+    // Reachability (background ICMP probe) is independent of activity: a device
+    // can be idle (no RADIUS traffic) yet perfectly reachable, or look active yet
+    // be unreachable. "down" is a true probe failure and is shown red — that is
+    // the distinction the activity-based "idle" state cannot make on its own.
+    const down = rows.filter((r) => r.reachable === 'unreachable').length;
+    const reachChip = (n) => {
+      const rtt = n.last_rtt_ms != null ? ` ${Math.round(n.last_rtt_ms)}ms` : '';
+      switch (n.reachable) {
+        case 'reachable':
+          return '<span class="nas-reach" title="Reachable — responds to the ICMP probe">' +
+            `<span class="led led-on"></span>up${rtt}</span>`;
+        case 'unreachable':
+          return '<span class="nas-reach down" title="Unreachable — no reply to the ICMP probe">' +
+            '<span class="led led-off"></span>down</span>';
+        case 'unknown':
+          return '<span class="nas-reach" title="Reachability unknown — the probe could not run">' +
+            '<span class="led led-idle"></span>?</span>';
+        default:
+          return ''; // skipped (subnet/wildcard client) or not probed yet
+      }
+    };
     wrap.innerHTML = `
       <div class="status-summary">
         <span style="color:var(--mr-accept);"><span class="led led-on"></span> ${active} active</span>
@@ -876,14 +897,24 @@ class DashboardView extends HTMLElement {
         ? `<span style="color:var(--mr-text-muted);" title="No RADIUS traffic in the last 15 minutes — not a reachability check"><span class="led led-idle"></span> ${idle} idle</span>`
         : ''
     }
+        ${
+      down > 0
+        ? `<span style="color:var(--mr-reject);" title="Unreachable to the background ICMP probe"><span class="led led-off"></span> ${down} down</span>`
+        : ''
+    }
       </div>
       <div class="nas-list">
         ${
       rows.map((n) => `
           <div class="nas-item">
-            <span class="led ${n.online ? 'led-on' : 'led-idle'}"></span>
+            <span class="led ${n.online ? 'led-on' : 'led-idle'}" title="${
+        n.online
+          ? 'Active — live sessions or recent RADIUS traffic'
+          : 'Idle — no RADIUS traffic in the last 15 minutes'
+      }"></span>
             <span class="nas-name" title="${escHtml(n.nasname)}">${escHtml(n.shortname)}</span>
             <span class="nas-type">${escHtml(n.type)}</span>
+            ${reachChip(n)}
             ${
         n.online
           ? `<span class="nas-sessions">${n.session_count} sess</span>`

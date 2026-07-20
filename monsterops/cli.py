@@ -410,6 +410,81 @@ def _run_nas(args: argparse.Namespace) -> None:
 
 
 
+def _rotate(sub: Any) -> None:
+    p = sub.add_parser(
+        "rotate-secret-key",
+        help="Re-encrypt stored NAS + directory credentials under a new MONSTEROPS_SECRET_KEY",
+        description=(
+            "Re-encrypts every credential stored under MONSTEROPS_SECRET_KEY (NAS "
+            "Manager SSH secrets and directory bind passwords). Run it while the OLD "
+            "key is still configured, then update MONSTEROPS_SECRET_KEY to the new "
+            "value and restart. Operates directly on the database."
+        ),
+    )
+    p.add_argument(
+        "--old-key",
+        default=None,
+        help="Current key (default: MONSTEROPS_SECRET_KEY from the environment)",
+    )
+    p.add_argument(
+        "--new-key",
+        default=None,
+        help="New key (default: MONSTEROPS_NEW_SECRET_KEY, else prompt)",
+    )
+    p.add_argument("--dry-run", action="store_true", help="Report what would change; write nothing")
+    p.add_argument("--yes", action="store_true", help="Skip the confirmation prompt")
+
+
+def _run_rotate(args: argparse.Namespace) -> None:
+    import asyncio
+    import getpass
+
+    from monsterops.config import settings
+    from monsterops.database import SessionLocal
+    from monsterops.keyrotate import rotate_secret_key
+
+    old_key = args.old_key or settings.secret_key
+    new_key = args.new_key or os.environ.get("MONSTEROPS_NEW_SECRET_KEY")
+    if not new_key and not args.dry_run:
+        new_key = getpass.getpass("New MONSTEROPS_SECRET_KEY: ")
+        if new_key != getpass.getpass("Confirm new key: "):
+            print("Keys do not match.", file=sys.stderr)
+            sys.exit(1)
+    if not new_key:
+        new_key = old_key + "-dryrun"
+
+    if not args.yes and not args.dry_run:
+        ans = input("Re-encrypt all stored NAS and directory credentials? [y/N] ")
+        if ans.lower() not in ("y", "yes"):
+            sys.exit(0)
+
+    async def _do() -> Any:
+        async with SessionLocal() as db:
+            res = await rotate_secret_key(db, old_key, new_key, dry_run=args.dry_run)
+            if not args.dry_run:
+                await db.commit()
+            return res
+
+    try:
+        res = asyncio.run(_do())
+    except ValueError as exc:
+        print(f"Rotation aborted: {exc}", file=sys.stderr)
+        sys.exit(1)
+
+    verb = "Would re-encrypt" if args.dry_run else "Re-encrypted"
+    print(
+        f"{verb} {res.total} credential(s): "
+        f"{res.nas_manager} NAS Manager, {res.identity_sources} identity source(s)."
+    )
+    if not args.dry_run:
+        print(
+            "Now set MONSTEROPS_SECRET_KEY to the new value and restart MonsterOps "
+            "(update the systemd unit / .env). The old key no longer decrypts anything."
+        )
+
+
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         prog="monsterops",
@@ -431,6 +506,7 @@ def main() -> None:
     _users(sub)
     _groups(sub)
     _nas(sub)
+    _rotate(sub)
 
     args = parser.parse_args()
 
@@ -444,6 +520,8 @@ def main() -> None:
         _run_groups(args)
     elif args.command == "nas":
         _run_nas(args)
+    elif args.command == "rotate-secret-key":
+        _run_rotate(args)
     else:
         parser.print_help()
         sys.exit(1)

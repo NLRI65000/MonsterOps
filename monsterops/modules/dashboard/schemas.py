@@ -52,6 +52,9 @@ class NasStatus(BaseModel):
     type: str
     online: bool
     session_count: int
+    reachable: str | None = None
+    last_rtt_ms: float | None = None
+    last_probe_at: datetime | None = None
 
 
 class SessionType(BaseModel):

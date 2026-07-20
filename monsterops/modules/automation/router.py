@@ -11,18 +11,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from monsterops.database import get_db
 from monsterops.modules.auth.utils import require_roles
+from monsterops.modules.automation.engine import _VALID_ACTIONS
 from monsterops.modules.automation.models import MrAutomationRule
 
 router = APIRouter(prefix="/api/automation", tags=["automation"])
 
-_VALID_ACTIONS = [
-    "log",
-    "notify_webhook",
-    "disable_user",
-    "add_to_group",
-    "remove_from_group",
-    "send_email",
-]
 _VALID_OPS = ["eq", "neq", "contains", "startswith", "endswith", "regex"]
 
 
@@ -87,7 +80,7 @@ async def create_rule(
     _user=Depends(require_roles("superadmin", "admin")),
 ) -> RuleOut:
     if body.action_type not in _VALID_ACTIONS:
-        raise HTTPException(400, f"Unknown action_type. Valid: {_VALID_ACTIONS}")
+        raise HTTPException(400, f"Unknown action_type. Valid: {sorted(_VALID_ACTIONS)}")
     for c in body.conditions:
         if c.op not in _VALID_OPS:
             raise HTTPException(400, f"Unknown condition op '{c.op}'. Valid: {_VALID_OPS}")
@@ -128,7 +121,7 @@ async def update_rule(
     if not rule:
         raise HTTPException(404, "Rule not found")
     if body.action_type not in _VALID_ACTIONS:
-        raise HTTPException(400, f"Unknown action_type. Valid: {_VALID_ACTIONS}")
+        raise HTTPException(400, f"Unknown action_type. Valid: {sorted(_VALID_ACTIONS)}")
     rule.name = body.name
     rule.event_pattern = body.event_pattern
     rule.conditions = [c.model_dump() for c in body.conditions]

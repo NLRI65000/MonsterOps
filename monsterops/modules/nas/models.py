@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sqlalchemy import Column, ForeignKey, Index, Integer, String, Text
+from sqlalchemy import TIMESTAMP, Column, Float, ForeignKey, Index, Integer, String, Text
 
 from monsterops.database import Base
 
@@ -48,3 +48,17 @@ class RadiusGroupNasGroup(Base):
     nas_group_id = Column(
         Integer, ForeignKey("mr_nas_group.id", ondelete="CASCADE"), nullable=False
     )
+
+
+class NasReachability(Base):
+
+    __tablename__ = "mr_nas_reachability"
+
+    id = Column(Integer, primary_key=True)
+    nas_id = Column(Integer, ForeignKey("nas.id", ondelete="CASCADE"), nullable=False, unique=True)
+    status = Column(String(16), nullable=False, default="unknown")
+    method = Column(String(8), nullable=False, default="icmp")
+    last_rtt_ms = Column(Float)
+    last_seen_at = Column(TIMESTAMP(timezone=True))
+    last_probe_at = Column(TIMESTAMP(timezone=True))
+    detail = Column(Text)

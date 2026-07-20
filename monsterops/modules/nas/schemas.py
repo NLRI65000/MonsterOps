@@ -81,6 +81,19 @@ class NasSessionOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class NasReachabilityOut(BaseModel):
+
+    nas_id: int
+    shortname: str
+    nasname: str
+    status: str
+    method: str
+    last_rtt_ms: float | None = None
+    last_seen_at: datetime | None = None
+    last_probe_at: datetime | None = None
+    detail: str | None = None
+
+
 
 
 class NasGroupCreate(BaseModel):
