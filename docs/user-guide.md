@@ -123,8 +123,19 @@ pip install -e .
 cp .env.example .env
 # Edit .env — set MONSTEROPS_DATABASE_URL and MONSTEROPS_SECRET_KEY
 
-alembic upgrade head
+monsterops migrate          # or, from a checkout: alembic upgrade head
 
+monsterops serve --host 0.0.0.0 --port 8000
+```
+
+### From PyPI
+
+```bash
+pip install monsterops
+export MONSTEROPS_DATABASE_URL=postgresql+asyncpg://user:pass@localhost/radius
+export MONSTEROPS_SECRET_KEY=$(python -c "import secrets; print(secrets.token_urlsafe(32))")
+
+monsterops migrate          # migrations ship inside the package — no checkout needed
 monsterops serve --host 0.0.0.0 --port 8000
 ```
 

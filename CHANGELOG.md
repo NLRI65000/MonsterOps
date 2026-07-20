@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+## v1.12.1 — 2026-07-20
+
+### Added
+
+- **`pip install monsterops` now works end to end.** The database migrations ship
+  inside the package, and a new `monsterops migrate` command creates or upgrades the
+  schema — so you can install from PyPI, run `monsterops migrate`, then
+  `monsterops serve` without a source checkout. From a checkout, `alembic upgrade head`
+  still works too.
+
+### Changed
+
+- Package description reworded — MonsterOps is a self-hosted network operations
+  platform in its own right, not a "GUI to replace daloRADIUS".
+
+### Fixed
+
+- `monsterops.__version__` now reports the installed package version instead of a
+  stale hardcoded value.
+
 ## v1.12.0 — 2026-07-20
 
 ### Added

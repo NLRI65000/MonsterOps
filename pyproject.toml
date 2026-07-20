@@ -4,11 +4,27 @@ build-backend = "hatchling.build"
 
 [project]
 name = "monsterops"
-version = "1.12.0"
-description = "A simple, modular GUI for FreeRADIUS to replace daloRADIUS"
+version = "1.12.1"
+description = "A self-hosted network operations platform built around FreeRADIUS"
 readme = "README.md"
 license = { file = "LICENSE" }
+authors = [{ name = "NLRI65000", email = "nlrigithub@hotmail.com" }]
 requires-python = ">=3.11"
+keywords = ["freeradius", "radius", "daloradius", "aaa", "network", "authentication", "fastapi"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Web Environment",
+    "Framework :: FastAPI",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Internet",
+    "Topic :: System :: Systems Administration :: Authentication/Directory",
+]
 dependencies = [
     "fastapi>=0.111.0",
     "uvicorn[standard]>=0.30.0",
@@ -30,6 +46,12 @@ dependencies = [
     "ldap3>=2.9.1",
 ]
 
+[project.urls]
+Homepage = "https://github.com/NLRI65000/MonsterOps"
+Repository = "https://github.com/NLRI65000/MonsterOps"
+Issues = "https://github.com/NLRI65000/MonsterOps/issues"
+Changelog = "https://github.com/NLRI65000/MonsterOps/blob/main/CHANGELOG.md"
+
 [project.scripts]
 monsterops = "monsterops.cli:main"
 
@@ -39,3 +61,9 @@ monsterops = "monsterops.cli:main"
 [tool.hatch.build.targets.wheel]
 packages = ["monsterops"]
 artifacts = ["monsterops/static/**"]
+
+# Bundle the Alembic migrations inside the installed package so a pip install can
+# run `monsterops migrate` to create/upgrade its schema (the CLI resolves these).
+[tool.hatch.build.targets.wheel.force-include]
+"alembic" = "monsterops/alembic"
+"alembic.ini" = "monsterops/alembic.ini"

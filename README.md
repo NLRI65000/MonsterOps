@@ -32,6 +32,18 @@ sudo bash deploy/install.sh
 
 The installer sets up the service user, database, FreeRADIUS SQL integration, a systemd unit, and optional tooling (VPN backends, nftables, sudoers rules). Re-run `deploy/upgrade.sh` to update an existing install in place.
 
+### From PyPI
+
+```bash
+pip install monsterops
+export MONSTEROPS_DATABASE_URL=postgresql+asyncpg://user:pass@localhost/radius
+export MONSTEROPS_SECRET_KEY=$(python -c "import secrets; print(secrets.token_urlsafe(32))")
+monsterops migrate            # create/upgrade the database schema
+monsterops serve --host 0.0.0.0 --port 8000
+```
+
+The migrations ship inside the package, so `monsterops migrate` works without a source checkout. (You can also put the settings in a `.env` file in the working directory instead of exporting them.)
+
 ### From source (manual)
 
 ```bash
@@ -39,7 +51,7 @@ git clone https://github.com/NLRI65000/MonsterOps.git
 cd MonsterOps
 pip install -e .
 cp .env.example .env          # set MONSTEROPS_DATABASE_URL and MONSTEROPS_SECRET_KEY
-alembic upgrade head
+monsterops migrate            # or, from a checkout: alembic upgrade head
 monsterops serve --host 0.0.0.0 --port 8000
 ```
 

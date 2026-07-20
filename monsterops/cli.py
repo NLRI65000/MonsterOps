@@ -485,6 +485,44 @@ def _run_rotate(args: argparse.Namespace) -> None:
 
 
 
+def _alembic_ini_path(override: str | None = None) -> str:
+    import monsterops
+
+    pkg_dir = os.path.dirname(os.path.abspath(monsterops.__file__))
+    candidates = [
+        override,
+        os.path.join(pkg_dir, "alembic.ini"),
+        os.path.join(os.path.dirname(pkg_dir), "alembic.ini"),
+    ]
+    for path in candidates:
+        if path and os.path.isfile(path):
+            return path
+    raise SystemExit(
+        "Could not find alembic.ini — looked in the installed package and the repo "
+        "root. Pass --config to point at it explicitly."
+    )
+
+
+def _migrate(sub: Any) -> None:
+    p = sub.add_parser(
+        "migrate", help="Create or upgrade the database schema to the latest version"
+    )
+    p.add_argument("--revision", default="head", help="Target Alembic revision (default: head)")
+    p.add_argument("--config", default=None, help="Path to alembic.ini (auto-detected otherwise)")
+
+
+def _run_migrate(args: argparse.Namespace) -> None:
+    from alembic.config import Config
+
+    from alembic import command
+
+    cfg = Config(_alembic_ini_path(args.config))
+    command.upgrade(cfg, args.revision)
+    print(f"Database schema is up to date (target: {args.revision}).")
+
+
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         prog="monsterops",
@@ -506,6 +544,7 @@ def main() -> None:
     _users(sub)
     _groups(sub)
     _nas(sub)
+    _migrate(sub)
     _rotate(sub)
 
     args = parser.parse_args()
@@ -520,6 +559,8 @@ def main() -> None:
         _run_groups(args)
     elif args.command == "nas":
         _run_nas(args)
+    elif args.command == "migrate":
+        _run_migrate(args)
     elif args.command == "rotate-secret-key":
         _run_rotate(args)
     else:

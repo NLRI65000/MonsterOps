@@ -134,6 +134,9 @@ The `monsterops` CLI talks to the REST API, so it works against any running inst
 # Serve
 monsterops serve --host 0.0.0.0 --port 8000
 
+# Database schema (create or upgrade to the latest migration)
+monsterops migrate
+
 # Users
 monsterops users list --search acme --size 100
 monsterops users create alice --password 's3cret' --group premium --expiration 2026-12-31
@@ -150,7 +153,7 @@ monsterops nas list
 
 Add `--format json` to any read command for machine-readable output.
 
-Most subcommands talk to the REST API, but **`rotate-secret-key`** runs locally against the database (it re-encrypts stored credentials from the old key to a new one, so it must read the ciphertext directly):
+Most subcommands talk to the REST API. Two run locally against the database instead: **`migrate`** (applies Alembic migrations — the migrations ship inside the installed package, so it works from a `pip install` with no source checkout) and **`rotate-secret-key`** (re-encrypts stored credentials from the old key to a new one, so it must read the ciphertext directly):
 
 ```bash
 monsterops rotate-secret-key --new-key "<new-key>" --dry-run   # report only
