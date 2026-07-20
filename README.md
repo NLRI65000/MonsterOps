@@ -8,6 +8,10 @@
 
 Built with **FastAPI + PostgreSQL** and a **vanilla-JS Web Components** frontend — a single Python package, no Node.js, no build step.
 
+<p align="center">
+  <img src="assets/Dashboard.png" alt="MonsterOps — Monitor. Manage. Automate." width="460" />
+</p>
+
 ## Highlights
 
 - **RADIUS users & groups** — full `radcheck`/`radreply`/`radusergroup` CRUD, bulk CSV, per-user session & auth history
