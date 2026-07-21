@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Documentation
+    url: https://monsterops.org/docs/
+    about: Setup, configuration, and per-module guides — worth a look before opening an issue.
+  - name: Report a security vulnerability
+    url: https://github.com/NLRI65000/MonsterOps/security/policy
+    about: Please report security issues privately — not as a public issue.
