@@ -68,6 +68,13 @@ const TEMPLATE = `
     }
     input:focus { outline: none; border-color: var(--mr-action); box-shadow: 0 0 0 3px var(--mr-action-tint); }
     input::placeholder { color: var(--mr-text-faint); }
+    /* The 2FA code reads as a data value — mono, spaced, centred. */
+    input.code {
+      font-family: var(--mr-font-mono);
+      letter-spacing: 0.35em;
+      text-align: center;
+      font-size: 1.05rem;
+    }
     .btn {
       display: flex; align-items: center; justify-content: center; gap: 0.4rem;
       width: 100%; padding: 0.6rem;
@@ -79,6 +86,13 @@ const TEMPLATE = `
     .btn:hover { background: color-mix(in srgb, var(--mr-action) 88%, black); }
     .btn:disabled { opacity: 0.5; cursor: not-allowed; }
     .btn:focus-visible { outline: 2px solid var(--mr-action); outline-offset: 2px; }
+    .linkbtn {
+      display: block; width: 100%; margin-top: 0.9rem;
+      background: none; border: none; cursor: pointer;
+      color: var(--mr-text-muted); font-size: 0.76rem; font-family: var(--mr-font-body);
+      text-decoration: underline; text-underline-offset: 2px;
+    }
+    .linkbtn:hover { color: var(--mr-text); }
     .error { color: var(--mr-reject); font-size: 0.78rem; margin-top: 0.75rem; display: none; }
     .foot {
       font-size: 0.72rem; color: var(--mr-text-faint);
@@ -94,31 +108,54 @@ const TEMPLATE = `
   <div class="wrap">
     <div class="login">
       <img class="mascot" src="/img/monsterops-mascot.png" alt="MonsterOps" />
-      <div class="panel">
-      <div class="brand">
-        <span class="brand-name">MonsterOps</span>
-      </div>
-      <h1>Log in</h1>
-      <div class="subtitle">Enter your credentials to access the control panel.</div>
-      <form id="form">
-        <div class="field">
-          <label for="username">Username</label>
-          <input id="username" type="text" placeholder="admin" autocomplete="username" required />
-        </div>
-        <div class="field">
-          <label for="password">Password</label>
-          <input id="password" type="password" placeholder="••••••••" autocomplete="current-password" required />
-        </div>
-        <button class="btn" type="submit">
-          <span class="spinner" id="spinner"></span>
-          <span id="btn-text">Log in</span>
-        </button>
-        <div class="error" id="error"></div>
-      </form>
-      </div>
+      <div class="panel" id="panel"></div>
     </div>
     <div class="foot" id="node"></div>
   </div>
+`;
+
+const PASSWORD_STEP = `
+  <div class="brand">
+    <span class="brand-name">MonsterOps</span>
+  </div>
+  <h1>Log in</h1>
+  <div class="subtitle">Enter your credentials to access the control panel.</div>
+  <form id="form">
+    <div class="field">
+      <label for="username">Username</label>
+      <input id="username" type="text" placeholder="admin" autocomplete="username" required />
+    </div>
+    <div class="field">
+      <label for="password">Password</label>
+      <input id="password" type="password" placeholder="••••••••" autocomplete="current-password" required />
+    </div>
+    <button class="btn" type="submit">
+      <span class="spinner" id="spinner"></span>
+      <span id="btn-text">Log in</span>
+    </button>
+    <div class="error" id="error"></div>
+  </form>
+`;
+
+const MFA_STEP = `
+  <div class="brand">
+    <span class="brand-name">MonsterOps</span>
+  </div>
+  <h1>Two-factor authentication</h1>
+  <div class="subtitle" id="mfa-subtitle">Enter the 6-digit code from your authenticator app.</div>
+  <form id="mfa-form">
+    <div class="field">
+      <label for="code" id="code-label">Authentication code</label>
+      <input id="code" class="code" inputmode="numeric" autocomplete="one-time-code"
+             placeholder="123456" required autofocus />
+    </div>
+    <button class="btn" type="submit">
+      <span class="spinner" id="spinner"></span>
+      <span id="btn-text">Verify</span>
+    </button>
+    <div class="error" id="error"></div>
+    <button type="button" class="linkbtn" id="use-recovery">Use a recovery code instead</button>
+  </form>
 `;
 
 export function LoginView() {
@@ -127,41 +164,102 @@ export function LoginView() {
   el.attachShadow({ mode: 'open' }).innerHTML = TEMPLATE;
 
   const shadow = el.shadowRoot;
-  const form = shadow.getElementById('form');
-  const spinner = shadow.getElementById('spinner');
-  const btnText = shadow.getElementById('btn-text');
-  const errorEl = shadow.getElementById('error');
-  const btn = shadow.querySelector('.btn');
+  const panel = shadow.getElementById('panel');
 
   const nodeEl = shadow.getElementById('node');
   if (nodeEl) nodeEl.textContent = `MonsterOps · ${(location.hostname || 'local').toLowerCase()}`;
 
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const username = shadow.getElementById('username').value.trim();
-    const password = shadow.getElementById('password').value;
+  // Land in the app after a successful sign-in. When 2FA enrollment is required
+  // but not yet done, drop the admin straight on the Security panel to set it up.
+  function finish(data, username) {
+    localStorage.setItem('mr_username', username);
+    localStorage.setItem('mr_role', data.role);
+    location.href = data.mfa_setup_required ? '/#/system?view=security' : '/';
+  }
 
-    spinner.style.display = 'block';
-    btn.disabled = true;
-    btnText.textContent = 'Logging in…';
-    errorEl.style.display = 'none';
+  function busy(on, verb) {
+    const spinner = shadow.getElementById('spinner');
+    const btnText = shadow.getElementById('btn-text');
+    const btn = panel.querySelector('.btn');
+    const errorEl = shadow.getElementById('error');
+    spinner.style.display = on ? 'block' : 'none';
+    btn.disabled = on;
+    if (on) errorEl.style.display = 'none';
+    if (verb) btnText.textContent = verb;
+  }
 
-    try {
-      const data = await api.post('/auth/login', { username, password });
-      // Tokens arrive as HttpOnly cookies; only keep non-secret display identity.
-      localStorage.setItem('mr_username', username);
-      localStorage.setItem('mr_role', data.role);
-      // Full reload so app.js re-runs with auth in place
-      location.href = '/';
-    } catch (err) {
-      errorEl.textContent = err.message ?? 'Login failed';
-      errorEl.style.display = 'block';
-    } finally {
-      spinner.style.display = 'none';
-      btn.disabled = false;
-      btnText.textContent = 'Log in';
-    }
-  });
+  function showError(msg) {
+    const errorEl = shadow.getElementById('error');
+    errorEl.textContent = msg ?? 'Something went wrong';
+    errorEl.style.display = 'block';
+  }
 
+  // ── Step 2: enter a TOTP or recovery code ──────────────────────────────────
+  function renderMfaStep(pendingToken, username) {
+    panel.innerHTML = MFA_STEP;
+    const form = shadow.getElementById('mfa-form');
+    const codeInput = shadow.getElementById('code');
+    let recoveryMode = false;
+
+    shadow.getElementById('use-recovery').addEventListener('click', () => {
+      recoveryMode = !recoveryMode;
+      shadow.getElementById('mfa-subtitle').textContent = recoveryMode
+        ? 'Enter one of your one-time recovery codes.'
+        : 'Enter the 6-digit code from your authenticator app.';
+      shadow.getElementById('code-label').textContent = recoveryMode
+        ? 'Recovery code'
+        : 'Authentication code';
+      codeInput.classList.toggle('code', !recoveryMode);
+      codeInput.placeholder = recoveryMode ? 'ABCDE-FGHJK' : '123456';
+      codeInput.inputMode = recoveryMode ? 'text' : 'numeric';
+      shadow.getElementById('use-recovery').textContent = recoveryMode
+        ? 'Use an authenticator code instead'
+        : 'Use a recovery code instead';
+      codeInput.value = '';
+      codeInput.focus();
+    });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      busy(true, 'Verifying…');
+      try {
+        const data = await api.post('/auth/2fa/verify', {
+          pending_token: pendingToken,
+          code: codeInput.value.trim(),
+        });
+        finish(data, username);
+      } catch (err) {
+        showError(err.message ?? 'Incorrect code');
+        busy(false, 'Verify');
+        codeInput.select();
+      }
+    });
+  }
+
+  // ── Step 1: username + password ────────────────────────────────────────────
+  function renderPasswordStep() {
+    panel.innerHTML = PASSWORD_STEP;
+    const form = shadow.getElementById('form');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const username = shadow.getElementById('username').value.trim();
+      const password = shadow.getElementById('password').value;
+      busy(true, 'Logging in…');
+      try {
+        const data = await api.post('/auth/login', { username, password });
+        if (data.mfa_required) {
+          renderMfaStep(data.pending_token, username);
+          return;
+        }
+        finish(data, username);
+      } catch (err) {
+        showError(err.message ?? 'Login failed');
+        busy(false, 'Log in');
+      }
+    });
+  }
+
+  renderPasswordStep();
   return el;
 }

@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from monsterops.config import settings
 from monsterops.database import get_db
+from monsterops.modules.nas_manager import crypto as _crypto
 
 _bearer = HTTPBearer(auto_error=False)
 _ph = PasswordHasher()
@@ -53,6 +54,16 @@ def verify_password(plain: str, hashed: str) -> bool:
 
 
 
+def encrypt_secret(plaintext: str) -> str:
+    return _crypto.encrypt(plaintext, settings.secret_key)
+
+
+def decrypt_secret(ciphertext: str) -> str:
+    return _crypto.decrypt(ciphertext, settings.secret_key)
+
+
+
+
 def create_access_token(user_id: int, role: str) -> str:
     expire = datetime.now(timezone.utc) + timedelta(minutes=settings.access_token_expire_minutes)
     return jwt.encode(
@@ -69,6 +80,22 @@ def create_refresh_token(user_id: int) -> str:
         settings.secret_key,
         algorithm=settings.algorithm,
     )
+
+
+def create_pending_token(user_id: int) -> str:
+    expire = datetime.now(timezone.utc) + timedelta(minutes=5)
+    return jwt.encode(
+        {"sub": str(user_id), "type": "mfa_pending", "exp": expire},
+        settings.secret_key,
+        algorithm=settings.algorithm,
+    )
+
+
+def decode_pending_token(token: str) -> int:
+    payload = _decode(token)
+    if payload.get("type") != "mfa_pending":
+        raise HTTPException(status_code=401, detail="Invalid two-factor session")
+    return int(payload["sub"])
 
 
 def _decode(token: str) -> dict:

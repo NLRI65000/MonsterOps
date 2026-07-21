@@ -474,7 +474,8 @@ def _run_rotate(args: argparse.Namespace) -> None:
     verb = "Would re-encrypt" if args.dry_run else "Re-encrypted"
     print(
         f"{verb} {res.total} credential(s): "
-        f"{res.nas_manager} NAS Manager, {res.identity_sources} identity source(s)."
+        f"{res.nas_manager} NAS Manager, {res.identity_sources} identity source(s), "
+        f"{res.admin_totp} admin 2FA secret(s)."
     )
     if not args.dry_run:
         print(

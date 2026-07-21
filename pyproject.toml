@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "monsterops"
-version = "1.12.2"
+version = "1.13.0"
 description = "A self-hosted network operations platform built around FreeRADIUS"
 readme = "README.md"
 license = { file = "LICENSE" }

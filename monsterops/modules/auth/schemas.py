@@ -11,6 +11,8 @@ class AdminUserOut(BaseModel):
     email: str | None
     role: str
     is_active: bool
+    totp_required: bool = False
+    totp_enabled: bool = False
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -28,6 +30,7 @@ class AdminUserUpdate(BaseModel):
     password: str | None = Field(default=None, min_length=8)
     role: str | None = Field(default=None, pattern="^(superadmin|admin|readonly)$")
     is_active: bool | None = None
+    totp_required: bool | None = None
 
 
 class SelfUpdate(BaseModel):
@@ -54,9 +57,57 @@ class SessionResponse(BaseModel):
     username: str
 
 
+class LoginResponse(BaseModel):
+
+    mfa_required: bool = False
+    mfa_setup_required: bool = False
+    role: str | None = None
+    username: str | None = None
+    pending_token: str | None = None
+
+
 class StatusResponse(BaseModel):
     first_run: bool
     console_enabled: bool = False
+
+
+
+
+class TotpSetupResponse(BaseModel):
+
+    secret: str
+    otpauth_uri: str
+
+
+class TotpEnableRequest(BaseModel):
+    code: str = Field(..., min_length=6, max_length=8)
+
+
+class TotpDisableRequest(BaseModel):
+
+    password: str | None = None
+    code: str | None = None
+
+
+class TotpStatusResponse(BaseModel):
+    enabled: bool
+    required: bool
+
+
+class TotpEnableResponse(BaseModel):
+
+    enabled: bool
+    recovery_codes: list[str]
+
+
+class RecoveryCodesResponse(BaseModel):
+    recovery_codes: list[str]
+
+
+class TotpVerifyRequest(BaseModel):
+
+    pending_token: str
+    code: str
 
 
 class AuditLogOut(BaseModel):

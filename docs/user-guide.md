@@ -215,6 +215,7 @@ All variables use the prefix `MONSTEROPS_`. Set them in `/opt/monsterops/.env` (
 | `MONSTEROPS_RADIUS_SERVER_IP` | No | `""` (auto) | Advertised address of this server, written into generated NAS config by the RADIUS Setup deploy. Blank auto-detects the egress IP toward each NAS; set it when the server is behind NAT |
 | `MONSTEROPS_NAS_PROBE_ENABLED` | No | `true` | Background ICMP probe that gives the dashboard a true reachable/unreachable state per NAS. Tune with `MONSTEROPS_NAS_PROBE_INTERVAL_SECONDS` (60) and `MONSTEROPS_NAS_PROBE_TIMEOUT_SECONDS` (3) |
 | `MONSTEROPS_CONSOLE_ENABLED` | No | `false` | Turn on the Server Console (superadmin only). Off by default because its command palette reloads/restarts FreeRADIUS and runs migrations straight from the browser — set to `true` to enable it |
+| `MONSTEROPS_REQUIRE_2FA` | No | `false` | Require two-factor authentication for **every** admin account. When `true`, an admin that hasn't enrolled is sent to set it up on next sign-in, and no one can turn their own 2FA off. See [Two-factor authentication](#two-factor-authentication-2fa) |
 
 Restart the service after changing any variable:
 
@@ -224,7 +225,7 @@ sudo systemctl restart monsterops
 
 ### Rotating the secret key
 
-`MONSTEROPS_SECRET_KEY` does double duty: it signs session tokens **and** derives the key that encrypts credentials at rest — NAS Manager SSH/Telnet secrets and directory (AD/LDAP) bind passwords. So you can't just change it: the old ciphertext would no longer decrypt, and NAS Manager logins plus directory-delegated auth would break. Rotate it with the CLI **while the old key is still configured**:
+`MONSTEROPS_SECRET_KEY` does double duty: it signs session tokens **and** derives the key that encrypts credentials at rest — NAS Manager SSH/Telnet secrets, directory (AD/LDAP) bind passwords, and admin two-factor (TOTP) secrets. So you can't just change it: the old ciphertext would no longer decrypt, and NAS Manager logins, directory-delegated auth, plus two-factor sign-in would break. Rotate it with the CLI **while the old key is still configured**:
 
 ```bash
 # Dry run first — reports how many credentials would be re-encrypted, writes nothing
@@ -286,6 +287,23 @@ The `✦` button in the bottom-left opens the changelog drawer, showing release 
 | `readonly` | View all data, no writes |
 | `admin` | Full CRUD on users, groups, NAS, pools, realms, VPN tunnels; cannot manage admin accounts or activate tunnels |
 | `superadmin` | All of the above plus admin user management, database backup, VPN bring-up/down, firewall apply, server console |
+
+### Two-factor authentication (2FA)
+
+Admin accounts can add a second factor — a time-based one-time code (TOTP) from an authenticator app such as Google Authenticator, Aegis, or 1Password. After that, signing in takes the password **and** a fresh 6-digit code. No external service is involved; codes are computed offline from a shared secret stored encrypted on the server.
+
+**Turn it on (per account, self-service):** go to **System → Security → Set up two-factor**. Scan the QR code with your app (or type the setup key shown beneath it), enter the 6-digit code to confirm, then **save the recovery codes** — ten one-time codes that let you back in if you lose the device. They are shown once. You can regenerate them later from the same screen (which invalidates the old set).
+
+**Signing in with 2FA:** after your password you'll be asked for the current code. Lost your device? Choose **Use a recovery code instead** and enter one of the saved codes — each works once.
+
+**Requiring it (superadmin):**
+
+- **One account:** edit the admin in **System → Admins** and set **Require two-factor** to *Required*. They'll be forced to enrol on their next sign-in and can't turn it off themselves.
+- **Everyone:** set `MONSTEROPS_REQUIRE_2FA=true` (see [Environment Variables](#5-environment-variables)) to require it estate-wide.
+
+**Lost device with no recovery codes:** a superadmin can clear another admin's 2FA with **Reset 2FA** in **System → Admins**. The account can then sign in with just its password (and re-enrol if still required). Every enable, disable, reset, and failed code attempt is written to the audit log.
+
+> The TOTP secret is encrypted at rest with the same key as other stored credentials, so it is re-encrypted automatically by [`rotate-secret-key`](#rotating-the-secret-key). Codes are accepted within a ±30-second window to tolerate clock drift — keep the server's clock in sync (NTP).
 
 ---
 

@@ -1,12 +1,13 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from monsterops.modules.auth.models import AdminTotp
 from monsterops.modules.nas.models import (
     Nas,  # noqa: F401 — registers the MrNasManager.nas relationship target
 )
@@ -17,18 +18,30 @@ from monsterops.modules.realms.models import MrIdentitySource
 _ENCRYPTED_FIELDS: list[tuple[type[Any], str]] = [
     (MrNasManager, "secret_enc"),
     (MrIdentitySource, "bind_password_enc"),
+    (AdminTotp, "secret_enc"),
 ]
 
 
 @dataclass
 class RotationResult:
-    nas_manager: int = 0
-    identity_sources: int = 0
+    counts: dict[str, int] = field(default_factory=dict)
     dry_run: bool = False
 
     @property
     def total(self) -> int:
-        return self.nas_manager + self.identity_sources
+        return sum(self.counts.values())
+
+    @property
+    def nas_manager(self) -> int:
+        return self.counts.get("mr_nas_manager", 0)
+
+    @property
+    def identity_sources(self) -> int:
+        return self.counts.get("mr_identity_source", 0)
+
+    @property
+    def admin_totp(self) -> int:
+        return self.counts.get("mr_admin_totp", 0)
 
 
 async def rotate_secret_key(
@@ -39,7 +52,7 @@ async def rotate_secret_key(
     if old_key == new_key:
         raise ValueError("old and new keys are identical — nothing to rotate")
 
-    counts = {"mr_nas_manager": 0, "mr_identity_source": 0}
+    counts: dict[str, int] = {model.__tablename__: 0 for model, _ in _ENCRYPTED_FIELDS}
     pending: list[tuple[Any, str, str]] = []
 
     for model, attr in _ENCRYPTED_FIELDS:
@@ -64,8 +77,4 @@ async def rotate_secret_key(
             setattr(row, attr, new_ct)
         await db.flush()
 
-    return RotationResult(
-        nas_manager=counts["mr_nas_manager"],
-        identity_sources=counts["mr_identity_source"],
-        dry_run=dry_run,
-    )
+    return RotationResult(counts=counts, dry_run=dry_run)

@@ -86,6 +86,7 @@ All settings are environment variables prefixed `MONSTEROPS_`, read from `.env` 
 | `MONSTEROPS_NAS_PROBE_INTERVAL_SECONDS` | `60` | Seconds between probe sweeps |
 | `MONSTEROPS_NAS_PROBE_TIMEOUT_SECONDS` | `3` | Per-probe timeout |
 | `MONSTEROPS_CONSOLE_ENABLED` | `false` | Enable the Server Console (its palette restarts FreeRADIUS / runs migrations from the browser, so it is opt-in) |
+| `MONSTEROPS_REQUIRE_2FA` | `false` | Require two-factor (TOTP) for every admin account; unenrolled admins are forced to set it up at next sign-in |
 
 ### Log retention
 
@@ -123,6 +124,8 @@ The first-run wizard creates the initial `superadmin`. External API access uses 
 The browser session uses **HttpOnly cookies** — the JWT is never handed to JavaScript or stored in `localStorage`, so an XSS bug can't steal it. A short-lived access cookie is rotated silently by a longer-lived refresh cookie. Because auth rides on a cookie, mutating requests carry a **CSRF token** (a readable `mr_csrf` cookie echoed in the `X-CSRF-Token` header; enforced server-side). Programmatic clients (CLI, API keys, scripts) authenticate with `Authorization: Bearer` and are not subject to CSRF.
 
 > **Serve production over HTTPS.** Session cookies become `Secure` automatically when the request is HTTPS (or a proxy sets `X-Forwarded-Proto: https`). Over plain `http://` they are intentionally not `Secure` so local/LAN access still works — but the token then travels unencrypted, so don't run a production instance on bare `http`.
+
+**Two-factor authentication (TOTP).** Admins can protect sign-in with a second factor from an authenticator app (RFC 6238), with one-time recovery codes for a lost device. Enrol under **System → Security**; a superadmin can require it per account or estate-wide (`MONSTEROPS_REQUIRE_2FA`) and reset it for a locked-out admin. The shared secret is encrypted at rest. See the [user guide](user-guide.md#two-factor-authentication-2fa) for the full walkthrough.
 
 ---
 

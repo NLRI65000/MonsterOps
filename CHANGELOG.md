@@ -2,6 +2,30 @@
 
 ## Unreleased
 
+## v1.13.0 — 2026-07-21
+
+### Added
+
+- **Two-factor authentication (TOTP) for admin login.** Admin accounts can add a
+  second factor from an authenticator app (Google Authenticator, Aegis, 1Password,
+  …). Enrol under **System → Security** — scan the QR code or enter the setup key,
+  confirm a 6-digit code, and save the ten one-time recovery codes. Sign-in then
+  asks for a current code after the password; a recovery code can be used once if
+  the device is lost.
+- **Superadmin enforcement and reset.** Require two-factor per account
+  (**System → Admins → Require two-factor**) or for every admin at once with
+  `MONSTEROPS_REQUIRE_2FA=true`; a required-but-unenrolled admin is prompted to set
+  it up at next sign-in and can't turn it off. A superadmin can **Reset 2FA** for a
+  colleague who has lost their device. The Admins list shows each account's 2FA
+  state, and enable/disable/reset/failed-code events are recorded in the audit log.
+
+### Security
+
+- Two-factor codes follow the standard TOTP scheme (RFC 6238) and are verified with
+  a rate limit and a ±30-second window for clock drift. The shared secret is stored
+  encrypted at rest under `MONSTEROPS_SECRET_KEY` and re-encrypted by
+  `monsterops rotate-secret-key`.
+
 ## v1.12.2 — 2026-07-20
 
 ### Changed

@@ -3,6 +3,7 @@ import { api } from '/js/api.js';
 import { toast } from '/js/components/app-toast.js';
 import { emptyRowHTML, emptyStateHTML, skeletonBlock } from '/js/utils/empty.js';
 import { applyServerErrors, clearFieldErrors, setFieldError } from '/js/utils/form.js';
+import { qrSvg } from '/js/utils/qr.js';
 
 function _esc(s) {
   return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(
@@ -201,6 +202,7 @@ class SystemView extends HTMLElement {
       { key: 'audit', label: 'Audit Log', super: true },
       { key: 'apikeys', label: 'API Keys', admin: true },
       { key: 'settings', label: 'Settings', super: false },
+      { key: 'security', label: 'Security', super: false },
       { key: 'backup', label: 'Backup', super: true },
       { key: 'plugins', label: 'Plugins', super: false },
     ];
@@ -290,7 +292,7 @@ class SystemView extends HTMLElement {
     }
         </div>
         <table>
-          <thead><tr><th>Username</th><th>Email</th><th>Role</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead>
+          <thead><tr><th>Username</th><th>Email</th><th>Role</th><th>Status</th><th>2FA</th><th>Created</th><th>Actions</th></tr></thead>
           <tbody>
             ${admins.map((a) => this._renderAdminRow(a)).join('')}
           </tbody>
@@ -304,7 +306,7 @@ class SystemView extends HTMLElement {
     const isConfirm = this._confirmDeleteId === a.id;
     if (isConfirm) {
       return `<tr class="confirm-row">
-        <td colspan="5"><span style="font-size:0.83rem">Delete <strong>${
+        <td colspan="6"><span style="font-size:0.83rem">Delete <strong>${
         _esc(a.username)
       }</strong>? This cannot be undone.</span></td>
         <td>
@@ -323,9 +325,19 @@ class SystemView extends HTMLElement {
       <td><span class="badge ${a.is_active ? 'badge-success' : 'badge-danger'}">${
       a.is_active ? 'Active' : 'Disabled'
     }</span></td>
+      <td>
+        <span class="badge ${a.totp_enabled ? 'badge-success' : 'badge-info'}">${
+      a.totp_enabled ? 'On' : 'Off'
+    }</span>${a.totp_required ? ' <span class="badge badge-warning">Required</span>' : ''}
+      </td>
       <td class="muted" style="font-size:0.78rem">${_fmtTime(a.created_at)}</td>
       <td>
         <button class="btn btn-sm" data-action="edit" data-id="${a.id}">Edit</button>
+        ${
+      a.totp_enabled
+        ? `<button class="btn btn-sm" data-action="reset-2fa" data-id="${a.id}" style="margin-left:4px">Reset 2FA</button>`
+        : ''
+    }
         ${
       !isSelf
         ? `<button class="btn btn-sm btn-danger" data-action="delete" data-id="${a.id}" style="margin-left:4px">Delete</button>`
@@ -380,6 +392,13 @@ class SystemView extends HTMLElement {
             <select class="input" id="f-active">
               <option value="true" ${admin.is_active ? 'selected' : ''}>Active</option>
               <option value="false" ${!admin.is_active ? 'selected' : ''}>Disabled</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Require two-factor</label>
+            <select class="input" id="f-totp-required">
+              <option value="false" ${!admin.totp_required ? 'selected' : ''}>Optional</option>
+              <option value="true" ${admin.totp_required ? 'selected' : ''}>Required</option>
             </select>
           </div>`
         : ''
@@ -442,6 +461,14 @@ class SystemView extends HTMLElement {
         this._confirmDeleteId = null;
         el.innerHTML = this._renderAdminsHTML(this._adminsData);
         this._bindAdmins(el);
+      } else if (action === 'reset-2fa') {
+        try {
+          await api.post(`/auth/admins/${id}/2fa/reset`, {});
+          toast('Two-factor reset — the admin can enrol again.', 'success');
+          await this._tab_admins(el);
+        } catch (e2) {
+          toast(e2.message, 'error');
+        }
       }
     });
   }
@@ -482,6 +509,8 @@ class SystemView extends HTMLElement {
         const body = { email, role };
         if (password) body.password = password;
         if (isActive !== undefined) body.is_active = isActive === 'true';
+        const totpReq = el.querySelector('#f-totp-required')?.value;
+        if (totpReq !== undefined) body.totp_required = totpReq === 'true';
         await api.put(`/auth/admins/${this._editId}`, body);
       } else {
         await api.post('/auth/admins', { username, email, password, role });
@@ -502,6 +531,196 @@ class SystemView extends HTMLElement {
       } else {
         errEl.textContent = msg;
       }
+    }
+  }
+
+  // ── Security (own two-factor) ───────────────────────────────────────────────
+
+  async _tab_security(el) {
+    this._secStatus = await api.get('/auth/2fa/status');
+    this._secSetup = null;
+    this._secCodes = null;
+    this._renderSecurity(el);
+  }
+
+  _renderSecurity(el) {
+    const st = this._secStatus || { enabled: false, required: false };
+
+    // Freshly issued recovery codes take over the panel until acknowledged.
+    if (this._secCodes) {
+      el.innerHTML = this._securityCodesHTML(this._secCodes);
+      el.querySelector('#sec-copy')?.addEventListener('click', () => {
+        navigator.clipboard?.writeText(this._secCodes.join('\n'));
+        toast('Recovery codes copied.', 'success');
+      });
+      el.querySelector('#sec-done')?.addEventListener('click', () => this._tab_security(el));
+      return;
+    }
+
+    // Mid-enrolment: QR + manual key + confirm code.
+    if (this._secSetup) {
+      el.innerHTML = this._securitySetupHTML(this._secSetup);
+      el.querySelector('#sec-cancel')?.addEventListener('click', () => {
+        this._secSetup = null;
+        this._renderSecurity(el);
+      });
+      el.querySelector('#sec-enable-form')?.addEventListener('submit', (e) => {
+        e.preventDefault();
+        this._enableTotp(el);
+      });
+      return;
+    }
+
+    el.innerHTML = this._securityStatusHTML(st);
+    el.querySelector('#sec-start')?.addEventListener('click', () => this._startTotpSetup(el));
+    el.querySelector('#sec-regen')?.addEventListener('click', () => this._regenCodes(el));
+    el.querySelector('#sec-disable-form')?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      this._disableTotp(el);
+    });
+  }
+
+  _securityStatusHTML(st) {
+    if (st.enabled) {
+      return `
+        <div class="card">
+          <div class="card-header"><span class="card-title">Two-factor authentication</span>
+            <span><span class="badge badge-success">On</span>${
+        st.required ? ' <span class="badge badge-warning">Required</span>' : ''
+      }</span>
+          </div>
+          <div class="backup-body">
+            <div class="backup-desc">Your sign-in is protected by an authenticator app. You'll be asked for a 6-digit code after your password.</div>
+            <div><button class="btn btn-sm" id="sec-regen">Regenerate recovery codes</button></div>
+            ${
+        st.required
+          ? `<div class="info-box">Two-factor is required for your account, so it can't be turned off. A superadmin can reset it if you lose your device.</div>`
+          : `<form id="sec-disable-form" style="border-top:1px solid var(--color-border);padding-top:0.85rem;margin-top:0.25rem">
+                <div class="form-label" style="margin-bottom:0.35rem">Turn off two-factor</div>
+                <div style="display:flex;gap:0.5rem;align-items:flex-start">
+                  <input class="input" id="sec-pw" type="password" placeholder="Confirm your password" style="max-width:260px" />
+                  <button class="btn btn-danger btn-sm" type="submit">Turn off</button>
+                </div>
+                <div class="error-msg" id="sec-error"></div>
+              </form>`
+      }
+          </div>
+        </div>`;
+    }
+    return `
+      <div class="card">
+        <div class="card-header"><span class="card-title">Two-factor authentication</span>
+          <span><span class="badge badge-info">Off</span>${
+      st.required ? ' <span class="badge badge-warning">Required</span>' : ''
+    }</span>
+        </div>
+        <div class="backup-body">
+          <div class="backup-desc">Add a second factor to your admin sign-in: a 6-digit code from an authenticator app (Google Authenticator, Aegis, 1Password, …). It takes about a minute to set up.</div>
+          ${
+      st.required
+        ? `<div class="warn-box">Your account requires two-factor authentication. Please set it up now.</div>`
+        : ''
+    }
+          <div><button class="btn btn-primary" id="sec-start">Set up two-factor</button></div>
+        </div>
+      </div>`;
+  }
+
+  _securitySetupHTML(s) {
+    let qr = '';
+    try {
+      qr = qrSvg(s.otpauth_uri, { moduleColor: '#0A0A0A', background: '#FFFFFF', border: 2 });
+    } catch {
+      qr = '';
+    }
+    const key = _esc(s.secret.replace(/(.{4})(?=.)/g, '$1 '));
+    return `
+      <div class="card">
+        <div class="card-header"><span class="card-title">Set up two-factor</span></div>
+        <div class="backup-body">
+          <div class="backup-desc">1. Scan this QR code with your authenticator app${
+      qr ? '' : ' (or add it manually with the key below)'
+    }.</div>
+          ${
+      qr
+        ? `<div style="background:#fff;padding:12px;border-radius:var(--radius);width:200px;height:200px;box-sizing:content-box">${qr}</div>`
+        : ''
+    }
+          <div>
+            <div class="form-label" style="margin-bottom:0.25rem">Or enter this setup key manually</div>
+            <div class="mono" style="user-select:all;background:var(--color-bg);border:1px solid var(--color-border);border-radius:var(--radius);padding:0.5rem 0.7rem;letter-spacing:0.08em;word-break:break-all">${key}</div>
+          </div>
+          <form id="sec-enable-form" style="border-top:1px solid var(--color-border);padding-top:0.85rem;margin-top:0.25rem">
+            <div class="form-label" style="margin-bottom:0.35rem">2. Enter the 6-digit code to confirm</div>
+            <div style="display:flex;gap:0.5rem;align-items:flex-start">
+              <input class="input mono" id="sec-code" inputmode="numeric" autocomplete="one-time-code" placeholder="123456" style="max-width:160px;letter-spacing:0.2em" />
+              <button class="btn btn-primary btn-sm" type="submit">Enable</button>
+              <button class="btn btn-sm" type="button" id="sec-cancel">Cancel</button>
+            </div>
+            <div class="error-msg" id="sec-error"></div>
+          </form>
+        </div>
+      </div>`;
+  }
+
+  _securityCodesHTML(codes) {
+    return `
+      <div class="card">
+        <div class="card-header"><span class="card-title">Save your recovery codes</span></div>
+        <div class="backup-body">
+          <div class="warn-box">Store these somewhere safe. Each code works <strong>once</strong> if you lose your authenticator. They won't be shown again.</div>
+          <div class="mono" style="display:grid;grid-template-columns:1fr 1fr;gap:0.35rem 1rem;background:var(--color-bg);border:1px solid var(--color-border);border-radius:var(--radius);padding:0.75rem 1rem;user-select:all">
+            ${codes.map((c) => `<span>${_esc(c)}</span>`).join('')}
+          </div>
+          <div class="form-actions">
+            <button class="btn btn-sm" id="sec-copy">Copy codes</button>
+            <button class="btn btn-primary btn-sm" id="sec-done">I've saved them</button>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  async _startTotpSetup(el) {
+    try {
+      this._secSetup = await api.post('/auth/2fa/setup', {});
+      this._renderSecurity(el);
+    } catch (e) {
+      toast(e.message, 'error');
+    }
+  }
+
+  async _enableTotp(el) {
+    const code = el.querySelector('#sec-code')?.value.trim();
+    const errEl = el.querySelector('#sec-error');
+    try {
+      const res = await api.post('/auth/2fa/enable', { code });
+      this._secSetup = null;
+      this._secCodes = res.recovery_codes;
+      this._renderSecurity(el);
+    } catch (e) {
+      if (errEl) errEl.textContent = e.message ?? 'Could not enable two-factor';
+    }
+  }
+
+  async _regenCodes(el) {
+    try {
+      const res = await api.post('/auth/2fa/recovery-codes', {});
+      this._secCodes = res.recovery_codes;
+      this._renderSecurity(el);
+    } catch (e) {
+      toast(e.message, 'error');
+    }
+  }
+
+  async _disableTotp(el) {
+    const password = el.querySelector('#sec-pw')?.value;
+    const errEl = el.querySelector('#sec-error');
+    try {
+      await api.post('/auth/2fa/disable', { password });
+      toast('Two-factor turned off.', 'success');
+      await this._tab_security(el);
+    } catch (e) {
+      if (errEl) errEl.textContent = e.message ?? 'Could not turn off two-factor';
     }
   }
 

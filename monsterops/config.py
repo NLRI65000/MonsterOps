@@ -26,6 +26,8 @@ class Settings(BaseSettings):
 
     console_enabled: bool = False
 
+    require_2fa: bool = False
+
     radius_server_ip: str = ""
 
     secret_key: str = "change-me-before-production"
