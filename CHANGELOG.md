@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+## v1.12.2 — 2026-07-20
+
+### Changed
+
+- Project links on PyPI now point at the documentation site: **Homepage** is
+  https://monsterops.org, with a new **Documentation** link to
+  https://monsterops.org/docs/. The source repository, issue tracker, and
+  changelog links are unchanged.
+
+### Fixed
+
+- The banner image now renders on the PyPI project page. It previously used a
+  repository-relative path that only resolved on GitHub; it now uses an absolute
+  URL, so the logo shows on PyPI as well.
+
 ## v1.12.1 — 2026-07-20
 
 ### Added

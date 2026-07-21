@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "monsterops"
-version = "1.12.1"
+version = "1.12.2"
 description = "A self-hosted network operations platform built around FreeRADIUS"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -47,7 +47,8 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/NLRI65000/MonsterOps"
+Homepage = "https://monsterops.org"
+Documentation = "https://monsterops.org/docs/"
 Repository = "https://github.com/NLRI65000/MonsterOps"
 Issues = "https://github.com/NLRI65000/MonsterOps/issues"
 Changelog = "https://github.com/NLRI65000/MonsterOps/blob/main/CHANGELOG.md"

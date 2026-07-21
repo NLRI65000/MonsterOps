@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/MonsterOpsDO.png" alt="MonsterOps — Monitor. Manage. Automate." width="460" />
+  <img src="https://raw.githubusercontent.com/NLRI65000/MonsterOps/main/assets/MonsterOpsDO.png" alt="MonsterOps — Monitor. Manage. Automate." width="460" />
 </p>
 
 # MonsterOps
