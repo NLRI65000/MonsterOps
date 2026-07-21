@@ -1,0 +1,57 @@
+version = 1
+
+# ─────────────────────────────────────────────────────────────────────────────
+# MonsterOps — DeepSource analyzer configuration
+#
+# MonsterOps is a single pure-Python package (FastAPI + SQLAlchemy) with a
+# dependency-free, build-step-free vanilla-JS frontend (browser ES modules) and
+# a handful of POSIX/bash deploy scripts. These settings tune the analyzers to
+# that reality and stop reproducing a few well-understood false positives.
+#
+# NOTE: once this file exists it is authoritative — DeepSource runs exactly the
+# analyzers listed below, so keep all five here.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Test code exercises internals and fixtures; don't hold it to first-party rules
+# (and keep the Secrets analyzer from flagging test credentials).
+test_patterns = ["tests/**"]
+
+exclude_patterns = [
+  "alembic/versions/**",              # auto-generated migration scripts
+  "deploy/freeradius/**",             # upstream FreeRADIUS config templates; the
+                                      # "RADIUS_DB_PASSWORD" tokens are placeholders
+                                      # substituted at install time, not secrets
+  "monsterops/static/js/utils/qr.js", # vendored third-party MIT QR encoder
+]
+
+[[analyzers]]
+name = "python"
+
+  [analyzers.meta]
+  runtime_version = "3.11.x"
+  max_line_length = 100
+  # The type checker is intentionally left OFF. The project's own mypy config
+  # (pyproject.toml [tool.mypy] disable_error_code) already dispositions the
+  # SQLAlchemy Column[T]-vs-T "incompatible type" noise that legacy Column()
+  # model typing produces on every ORM attribute access. DeepSource's mypy does
+  # not read that setting, so enabling type_checker here only reproduces those
+  # known false positives (TYP-050 / TYP-060). Local `mypy` remains the gate.
+
+[[analyzers]]
+name = "javascript"
+
+  [analyzers.meta]
+  # The frontend is browser-side ES modules loaded via <script type="module"> —
+  # no bundler, no Node runtime. Without es-modules the parser rejects every
+  # import/export (JS-0833); without the browser env it flags DOM globals.
+  module_system = "es-modules"
+  environment = ["browser"]
+
+[[analyzers]]
+name = "shell"
+
+[[analyzers]]
+name = "docker"
+
+[[analyzers]]
+name = "secrets"

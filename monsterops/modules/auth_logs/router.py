@@ -60,6 +60,44 @@ def _geo_from_record(calling_station_id: object) -> GeoInfo | None:
     return GeoInfo(**raw)
 
 
+def _auth_log_filters(
+    username: str | None,
+    reply: str | None,
+    from_: datetime | None,
+    to_: datetime | None,
+) -> list:
+    filters = []
+    if username:
+        filters.append(Radpostauth.username == username)
+    if reply:
+        filters.append(Radpostauth.reply == reply)
+    if from_:
+        filters.append(Radpostauth.authdate >= from_)
+    if to_:
+        filters.append(Radpostauth.authdate <= to_)
+    return filters
+
+
+async def _fetch_nearby_sessions(
+    db: AsyncSession, rows: list[Radpostauth]
+) -> list[Radacct]:
+    usernames = {r.username for r in rows if r.username}
+    authdates = [r.authdate for r in rows if r.authdate]
+    if not usernames or not authdates:
+        return []
+    t_min, t_max = min(authdates), max(authdates)
+    sq = await db.execute(
+        select(Radacct).where(
+            and_(
+                Radacct.username.in_(usernames),
+                Radacct.acctstarttime >= t_min - timedelta(seconds=120),
+                Radacct.acctstarttime <= t_max + timedelta(seconds=120),
+            )
+        )
+    )
+    return list(sq.scalars().all())
+
+
 @router.get("", response_model=list[RadpostauthOut])
 async def list_auth_logs(
     response: Response,
@@ -77,15 +115,7 @@ async def list_auth_logs(
     db: AsyncSession = Depends(get_db),
     _user=Depends(get_current_user),
 ):
-    filters = []
-    if username:
-        filters.append(Radpostauth.username == username)
-    if reply:
-        filters.append(Radpostauth.reply == reply)
-    if from_:
-        filters.append(Radpostauth.authdate >= from_)
-    if to_:
-        filters.append(Radpostauth.authdate <= to_)
+    filters = _auth_log_filters(username, reply, from_, to_)
 
     stmt = (
         select(Radpostauth)
@@ -108,23 +138,7 @@ async def list_auth_logs(
     if len(rows) == limit and rows[-1].authdate is not None:
         response.headers["X-Next-Cursor"] = encode_cursor(rows[-1].authdate, rows[-1].id)
 
-    sessions: list[Radacct] = []
-    if rows:
-        usernames = {r.username for r in rows if r.username}
-        t_min = min((r.authdate for r in rows if r.authdate), default=None)
-        t_max = max((r.authdate for r in rows if r.authdate), default=None)
-        if t_min and t_max and usernames:
-            sq = await db.execute(
-                select(Radacct).where(
-                    and_(
-                        Radacct.username.in_(usernames),
-                        Radacct.acctstarttime >= t_min - timedelta(seconds=120),
-                        Radacct.acctstarttime <= t_max + timedelta(seconds=120),
-                    )
-                )
-            )
-            sessions = sq.scalars().all()
-
+    sessions = await _fetch_nearby_sessions(db, rows)
     return _enrich_auth_logs(rows, sessions)
 
 

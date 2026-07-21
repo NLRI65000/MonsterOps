@@ -16,9 +16,9 @@ _STEP=0
 
 # ── Colors (disabled when not a TTY) ─────────────────────────────────────────
 if [ -t 1 ]; then
-  BOLD='\033[1m' DIM='\033[2m' RESET='\033[0m'
-  RED='\033[1;31m' GREEN='\033[1;32m' YELLOW='\033[1;33m'
-  BLUE='\033[0;34m' CYAN='\033[0;36m'
+  BOLD=$'\033[1m' DIM=$'\033[2m' RESET=$'\033[0m'
+  RED=$'\033[1;31m' GREEN=$'\033[1;32m' YELLOW=$'\033[1;33m'
+  BLUE=$'\033[0;34m' CYAN=$'\033[0;36m'
 else
   BOLD='' DIM='' RESET='' RED='' GREEN='' YELLOW='' BLUE='' CYAN=''
 fi
@@ -57,8 +57,8 @@ run_as() {
 # ── Header ────────────────────────────────────────────────────────────────────
 echo ""
 _hr
-printf "  ${BOLD}MonsterOps — Upgrade${RESET}\n"
-printf "  ${DIM}Install dir : ${INSTALL_DIR}${RESET}\n"
+printf '%s\n' "  ${BOLD}MonsterOps — Upgrade${RESET}"
+printf '%s\n' "  ${DIM}Install dir : ${INSTALL_DIR}${RESET}"
 _hr
 
 # ── Pre-flight ────────────────────────────────────────────────────────────────
@@ -123,9 +123,11 @@ chown freerad:freerad "${FR_QUERIES}"
 #  - MR_USER must be in the 'freerad' group to read config for "Validate config"
 #  - MR_USER must own proxy.conf so the Realms module can hot-apply it
 if getent group freerad >/dev/null 2>&1; then
-  usermod -aG freerad "${MR_USER}" 2>/dev/null \
-    && ok "'${MR_USER}' is in the 'freerad' group." \
-    || warn "Could not add '${MR_USER}' to 'freerad' group."
+  if usermod -aG freerad "${MR_USER}" 2>/dev/null; then
+    ok "'${MR_USER}' is in the 'freerad' group."
+  else
+    warn "Could not add '${MR_USER}' to 'freerad' group."
+  fi
 fi
 PROXY_CONF="${FR_DIR}/proxy.conf"
 [ -e "${PROXY_CONF}" ] || : > "${PROXY_CONF}"
@@ -211,12 +213,12 @@ fi
 ###############################################################################
 echo ""
 _hr
-printf "  ${GREEN}${BOLD}Upgrade complete!${RESET}\n"
+printf '%s\n' "  ${GREEN}${BOLD}Upgrade complete!${RESET}"
 _hr
 printf "\n"
-printf "  ${DIM}App logs   :${RESET}  journalctl -u monsterops -f\n"
-printf "  ${DIM}RADIUS logs:${RESET}  journalctl -u freeradius -f\n"
-printf "  ${DIM}Backup     :${RESET}  ${BACKUP_FILE}\n"
+printf '%s\n' "  ${DIM}App logs   :${RESET}  journalctl -u monsterops -f"
+printf '%s\n' "  ${DIM}RADIUS logs:${RESET}  journalctl -u freeradius -f"
+printf '%s\n' "  ${DIM}Backup     :${RESET}  ${BACKUP_FILE}"
 printf "\n"
 _hr
 echo ""

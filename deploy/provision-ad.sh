@@ -164,9 +164,11 @@ fi
 # which is group-owned by 'winbindd_priv'. FreeRADIUS runs as 'freerad', so add it.
 if getent group winbindd_priv >/dev/null 2>&1; then
   info "Adding 'freerad' to the 'winbindd_priv' group (ntlm_auth access) …"
-  usermod -aG winbindd_priv freerad 2>/dev/null \
-    && ok "'freerad' added to 'winbindd_priv'." \
-    || warn "Could not add 'freerad' to 'winbindd_priv' — MS-CHAPv2 via ntlm_auth may fail."
+  if usermod -aG winbindd_priv freerad 2>/dev/null; then
+    ok "'freerad' added to 'winbindd_priv'."
+  else
+    warn "Could not add 'freerad' to 'winbindd_priv' — MS-CHAPv2 via ntlm_auth may fail."
+  fi
 else
   warn "'winbindd_priv' group not found — created after the first winbind start; re-run if ntlm_auth is denied."
 fi

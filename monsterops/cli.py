@@ -194,6 +194,40 @@ def _users(sub: Any) -> None:
     pdi.add_argument("username")
 
 
+def _user_create_body(args: argparse.Namespace) -> dict:
+    body: dict = {
+        "username": args.username,
+        "password": args.password,
+        "password_type": args.password_type,
+        "groups": args.groups,
+        "enabled": not args.disabled,
+    }
+    if args.expiration:
+        body["expiration"] = args.expiration
+    if args.simultaneous_use is not None:
+        body["simultaneous_use"] = args.simultaneous_use
+    return body
+
+
+def _user_update_body(args: argparse.Namespace) -> dict:
+    body: dict = {}
+    fields = ("password", "password_type", "enabled", "expiration", "simultaneous_use", "groups")
+    for field in fields:
+        value = getattr(args, field)
+        if value is not None:
+            body[field] = value
+    return body
+
+
+def _user_delete(c: Any, args: argparse.Namespace) -> None:
+    if not args.yes:
+        ans = input(f"Delete user '{args.username}'? [y/N] ")
+        if ans.lower() not in ("y", "yes"):
+            sys.exit(0)
+    c.delete(f"/api/v1/users/{args.username}")
+    print(f"Deleted user '{args.username}'.")
+
+
 def _run_users(args: argparse.Namespace) -> None:
     url, key = _get_conn(args)
     c = _client(url, key)
@@ -205,40 +239,11 @@ def _run_users(args: argparse.Namespace) -> None:
     elif cmd == "get":
         _out(c.get(f"/api/v1/users/{args.username}"), _fmt(args))
     elif cmd == "create":
-        body: dict = {
-            "username": args.username,
-            "password": args.password,
-            "password_type": args.password_type,
-            "groups": args.groups,
-            "enabled": not args.disabled,
-        }
-        if args.expiration:
-            body["expiration"] = args.expiration
-        if args.simultaneous_use is not None:
-            body["simultaneous_use"] = args.simultaneous_use
-        _out(c.post("/api/v1/users", body), _fmt(args))
+        _out(c.post("/api/v1/users", _user_create_body(args)), _fmt(args))
     elif cmd == "update":
-        body = {}
-        if args.password is not None:
-            body["password"] = args.password
-        if args.password_type is not None:
-            body["password_type"] = args.password_type
-        if args.enabled is not None:
-            body["enabled"] = args.enabled
-        if args.expiration is not None:
-            body["expiration"] = args.expiration
-        if args.simultaneous_use is not None:
-            body["simultaneous_use"] = args.simultaneous_use
-        if args.groups is not None:
-            body["groups"] = args.groups
-        _out(c.put(f"/api/v1/users/{args.username}", body), _fmt(args))
+        _out(c.put(f"/api/v1/users/{args.username}", _user_update_body(args)), _fmt(args))
     elif cmd == "delete":
-        if not args.yes:
-            ans = input(f"Delete user '{args.username}'? [y/N] ")
-            if ans.lower() not in ("y", "yes"):
-                sys.exit(0)
-        c.delete(f"/api/v1/users/{args.username}")
-        print(f"Deleted user '{args.username}'.")
+        _user_delete(c, args)
     elif cmd == "enable":
         _out(c.put(f"/api/v1/users/{args.username}", {"enabled": True}), _fmt(args))
     elif cmd == "disable":

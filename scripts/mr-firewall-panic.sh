@@ -30,7 +30,11 @@ if ! command -v nft >/dev/null 2>&1; then
 fi
 
 echo "MonsterOps firewall panic: removing 'table $TABLE'..."
+# $TABLE is "inet monsterops" — two words that MUST split into separate nft
+# arguments (family + name), so the expansion is intentionally unquoted here.
+# shellcheck disable=SC2086
 if nft list table $TABLE >/dev/null 2>&1; then
+    # shellcheck disable=SC2086
     nft delete table $TABLE
     echo "  ✓ table removed — host connectivity restored."
 else

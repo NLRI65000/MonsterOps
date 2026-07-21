@@ -153,6 +153,58 @@ async def stream_sessions(_user=Depends(get_current_user)):
 
 
 
+_CSV_HEADER = [
+    "Session ID",
+    "Unique ID",
+    "Username",
+    "NAS IP",
+    "NAS Port",
+    "Port Type",
+    "Start",
+    "Stop",
+    "Duration (s)",
+    "Input Octets",
+    "Output Octets",
+    "Framed IP",
+    "Calling Station",
+    "Called Station",
+    "Terminate Cause",
+    "Active",
+]
+
+
+def _csv_text(value: object) -> object:
+    return value or ""
+
+
+def _csv_ip(value: object) -> str:
+    return str(value).split("/")[0] if value else ""
+
+
+def _csv_iso(value) -> str:
+    return value.isoformat() if value else ""
+
+
+def _session_csv_row(r: Radacct) -> list:
+    return [
+        r.acctsessionid,
+        r.acctuniqueid,
+        _csv_text(r.username),
+        _csv_ip(r.nasipaddress),
+        _csv_text(r.nasportid),
+        _csv_text(r.nasporttype),
+        _csv_iso(r.acctstarttime),
+        _csv_iso(r.acctstoptime),
+        _csv_text(r.acctsessiontime),
+        r.acctinputoctets or 0,
+        r.acctoutputoctets or 0,
+        _csv_ip(r.framedipaddress),
+        _csv_text(r.callingstationid),
+        _csv_text(r.calledstationid),
+        _csv_text(r.acctterminatecause),
+        "yes" if r.acctstoptime is None else "no",
+    ]
+
 
 @router.get("/export")
 async def export_csv(
@@ -175,49 +227,9 @@ async def export_csv(
 
     buf = io.StringIO()
     writer = csv.writer(buf)
-    writer.writerow(
-        [
-            "Session ID",
-            "Unique ID",
-            "Username",
-            "NAS IP",
-            "NAS Port",
-            "Port Type",
-            "Start",
-            "Stop",
-            "Duration (s)",
-            "Input Octets",
-            "Output Octets",
-            "Framed IP",
-            "Calling Station",
-            "Called Station",
-            "Terminate Cause",
-            "Active",
-        ]
-    )
+    writer.writerow(_CSV_HEADER)
     for r in rows:
-        nas_ip = str(r.nasipaddress).split("/")[0] if r.nasipaddress else ""
-        framed = str(r.framedipaddress).split("/")[0] if r.framedipaddress else ""
-        writer.writerow(
-            [
-                r.acctsessionid,
-                r.acctuniqueid,
-                r.username or "",
-                nas_ip,
-                r.nasportid or "",
-                r.nasporttype or "",
-                r.acctstarttime.isoformat() if r.acctstarttime else "",
-                r.acctstoptime.isoformat() if r.acctstoptime else "",
-                r.acctsessiontime or "",
-                r.acctinputoctets or 0,
-                r.acctoutputoctets or 0,
-                framed,
-                r.callingstationid or "",
-                r.calledstationid or "",
-                r.acctterminatecause or "",
-                "yes" if r.acctstoptime is None else "no",
-            ]
-        )
+        writer.writerow(_session_csv_row(r))
 
     filename = "sessions-active.csv" if active_only else "sessions.csv"
     return Response(

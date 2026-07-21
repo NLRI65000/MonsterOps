@@ -21,9 +21,9 @@ _STEP=0
 
 # ── Colors (disabled when not a TTY) ─────────────────────────────────────────
 if [ -t 1 ]; then
-  BOLD='\033[1m' DIM='\033[2m' RESET='\033[0m'
-  RED='\033[1;31m' GREEN='\033[1;32m' YELLOW='\033[1;33m'
-  BLUE='\033[0;34m' CYAN='\033[0;36m'
+  BOLD=$'\033[1m' DIM=$'\033[2m' RESET=$'\033[0m'
+  RED=$'\033[1;31m' GREEN=$'\033[1;32m' YELLOW=$'\033[1;33m'
+  BLUE=$'\033[0;34m' CYAN=$'\033[0;36m'
 else
   BOLD='' DIM='' RESET='' RED='' GREEN='' YELLOW='' BLUE='' CYAN=''
 fi
@@ -61,9 +61,9 @@ run_as() {
 # ── Header ────────────────────────────────────────────────────────────────────
 echo ""
 _hr
-printf "  ${BOLD}MonsterOps — Installer${RESET}\n"
-printf "  ${DIM}Install dir : ${INSTALL_DIR}${RESET}\n"
-printf "  ${DIM}Service port: ${MONSTEROPS_PORT}${RESET}\n"
+printf '%s\n' "  ${BOLD}MonsterOps — Installer${RESET}"
+printf '%s\n' "  ${DIM}Install dir : ${INSTALL_DIR}${RESET}"
+printf '%s\n' "  ${DIM}Service port: ${MONSTEROPS_PORT}${RESET}"
 _hr
 
 # ── Pre-flight ────────────────────────────────────────────────────────────────
@@ -97,7 +97,7 @@ info "Starting PostgreSQL service …"
 systemctl start postgresql
 
 info "Waiting for PostgreSQL to accept connections …"
-for i in $(seq 1 15); do
+for _ in $(seq 1 15); do
   pg_isready -q && break || true
   sleep 1
 done
@@ -386,23 +386,23 @@ fi
 IP=$(hostname -I | awk '{print $1}')
 echo ""
 _hr
-printf "  ${GREEN}${BOLD}Installation complete!${RESET}\n"
+printf '%s\n' "  ${GREEN}${BOLD}Installation complete!${RESET}"
 _hr
 printf "\n"
 printf "  ${BOLD}%-18s${RESET} http://%s:%s\n"  "URL"          "${IP}" "${MONSTEROPS_PORT}"
 printf "  ${BOLD}%-18s${RESET} %s\n"             "DB password"  "${RADIUS_DB_PASSWORD}"
 printf "  ${BOLD}%-18s${RESET} saved to %s\n"   "Secret key"   "${INSTALL_DIR}/.env"
 printf "\n"
-printf "  ${CYAN}${BOLD}First login steps:${RESET}\n"
+printf '%s\n' "  ${CYAN}${BOLD}First login steps:${RESET}"
 printf "  ${DIM}1.${RESET}  Open  http://%s:%s  in your browser\n" "${IP}" "${MONSTEROPS_PORT}"
-printf "  ${DIM}2.${RESET}  You will be redirected to the setup wizard\n"
-printf "  ${DIM}3.${RESET}  Create your superadmin account (username + password)\n"
+printf '%s\n' "  ${DIM}2.${RESET}  You will be redirected to the setup wizard"
+printf '%s\n' "  ${DIM}3.${RESET}  Create your superadmin account (username + password)"
 printf "\n"
-printf "  ${DIM}App logs    :${RESET}  journalctl -u monsterops -f\n"
-printf "  ${DIM}RADIUS logs :${RESET}  journalctl -u freeradius -f\n"
-printf "  ${DIM}Backup dir  :${RESET}  ${BACKUP_DIR}\n"
+printf '%s\n' "  ${DIM}App logs    :${RESET}  journalctl -u monsterops -f"
+printf '%s\n' "  ${DIM}RADIUS logs :${RESET}  journalctl -u freeradius -f"
+printf '%s\n' "  ${DIM}Backup dir  :${RESET}  ${BACKUP_DIR}"
 printf "\n"
-printf "  ${YELLOW}${BOLD}⚠  Save the DB password — it will not be shown again.${RESET}\n"
+printf '%s\n' "  ${YELLOW}${BOLD}⚠  Save the DB password — it will not be shown again.${RESET}"
 printf "\n"
 _hr
 echo ""
