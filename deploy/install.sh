@@ -327,6 +327,12 @@ RestartSec=5
 StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=monsterops
+# Let the (non-root) service bind the privileged TCP 49 for the optional
+# TACACS+ listener (MONSTEROPS_TACACS_ENABLED=true). Harmless when TACACS+ is
+# off — the app only binds a low port when the listener is turned on. If you'd
+# rather not grant this, set MONSTEROPS_TACACS_PORT to a high port (>1024) and
+# redirect 49→that port at the firewall.
+AmbientCapabilities=CAP_NET_BIND_SERVICE
 
 [Install]
 WantedBy=multi-user.target

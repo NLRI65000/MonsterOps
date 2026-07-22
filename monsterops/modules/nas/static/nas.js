@@ -8,6 +8,9 @@ import { applyServerErrors, clearFieldErrors, setFieldError } from '/js/utils/fo
 // ── NAS type list ─────────────────────────────────────────────────────────────
 const NAS_TYPES = ['other', 'cisco', 'huawei', 'mikrotik', 'juniper', 'ubiquiti', 'hp', 'ericsson'];
 
+// Default the TACACS+ `aaa` snippet vendor from the NAS type (Device admin tab).
+const NAS_TYPE_TO_VENDOR = { cisco: 'cisco_ios', huawei: 'huawei', juniper: 'juniper' };
+
 function nasTypeOptions(selected = 'other') {
   const all = NAS_TYPES.includes(selected) ? NAS_TYPES : [...NAS_TYPES, selected];
   return all.map((t) => `<option value="${t}"${t === selected ? ' selected' : ''}>${t}</option>`)
@@ -310,6 +313,7 @@ ${STYLE}
       <button class="tab-btn active" data-tab="overview">Overview</button>
       <button class="tab-btn" data-tab="sessions">Active Sessions</button>
       <button class="tab-btn" data-tab="groups">Groups</button>
+      <button class="tab-btn" data-tab="tacacs">Device admin</button>
       <button class="tab-btn" data-tab="manage">Manage (SSH)</button>
       <button class="tab-btn" data-tab="history">Config History</button>
       <button class="tab-btn" data-tab="console">Console</button>
@@ -558,10 +562,170 @@ class NasView extends HTMLElement {
     if (tab === 'overview') this._renderOverview();
     else if (tab === 'sessions') this._renderSessions();
     else if (tab === 'groups') this._renderGroupsTab();
+    else if (tab === 'tacacs') this._renderTacacsTab();
     else if (tab === 'manage') this._renderManageTab('manage');
     else if (tab === 'history') this._renderManageTab('history');
     else if (tab === 'console') this._renderManageTab('console');
     else if (tab === 'zabbix') this._renderZabbixTab();
+  }
+
+  // ── Device admin (TACACS+) tab ────────────────────────────────────────────
+  // Enroll this NAS as a TACACS+ client (so its admins log in against the
+  // TACACS+ accounts) and show the vendor `aaa` snippet that points the device
+  // at this server. Backed by the /api/tacacs management API.
+  async _renderTacacsTab() {
+    const n = this._selectedNas;
+    const tc = this.$('#tab-content');
+    tc.innerHTML = skeletonBlock(this.shadowRoot, 4);
+    try {
+      const [status, linked, vendors] = await Promise.all([
+        api.get('/tacacs/status'),
+        api.get(`/tacacs/clients?nas_id=${n.id}`),
+        api.get('/tacacs/aaa-vendors'),
+      ]);
+      this._tacStatus = status;
+      this._tacClient = linked[0] || null;
+      this._tacVendors = vendors;
+      this._tacServer = location.hostname || n.nasname;
+      this._tacVendor = NAS_TYPE_TO_VENDOR[n.type] || 'generic';
+      this._paintTacacsTab();
+    } catch (err) {
+      tc.innerHTML = `<div class="empty-msg">Failed to load: ${escHtml(err.message)}</div>`;
+    }
+  }
+
+  _paintTacacsTab() {
+    const n = this._selectedNas;
+    const tc = this.$('#tab-content');
+    const c = this._tacClient;
+    const listener = this._tacStatus?.enabled
+      ? `<span style="color:var(--mr-accept)">listener on</span>`
+      : `<span style="color:var(--color-warning,#eab308)">listener off</span>`;
+    const enroll = c
+      ? `<div class="notice-ok" style="border:1px solid color-mix(in srgb,var(--mr-accept) 40%,transparent);background:var(--mr-accept-tint);border-radius:var(--radius);padding:0.7rem 0.85rem;font-size:0.82rem;">
+           <strong>Enrolled</strong> as TACACS+ client <span class="mono">${escHtml(c.name)}</span>
+           (${escHtml(c.address)}) — ${
+        c.enabled ? 'enabled' : 'disabled'
+      }. Device admins authenticate
+           against your TACACS+ accounts.
+         </div>
+         <div class="save-row"><button class="btn btn-danger" id="tac-unenroll">Disable device admin</button></div>`
+      : `<p style="font-size:0.83rem;color:var(--color-muted);margin:0 0 0.6rem;">
+           This device is not a TACACS+ client yet. Enroll it so its admins log in through MonsterOps
+           (${listener}).
+         </p>
+         <div class="form-grid">
+           <div class="field"><label>Shared secret</label>
+             <input id="tac-secret" type="password" maxlength="128" placeholder="key the device will use" /></div>
+           <div class="field"><label>Address</label>
+             <input id="tac-address" value="${escHtml(n.nasname)}" maxlength="64" />
+             <span class="field-hint">IP or CIDR the device connects from</span></div>
+         </div>
+         <label style="display:flex;align-items:center;gap:0.5rem;font-size:0.82rem;margin-bottom:0.6rem;">
+           <input type="checkbox" id="tac-single" /> Single-connection mode</label>
+         <div class="save-row"><button class="btn btn-primary" id="tac-enroll">Enable device admin</button></div>`;
+
+    const vendorOpts = this._tacVendors
+      .map((v) =>
+        `<option value="${v.id}"${v.id === this._tacVendor ? ' selected' : ''}>${
+          escHtml(v.label)
+        }</option>`
+      )
+      .join('');
+
+    tc.innerHTML = `
+      <div style="max-width:760px;">
+        <h4 style="margin:0 0 0.75rem;font-size:0.95rem;">Device administration (TACACS+)</h4>
+        ${enroll}
+        <h4 style="margin:1.5rem 0 0.5rem;font-size:0.9rem;">Configuration snippet</h4>
+        <p style="font-size:0.8rem;color:var(--color-muted);margin:0 0 0.6rem;">
+          Paste this into the device to point its <span class="mono">aaa</span> at MonsterOps. The secret is a
+          placeholder — use the same shared secret set above.</p>
+        <div class="form-grid">
+          <div class="field"><label>Vendor</label><select id="tac-vendor">${vendorOpts}</select></div>
+          <div class="field"><label>MonsterOps server address</label>
+            <input id="tac-srv" value="${escHtml(this._tacServer)}" maxlength="128" /></div>
+        </div>
+        <div style="position:relative;">
+          <button class="btn" id="tac-copy" style="position:absolute;top:0.5rem;right:0.5rem;">Copy</button>
+          <pre id="tac-snippet" style="background:var(--color-bg);border:1px solid var(--color-border);border-radius:var(--radius);padding:0.9rem;font-size:0.75rem;overflow:auto;white-space:pre;margin:0;">Loading…</pre>
+        </div>
+      </div>`;
+
+    if (c) {
+      tc.querySelector('#tac-unenroll').addEventListener('click', () => this._unenrollTacacs());
+    } else {
+      tc.querySelector('#tac-enroll').addEventListener('click', () => this._enrollTacacs());
+    }
+    const refresh = () => {
+      this._tacVendor = tc.querySelector('#tac-vendor').value;
+      this._tacServer = tc.querySelector('#tac-srv').value.trim();
+      this._refreshSnippet();
+    };
+    tc.querySelector('#tac-vendor').addEventListener('change', refresh);
+    tc.querySelector('#tac-srv').addEventListener('input', refresh);
+    tc.querySelector('#tac-copy').addEventListener('click', () => {
+      navigator.clipboard.writeText(tc.querySelector('#tac-snippet').textContent)
+        .then(() => toast('Snippet copied', 'success'))
+        .catch(() => toast('Copy failed', 'error'));
+    });
+    this._refreshSnippet();
+  }
+
+  async _refreshSnippet() {
+    const pre = this.$('#tac-snippet');
+    if (!pre) return;
+    const server = encodeURIComponent(this._tacServer || '<monsterops-server-ip>');
+    try {
+      const snip = await api.get(`/tacacs/aaa-snippet?vendor=${this._tacVendor}&server=${server}`);
+      pre.textContent = snip.text;
+    } catch (err) {
+      pre.textContent = `# ${err.message}`;
+    }
+  }
+
+  async _enrollTacacs() {
+    const n = this._selectedNas;
+    const tc = this.$('#tab-content');
+    const safeName = (n.shortname || n.nasname || `nas-${n.id}`)
+      .replace(/[^A-Za-z0-9._-]/g, '-').replace(/^[^A-Za-z0-9]+/, '') || `nas-${n.id}`;
+    const body = {
+      name: safeName,
+      address: tc.querySelector('#tac-address').value.trim(),
+      secret: tc.querySelector('#tac-secret').value,
+      nas_id: n.id,
+      single_connect: tc.querySelector('#tac-single').checked,
+      enabled: true,
+    };
+    if (!body.secret) {
+      toast('Enter a shared secret', 'error');
+      return;
+    }
+    try {
+      await api.post('/tacacs/clients', body);
+      toast('Device admin enabled', 'success');
+      this._renderTacacsTab();
+    } catch (err) {
+      toast(err.message, 'error');
+    }
+  }
+
+  async _unenrollTacacs() {
+    const c = this._tacClient;
+    if (!c) return;
+    if (
+      !(await confirmDialog(
+        `Disable TACACS+ device admin for this NAS? Admins will no longer be able to log in via TACACS+.`,
+        { title: 'Disable device admin', danger: true, okLabel: 'Disable' },
+      ))
+    ) return;
+    try {
+      await api.delete(`/tacacs/clients/${c.id}`);
+      toast('Device admin disabled', 'success');
+      this._renderTacacsTab();
+    } catch (err) {
+      toast(err.message, 'error');
+    }
   }
 
   // ── Manage (SSH) / Config History / Console tabs ──────────────────────────

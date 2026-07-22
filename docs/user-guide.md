@@ -386,6 +386,22 @@ MonsterOps dials **out** to remote sites over **WireGuard** or **L2TP/IPsec** so
 
 An automation rule matches an event (plus optional conditions) and runs one action: logging, webhooks, email, enabling/disabling users, group membership, `firewall_ban`, or **Run NAS command** — a single CLI command run on a managed NAS over SSH, using the credentials NAS Manager already stores. The command can reference the triggering event through `{entity_id}`, `{actor}`, `{type}` and `{data.<key>}` placeholders, so a rule can act on the entity that fired it — for example, pairing **`user.disabled`** with `/ppp active remove [find name="{entity_id}"]` kicks that user's live session off a MikroTik BRAS the moment they're disabled.
 
+### TACACS+ device administration
+
+Where RADIUS authenticates your *subscribers*, **TACACS+** (under **Network → TACACS+**) authenticates the *engineers who log in to the network gear itself* — the routers, switches and firewalls — and authorizes and records every command they run. It's a **separate, opt-in service** that never touches RADIUS, the FreeRADIUS integration, or any device not enrolled in it, and it's implemented in pure Python (no extra daemon).
+
+**Turning it on.** It's off by default. Set `MONSTEROPS_TACACS_ENABLED=true` and restart. The listener uses **TCP 49**, a privileged port — the systemd unit shipped by `install.sh` already grants `CAP_NET_BIND_SERVICE` so the non-root service can bind it. If you'd rather not grant that, set `MONSTEROPS_TACACS_PORT` to a high port (>1024) and redirect 49 → that port at your firewall. The TACACS+ workspace is always visible so you can configure it before flipping the switch; a banner tells you whether the listener is actually running.
+
+**Enrolling a device.** Two ways, same result:
+- **From the device's NAS entry** (recommended) — open the NAS under **Network → NAS**, go to its **Device admin** tab, set a shared secret and click **Enable device admin**. MonsterOps also generates the vendor `aaa` config snippet (Cisco IOS/IOS-XE, Arista EOS, Juniper Junos, Huawei VRP, or a generic checklist) to paste straight onto the box. The snippet carries a `<shared-secret>` placeholder — fill in the same secret you set.
+- **From the TACACS+ workspace** — the **Clients** tab adds a device directly (name, IP/CIDR, shared secret).
+
+**Accounts** (the **Accounts** tab) are the device admins — separate from both app admins and RADIUS subscribers. Each verifies either against a **local password** stored here, or by **directory (AD) delegation** (a live bind against a Realms identity source, so engineers use their real AD password and MonsterOps stores nothing). Each account has a **privilege level** (0–15) returned at login.
+
+**Command policies.** Open an account's **Policy** to build an ordered list of permit/deny rules. Each rule is a **regular expression** matched against the command line; rules are evaluated top-down and **the first match wins**. An account with **no** rules may run any command (its privilege level still applies); once any rule exists, a command matching none is **denied**. So `permit ^show` followed by `deny .*` gives a read-only operator.
+
+**Accounting** (the **Accounting log** tab) records every login (start/stop) and every authorized command — who, which device, privilege level, the full command line — and fires a `tacacs.command` / `tacacs.session_*` event on the bus, so the same **Automation** rules and webhooks that react to RADIUS events can react to device-admin activity too.
+
 ---
 
 ## 8. Finding Logs

@@ -134,6 +134,12 @@ async def _lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         fw_task = asyncio.create_task(firewall_ban_reaper())
         ab_task = asyncio.create_task(brute_force_autoblock_worker())
 
+    tacacs_task = None
+    if settings.tacacs_enabled:
+        from monsterops.modules.tacacs.server import run_tacacs_server
+
+        tacacs_task = asyncio.create_task(run_tacacs_server())
+
     sched = get_scheduler()
     sched.start()
     await load_jobs_from_db()
@@ -146,7 +152,16 @@ async def _lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         yield
     finally:
         sched.shutdown(wait=False)
-        for task in (notif_task, probe_task, vpn_task, nm_task, nasr_task, fw_task, ab_task):
+        for task in (
+            notif_task,
+            probe_task,
+            vpn_task,
+            nm_task,
+            nasr_task,
+            fw_task,
+            ab_task,
+            tacacs_task,
+        ):
             if task is None:
                 continue
             task.cancel()

@@ -543,7 +543,7 @@ def main() -> None:
     sub = parser.add_subparsers(dest="command")
 
     serve = sub.add_parser("serve", help="Start the MonsterOps server")
-    serve.add_argument("--host", default="0.0.0.0")
+    serve.add_argument("--host", default="0.0.0.0")  # skipcq: BAN-B104
     serve.add_argument("--port", type=int, default=8000)
     serve.add_argument("--reload", action="store_true", help="Enable auto-reload (development)")
 

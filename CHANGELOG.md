@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## v1.14.0 — 2026-07-22
+
+### Added
+
+- **TACACS+ device administration.** MonsterOps can now be the TACACS+ AAA server your routers, switches and firewalls log into — a separate, opt-in, pure-Python service (`MONSTEROPS_TACACS_ENABLED=true`, TCP 49) that never touches RADIUS or any device not enrolled in it. It authenticates device admins against a local password or by live Active Directory delegation, authorizes their commands with per-account ordered permit/deny regex policies (first match wins, implicit deny once any rule exists) and privilege levels, and records every login and command — firing `tacacs.command` / `tacacs.session_*` events so the same automation rules and webhooks that react to RADIUS can react to device-admin activity.
+- **Manage it from the browser.** A new **TACACS+** section (under Network) enrols devices and their shared secrets, creates device-admin accounts, builds each account's command policy, and shows the accounting log. Each managed NAS also gains a **Device admin** tab that enrols it as a TACACS+ client in one click and generates the vendor `aaa` config snippet (Cisco IOS/IOS-XE, Arista EOS, Juniper Junos, Huawei VRP, or a generic checklist) to paste onto the box — the snippet carries a `<shared-secret>` placeholder, never the real key.
+- **Hardened and documented.** The listener caps simultaneous connections and drops peers that go quiet mid-exchange (`MONSTEROPS_TACACS_MAX_CONNECTIONS`, `MONSTEROPS_TACACS_READ_TIMEOUT`); the install unit grants `CAP_NET_BIND_SERVICE` so the non-root service can bind privileged TCP 49 (or run it on a high port and redirect). The user guide gains a full TACACS+ device-administration section.
+
 ## v1.13.0 — 2026-07-21
 
 ### Added

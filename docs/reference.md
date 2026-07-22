@@ -22,6 +22,7 @@ Full feature list, configuration, architecture, and project reference. New here?
 | **RADIUS Users & Groups** | Full `radcheck`/`radreply`/`radusergroup` CRUD, bulk CSV import/export, enable/disable, expiration, simultaneous-use, per-user session and auth history |
 | **NAS Device Management** | Create/edit NAS entries with vendor presets (Cisco, Huawei, MikroTik), NAS groups, link groups to RADIUS groups for access control, auto-reload FreeRADIUS after changes; background ICMP reachability probe giving a true up/down state per device, distinct from activity-based idle |
 | **NAS Manager (SSH/Telnet)** | Connect to NAS devices via Netmiko (SSH or Telnet); pull and store running config; version history with scheduled fetch, retention and diff; edit and push changes back; per-device SSE command console; multi-NAS command dispatch with audit log; one-click "point a NAS at this RADIUS server" config deploy (MikroTik v6/v7 + Huawei push, Generic preview, snapshot-before-deploy, CoA enablement); AES-256-GCM credential storage |
+| **TACACS+ Device Administration** | Be the TACACS+ AAA server your routers/switches point their `aaa` config at: authenticate device admins (local password or live AD delegation), authorize commands with per-account ordered permit/deny regex policies + privilege levels, and account every login and command (with `tacacs.*` bus events); one-click NAS enrollment and vendor `aaa` snippets (Cisco IOS, Arista, Juniper, Huawei, generic); a separate, opt-in, pure-Python service on TCP 49 that never touches RADIUS |
 | **Firewall Manager (nftables)** | Manage a dedicated `table inet monsterops` (operator tables untouched); rule builder with RADIUS presets; named sets/blocklists with live add/remove; preview `.nft` + diff vs active; safe apply with snapshot + auto-rollback so you can't lock yourself out; per-rule counters; `firewall_ban` automation action |
 | **IP Pool Management** | CIDR/range allocation, per-pool usage view, stale IP release, occupancy counters |
 | **Session Monitoring** | Live active sessions, accounting history, CoA disconnect and change-of-authorization, bandwidth tracking |
@@ -56,6 +57,11 @@ All settings are environment variables prefixed `MONSTEROPS_`, read from `.env` 
 | `MONSTEROPS_ALLOWED_ORIGINS` | `""` | Comma-separated CORS origins (empty = CORS disabled) |
 | `MONSTEROPS_ENABLED_MODULES` | `""` (all) | Comma-separated allow-list; disabled modules are never imported |
 | `MONSTEROPS_PLUGINS` | `""` | Comma-separated third-party plugin entry-point names to load |
+| `MONSTEROPS_TACACS_ENABLED` | `false` | Turn on the opt-in TACACS+ device-administration listener |
+| `MONSTEROPS_TACACS_PORT` | `49` | TACACS+ listener port — privileged, so the install unit grants `CAP_NET_BIND_SERVICE` (or set a high port and redirect) |
+| `MONSTEROPS_TACACS_HOST` | `0.0.0.0` | TACACS+ listener bind address |
+| `MONSTEROPS_TACACS_MAX_CONNECTIONS` | `256` | Cap on simultaneous TACACS+ connections |
+| `MONSTEROPS_TACACS_READ_TIMEOUT` | `30` | Seconds to wait for each TACACS+ packet before dropping an idle peer |
 
 ### Database pool
 

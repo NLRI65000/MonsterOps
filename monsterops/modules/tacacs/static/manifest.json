@@ -1,0 +1,12 @@
+{
+  "module": "tacacs",
+  "nav": [
+    {
+      "label": "TACACS+",
+      "icon": "terminal",
+      "path": "/tacacs",
+      "group": "Network"
+    }
+  ],
+  "js": "/modules/tacacs/tacacs.js"
+}

@@ -14,11 +14,13 @@ from monsterops.modules.nas.models import (
 from monsterops.modules.nas_manager import crypto
 from monsterops.modules.nas_manager.models import MrNasManager
 from monsterops.modules.realms.models import MrIdentitySource
+from monsterops.modules.tacacs.models import MrTacacsClient
 
 _ENCRYPTED_FIELDS: list[tuple[type[Any], str]] = [
     (MrNasManager, "secret_enc"),
     (MrIdentitySource, "bind_password_enc"),
     (AdminTotp, "secret_enc"),
+    (MrTacacsClient, "secret_enc"),
 ]
 
 

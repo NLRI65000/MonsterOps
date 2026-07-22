@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import csv
 import io
+from collections.abc import Sequence
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -31,8 +32,8 @@ router = APIRouter(prefix="/api/auth-logs", tags=["auth_logs"])
 
 
 def _enrich_auth_logs(
-    rows: list[Radpostauth],
-    sessions: list[Radacct],
+    rows: Sequence[Radpostauth],
+    sessions: Sequence[Radacct],
 ) -> list[RadpostauthOut]:
     out = []
     for r in rows:
@@ -79,7 +80,7 @@ def _auth_log_filters(
 
 
 async def _fetch_nearby_sessions(
-    db: AsyncSession, rows: list[Radpostauth]
+    db: AsyncSession, rows: Sequence[Radpostauth]
 ) -> list[Radacct]:
     usernames = {r.username for r in rows if r.username}
     authdates = [r.authdate for r in rows if r.authdate]
@@ -354,7 +355,7 @@ async def get_freeradius_context(
     auth_time = row.authdate
 
     log_files = [p.strip() for p in settings.radius_log_files.split(",") if p.strip()]
-    results = []
+    results: list[dict[str, object]] = []
 
     for log_path_str in log_files:
         path = Path(log_path_str)

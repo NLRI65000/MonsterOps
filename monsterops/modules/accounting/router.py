@@ -4,7 +4,7 @@ import asyncio
 import csv
 import io
 import json
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Sequence
 from datetime import timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -26,7 +26,9 @@ from monsterops.pagination import decode_cursor, encode_cursor
 router = APIRouter(prefix="/api/accounting", tags=["accounting"])
 
 
-def _enrich_sessions(rows: list[Radacct], auth_events: list[Radpostauth]) -> list[RadacctOut]:
+def _enrich_sessions(
+    rows: Sequence[Radacct], auth_events: Sequence[Radpostauth]
+) -> list[RadacctOut]:
     result = []
     for r in rows:
         obj = RadacctOut.model_validate(r)
@@ -97,7 +99,7 @@ async def list_sessions(
             rows[-1].acctstarttime, rows[-1].radacctid
         )
 
-    auth_events: list[Radpostauth] = []
+    auth_events: Sequence[Radpostauth] = []
     if rows:
         usernames = {r.username for r in rows if r.username}
         t_min = min((r.acctstarttime for r in rows if r.acctstarttime), default=None)
