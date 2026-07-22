@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from monsterops.modules.auth.models import AdminTotp
 from monsterops.modules.nas.models import (
-    Nas,  # noqa: F401 — registers the MrNasManager.nas relationship target
+    Nas,  # noqa: F401  # skipcq: PY-W2000
 )
 from monsterops.modules.nas_manager import crypto
 from monsterops.modules.nas_manager.models import MrNasManager

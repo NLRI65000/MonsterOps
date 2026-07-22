@@ -54,8 +54,8 @@ async def list_identity_sources(
     db: AsyncSession = Depends(get_db), _user=Depends(get_current_user)
 ):
     rows = (
-        await db.execute(select(MrIdentitySource).order_by(MrIdentitySource.name))
-    ).scalars().all()
+        (await db.execute(select(MrIdentitySource).order_by(MrIdentitySource.name))).scalars().all()
+    )
     return [IdentitySourceRef.model_validate(s) for s in rows]
 
 
@@ -317,12 +317,16 @@ async def list_rules(
 ):
     await _get_user_or_404(db, user_id)
     rows = (
-        await db.execute(
-            select(MrTacacsCommandRule)
-            .where(MrTacacsCommandRule.user_id == user_id)
-            .order_by(MrTacacsCommandRule.sort_order, MrTacacsCommandRule.id)
+        (
+            await db.execute(
+                select(MrTacacsCommandRule)
+                .where(MrTacacsCommandRule.user_id == user_id)
+                .order_by(MrTacacsCommandRule.sort_order, MrTacacsCommandRule.id)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     return [TacacsRuleOut.model_validate(r) for r in rows]
 
 

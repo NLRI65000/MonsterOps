@@ -5,8 +5,10 @@
 set -euo pipefail
 
 # ── Configuration ─────────────────────────────────────────────────────────────
-RADIUS_DB_PASSWORD="${RADIUS_DB_PASSWORD:-$(openssl rand -hex 24)}"
-MONSTEROPS_SECRET_KEY="${MONSTEROPS_SECRET_KEY:-$(openssl rand -hex 32)}"
+# Not hardcoded credentials: each default GENERATES a fresh random secret at
+# install time (overridable via the environment).
+RADIUS_DB_PASSWORD="${RADIUS_DB_PASSWORD:-$(openssl rand -hex 24)}" # skipcq: SCT-1000
+MONSTEROPS_SECRET_KEY="${MONSTEROPS_SECRET_KEY:-$(openssl rand -hex 32)}" # skipcq: SCT-1000
 MONSTEROPS_PORT="${MONSTEROPS_PORT:-8000}"
 INSTALL_DIR="${INSTALL_DIR:-/opt/monsterops}"
 VENV_DIR="${INSTALL_DIR}/.venv"

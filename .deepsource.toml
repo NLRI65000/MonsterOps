@@ -28,7 +28,11 @@ exclude_patterns = [
 name = "python"
 
   [analyzers.meta]
-  runtime_version = "3.11.x"
+  # NOTE: the only valid values are "2.x.x" / "3.x.x" — a minor-specific string
+  # like "3.11.x" is rejected, and an invalid value makes DeepSource ignore this
+  # whole file (the type checker then runs by default and the JS module_system
+  # is lost). Keep it exactly "3.x.x".
+  runtime_version = "3.x.x"
   max_line_length = 100
   # The type checker is intentionally left OFF. The project's own mypy config
   # (pyproject.toml [tool.mypy] disable_error_code) already dispositions the

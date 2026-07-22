@@ -9,7 +9,7 @@ VENDORS: dict[str, str] = {
     "generic": "Generic / other",
 }
 
-_KEY = "<shared-secret>"
+_KEY = "<shared-secret>"  # skipcq: SCT-A000
 
 
 def _cisco_ios(server: str, port: int) -> str:
@@ -42,7 +42,7 @@ def _arista(server: str, port: int) -> str:
 
 
 def _juniper(server: str, port: int) -> str:
-    port_line = f'set system tacplus-server {server} port {port}\n' if port != 49 else ""
+    port_line = f"set system tacplus-server {server} port {port}\n" if port != 49 else ""
     return (
         f'set system tacplus-server {server} secret "{_KEY}"\n'
         f"{port_line}"

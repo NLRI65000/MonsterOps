@@ -79,9 +79,7 @@ def _auth_log_filters(
     return filters
 
 
-async def _fetch_nearby_sessions(
-    db: AsyncSession, rows: Sequence[Radpostauth]
-) -> list[Radacct]:
+async def _fetch_nearby_sessions(db: AsyncSession, rows: Sequence[Radpostauth]) -> list[Radacct]:
     usernames = {r.username for r in rows if r.username}
     authdates = [r.authdate for r in rows if r.authdate]
     if not usernames or not authdates:

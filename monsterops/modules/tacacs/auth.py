@@ -14,7 +14,7 @@ from monsterops.modules.tacacs.models import MrTacacsUser
 
 logger = logging.getLogger(__name__)
 
-LOCAL_PASSWORD = "local_password"
+LOCAL_PASSWORD = "local_password"  # skipcq: SCT-A000
 DIRECTORY_DELEGATED = "directory_delegated"
 
 

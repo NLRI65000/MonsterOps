@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     require_2fa: bool = False
 
     tacacs_enabled: bool = False
-    tacacs_host: str = "0.0.0.0"
+    tacacs_host: str = "0.0.0.0"  # skipcq: BAN-B104
     tacacs_port: int = 49
     tacacs_max_connections: int = 256
     tacacs_read_timeout: float = 30.0

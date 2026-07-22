@@ -32,9 +32,7 @@ async def authorize(db: AsyncSession, user: MrTacacsUser, req: p.AuthorRequest) 
         cmd_args = [val for attr, val, _ in avs if attr == "cmd-arg"]
         full_command = " ".join([cmd, *cmd_args]).strip()
         permitted = await _command_permitted(db, user, full_command)
-        status = (
-            p.TAC_PLUS_AUTHOR_STATUS_PASS_ADD if permitted else p.TAC_PLUS_AUTHOR_STATUS_FAIL
-        )
+        status = p.TAC_PLUS_AUTHOR_STATUS_PASS_ADD if permitted else p.TAC_PLUS_AUTHOR_STATUS_FAIL
         return p.AuthorResponse(status)
 
     return p.AuthorResponse(p.TAC_PLUS_AUTHOR_STATUS_PASS_ADD)

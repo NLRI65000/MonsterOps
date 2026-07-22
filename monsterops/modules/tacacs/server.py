@@ -34,9 +34,7 @@ async def _read_packet(reader: asyncio.StreamReader, secret: bytes) -> tuple[p.H
     if header.length > _MAX_BODY:
         raise ValueError("TACACS+ body too large")
     body_enc = (
-        await asyncio.wait_for(reader.readexactly(header.length), timeout)
-        if header.length
-        else b""
+        await asyncio.wait_for(reader.readexactly(header.length), timeout) if header.length else b""
     )
     return p.parse_packet(header_bytes + body_enc, secret)
 

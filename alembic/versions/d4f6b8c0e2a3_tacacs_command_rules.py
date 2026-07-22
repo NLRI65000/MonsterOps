@@ -31,9 +31,7 @@ def upgrade() -> None:
             server_default=sa.text("now()"),
         ),
     )
-    op.create_index(
-        "ix_mr_tacacs_command_rule_user_id", "mr_tacacs_command_rule", ["user_id"]
-    )
+    op.create_index("ix_mr_tacacs_command_rule_user_id", "mr_tacacs_command_rule", ["user_id"])
 
 
 def downgrade() -> None:

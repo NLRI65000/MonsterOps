@@ -16,6 +16,7 @@ from slowapi.errors import RateLimitExceeded
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 
+from monsterops import __version__
 from monsterops.config import settings
 from monsterops.limiter import limiter
 from monsterops.modules.auth.utils import ACCESS_COOKIE, CSRF_COOKIE
@@ -39,18 +40,18 @@ _CSP = (
 
 class RequestContextMiddleware:
 
-    def __init__(self, app):
-        self.app = app
+    def __init__(self, asgi_app):
+        self.asgi_app = asgi_app
 
     async def __call__(self, scope, receive, send):
         if scope["type"] != "http":
-            await self.app(scope, receive, send)
+            await self.asgi_app(scope, receive, send)
             return
         from monsterops.modules.auth.utils import current_request
 
         token = current_request.set(Request(scope, receive))
         try:
-            await self.app(scope, receive, send)
+            await self.asgi_app(scope, receive, send)
         finally:
             current_request.reset(token)
 
@@ -72,7 +73,7 @@ class CSRFMiddleware(BaseHTTPMiddleware):
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next) -> Response:
+    async def dispatch(self, request: Request, call_next) -> Response:  # skipcq: PYL-R0201
         response = await call_next(request)
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["X-Content-Type-Options"] = "nosniff"
@@ -85,7 +86,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
 
 @asynccontextmanager
-async def _lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+async def _lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     from monsterops.events import register_handler
     from monsterops.modules.automation.engine import automation_handler
     from monsterops.modules.health.router import setup_app_log_handler
@@ -182,9 +183,9 @@ def create_app() -> FastAPI:
     redoc_url = "/api/redoc" if settings.debug else None
     openapi_url = "/api/openapi.json" if settings.debug else None
 
-    app = FastAPI(
+    app = FastAPI(  # skipcq: PYL-W0621 — the factory local is intentionally also named `app`
         title="MonsterOps",
-        version="1.7.1",
+        version=__version__,
         docs_url=docs_url,
         redoc_url=redoc_url,
         openapi_url=openapi_url,
@@ -236,19 +237,19 @@ def create_app() -> FastAPI:
     return app
 
 
-def _mount_module_statics(app: FastAPI) -> None:
+def _mount_module_statics(application: FastAPI) -> None:
     for name in settings.module_list:
         static_dir = MODULES_DIR / name / "static"
         if static_dir.is_dir():
-            app.mount(
+            application.mount(
                 f"/modules/{name}",
                 StaticFiles(directory=static_dir),
                 name=f"module_static_{name}",
             )
 
 
-def _register_manifest_endpoint(app: FastAPI) -> None:
-    @app.get("/api/manifests", tags=["core"])
+def _register_manifest_endpoint(application: FastAPI) -> None:
+    @application.get("/api/manifests", tags=["core"])
     async def get_manifests() -> JSONResponse:
         manifests = []
         for name in settings.module_list:
